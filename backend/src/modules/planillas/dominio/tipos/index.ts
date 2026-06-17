@@ -90,6 +90,19 @@ export interface EntradaCalculo {
   afiliacion: AfiliacionPensionaria | null;
   periodo: PeriodoCalculo;
   tareo: DetalleTareo[];
+  /**
+   * Period-derived benefit inputs resolved at the aplicación edge (meses/días
+   * del semestre, 1/6 grati, días de vacaciones gozados). Cuando se omiten, el
+   * orquestador asume semestre completo (mesesGratificacion=6, mesesCts=6) y
+   * deriva el 1/6 de la gratificación de la remuneración computable.
+   */
+  devengados?: Partial<DatosDevengados>;
+  /**
+   * Acumulados de renta para la retención de IR 5ta (meses previos del año).
+   * Se omiten → 0 (primer mes / sin acumulados).
+   */
+  acumuladoRenta?: number;
+  retencionesPreviasRenta?: number;
 }
 
 /** Período of the planilla. `fecha` resolves date-versioned legal params. */
@@ -100,13 +113,37 @@ export interface PeriodoCalculo {
   fecha: Date;
 }
 
+/**
+ * Period-derived benefit inputs that depend on Prisma dates/promedios and are
+ * resolved at the aplicación edge (NOT inside the pure domain). The orchestrator
+ * receives them already computed so régimen strategies stay pure.
+ */
+export interface DatosDevengados {
+  /** Meses completos trabajados en el semestre (gratificación). */
+  mesesGratificacion: number;
+  /** Meses completos del semestre para CTS. */
+  mesesCts: number;
+  /** Días sueltos del semestre para CTS. */
+  diasCts: number;
+  /** 1/6 de la última gratificación, base computable de CTS. */
+  sextoGratificacion: number;
+  /** Días de vacaciones efectivamente gozados en el período. */
+  diasVacaciones: number;
+}
+
 /** Context passed to régimen-varying calculators (derived from EntradaCalculo). */
 export interface ContextoCalculo {
   regimenLaboral: RegimenLaboral;
+  /** Remuneración base mensual (sueldo proporcional a días trabajados). */
+  remuneracionMensual: number;
+  /** Remuneración afecta del mes (base de pensión y EsSalud). */
+  remuneracionAfecta: number;
+  /** Base computable de beneficios sociales (sueldo + promedios). */
   remuneracionComputable: number;
   tieneHijos: boolean;
   periodo: PeriodoCalculo;
   resumenTareo: ResumenTareo;
+  devengados: DatosDevengados;
 }
 
 /** Final boleta produced by the orchestrator. */

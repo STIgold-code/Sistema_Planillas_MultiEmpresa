@@ -33,8 +33,10 @@ export function calcularJornadaNocturna(
 
   const rmv = params.rmv(fecha);
   const baseMensual = Math.max(remuneracionMensual, rmv);
-  const baseDiaria = baseMensual / 30;
-  const monto = redondear2(baseDiaria * diasNocturnos * SOBRETASA_NOCTURNA);
+  // Paridad legacy: se redondea la sobretasa nocturna DIARIA antes de multiplicar
+  // por los días (acumula el redondeo per-día, como `calcular-empleado.ts`).
+  const sobretasaDiaria = redondear2((baseMensual * SOBRETASA_NOCTURNA) / 30);
+  const monto = redondear2(sobretasaDiaria * diasNocturnos);
 
   if (monto <= 0) return { conceptos: [] };
 
