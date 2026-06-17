@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "postgresql_17"]
+aptPkgs = ["libreoffice-nogui", "libreoffice-writer-nogui"]
+
+[phases.install]
+cmds = ["npm ci --include=dev"]
+cacheDirectories = []
+
+[phases.build]
+cmds = ["npx prisma generate", "npx nest build"]
+
+[start]
+cmd = "node dist/main"
+
+[variables]
+SOFFICE_PATH = "/usr/bin/soffice"

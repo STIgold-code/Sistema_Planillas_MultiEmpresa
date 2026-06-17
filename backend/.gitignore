@@ -1,0 +1,16 @@
+node_modules
+dist
+
+# Keep sensitive environment variables out of version control
+.env.local
+.env.production
+
+# Data exports with sensitive information
+prisma/data-export.json
+data-export.json
+
+uploads/*
+!uploads/.gitkeep
+
+# Ignore compiled JS files in src (TypeScript source only)
+src/**/*.js
