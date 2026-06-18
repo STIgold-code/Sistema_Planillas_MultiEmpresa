@@ -64,6 +64,7 @@ model Empresa {
   partida_electronica            String?                      @db.VarChar(20)
   logo_url                       String?                      @db.VarChar(500)
   firma_representante_url        String?                      @db.VarChar(500)
+  regimen_laboral_default        RegimenLaboral               @default(GENERAL)
   activo                         Boolean                      @default(true)
   created_at                     DateTime                     @default(now())
   updated_at                     DateTime                     @updatedAt
@@ -585,6 +586,7 @@ model Contrato {
   estado                EstadoContrato               @default(ACTIVO)
   renovar               Boolean                      @default(false)
   remuneracion          Decimal?                     @db.Decimal(10, 2)
+  regimen_laboral       RegimenLaboral?
   observaciones         String?
   archivo_url           String?                      @db.VarChar(500)
   empresa_cliente       String?                      @db.VarChar(200)
@@ -611,6 +613,25 @@ model Contrato {
   @@index([vinculo_laboral_id])
   @@index([estado, fecha_fin])
   @@map("contratos")
+}
+
+// Parámetros legales versionados por fecha de vigencia (RMV, UIT, topes, tasas).
+// Son valores NACIONALES de ley, no por empresa: por eso NO llevan empresa_id
+// (excepción deliberada a la regla multi-tenant). El cálculo de una boleta resuelve
+// el valor vigente según la fecha del periodo de planilla.
+model ParametroLegal {
+  id             Int       @id @default(autoincrement())
+  clave          String    @db.VarChar(50)
+  valor          Decimal   @db.Decimal(14, 6)
+  descripcion    String?   @db.VarChar(200)
+  vigencia_desde DateTime  @db.Date
+  vigencia_hasta DateTime? @db.Date
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  @@index([clave])
+  @@index([clave, vigencia_desde])
+  @@map("parametros_legales")
 }
 
 model CarnetSucamec {
@@ -1754,15 +1775,15 @@ model Caracteristica {
 }
 
 model PlantillaUniforme {
-  id            Int                     @id @default(autoincrement())
-  nombre        String                  @db.VarChar(120)
-  predeterminada Boolean                @default(false)
-  activo        Boolean                 @default(true)
-  empresa_id    Int
-  created_at    DateTime                @default(now())
-  updated_at    DateTime                @updatedAt
-  empresa       Empresa                 @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
-  items         PlantillaUniformeItem[]
+  id             Int                     @id @default(autoincrement())
+  nombre         String                  @db.VarChar(120)
+  predeterminada Boolean                 @default(false)
+  activo         Boolean                 @default(true)
+  empresa_id     Int
+  created_at     DateTime                @default(now())
+  updated_at     DateTime                @updatedAt
+  empresa        Empresa                 @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items          PlantillaUniformeItem[]
 
   @@unique([nombre, empresa_id])
   @@index([empresa_id])
@@ -1995,9 +2016,9 @@ model EmpleadoTalla {
 }
 
 model RequerimientoUniforme {
-  id           Int                            @id @default(autoincrement())
-  nombre       String                         @db.VarChar(200)
-  fecha        DateTime                       @db.Date
+  id               Int                            @id @default(autoincrement())
+  nombre           String                         @db.VarChar(200)
+  fecha            DateTime                       @db.Date
   estado           EstadoRequerimientoUniforme    @default(BORRADOR)
   usuario_id       Int
   proveedor_id     Int?
@@ -2006,11 +2027,11 @@ model RequerimientoUniforme {
   fecha_aprobacion DateTime?
   created_at       DateTime                       @default(now())
   updated_at       DateTime                       @updatedAt
-  usuario      Usuario                        @relation(fields: [usuario_id], references: [id])
-  proveedor    Proveedor?                     @relation(fields: [proveedor_id], references: [id])
-  empresa      Empresa                        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
-  detalles     RequerimientoUniformeDetalle[]
-  ingresos     IngresoInventario[]
+  usuario          Usuario                        @relation(fields: [usuario_id], references: [id])
+  proveedor        Proveedor?                     @relation(fields: [proveedor_id], references: [id])
+  empresa          Empresa                        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  detalles         RequerimientoUniformeDetalle[]
+  ingresos         IngresoInventario[]
 
   @@index([empresa_id])
   @@index([proveedor_id])
@@ -2075,6 +2096,18 @@ enum TipoRegimen {
   AFP
   ONP
   SIN_REGIMEN
+}
+
+// Régimen laboral peruano (D.L. 728, REMYPE, etc.). Determina cómo se calcula la
+// planilla (gratificaciones, CTS, vacaciones, salud). OJO: es ortogonal a
+// TipoRegimen/RegimenPensionario (AFP/ONP), que es el sistema de pensiones.
+enum RegimenLaboral {
+  GENERAL
+  PEQUENA_EMPRESA
+  MICROEMPRESA
+  AGRARIO
+  CONSTRUCCION_CIVIL
+  HOGAR
 }
 
 enum TipoDocumento {
