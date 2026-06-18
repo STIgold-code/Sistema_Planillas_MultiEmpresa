@@ -16,21 +16,21 @@ De repo vacío a motor de planillas integrado:
    `ParametroLegal`. 61 migraciones heredadas colapsadas en un `init` limpio, aplicado a la BD
    local `planillas_multiempresa` y verificado. Seed idempotente de parámetros legales.
 5. **Integración (PR6):** motor nuevo es la fuente de los montos del régimen en el camino real;
-   W1 resuelto (`conceptosRegimen()`); adapter Prisma de parámetros; servicio partido 716→360 LOC.
+   W1 resuelto (`conceptosRegimen()`); adapter Prisma de parámetros; servicio partido.
+6. **Cierre de migración (PR7):** ~110 campos auxiliares del DTO modelados en el dominio,
+   **motor legacy `calcular-empleado.ts` retirado** con paridad al céntimo; servicios heredados
+   partidos bajo 500 líneas.
 
-Estado de tests: **389 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
+Estado de tests: **333 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
+Todo el trabajo consolidado en **PR #1** (`feat/motor-planillas-paridad-general` → `main`).
 
 ## Pendiente
 
 - **Validación de contador (bloqueante para Agrario/CC):** 5 puntos legales marcados `it.skip`
   (vacaciones agrario, base CONAFOVICER, BAE/SCTR, días mínimos grati CC, movilidad). Agrario y
   Construcción civil quedan `certificadoProduccion=false` hasta esa firma.
-- **Retiro del legacy `calcular-empleado.ts`:** produce ~110 campos auxiliares que lee la
-  exportación; modelarlos en el dominio antes de retirarlo.
 - **Gap legal heredado:** asignación familiar fijada en 0 (no viene del tareo) — habilitarla es
-  un cambio de comportamiento.
-- **Deuda de tamaño:** `planillas.service.ts` (809) y `planilla-detalle.service.ts` (589)
-  heredados superan el objetivo de 500 líneas — partir.
+  un cambio de comportamiento (requiere actualizar los snapshots golden conscientemente).
 - **Fases siguientes:** API/casos de uso (Fase 4), Frontend (Fase 5), Exportación configurable (Fase 6).
 - **Deploy:** crear proyecto Sentry NUEVO para este producto (no reusar el de ERMIR).
 
