@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { seedParametrosLegales } from './seed-parametros-legales';
 
 const prisma = new PrismaClient();
 
@@ -214,6 +215,11 @@ async function main() {
 
   // Reactivar constraints
   await prisma.$executeRawUnsafe('SET session_replication_role = DEFAULT');
+
+  // Parámetros legales escalares (idempotente, mismos valores que el adapter
+  // in-memory para no mover ningún cálculo).
+  const paramsLegales = await seedParametrosLegales(prisma);
+  console.log(`   parametros_legales: ${paramsLegales} (escalares)`);
 
   console.log('\n==============================================');
   console.log('SEED COMPLETADO');

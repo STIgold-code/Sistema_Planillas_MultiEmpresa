@@ -48,7 +48,6 @@ export function resolverRegimenLaboral(
   contrato: ContratoConRegimen | null | undefined,
   empresa: EmpresaConRegimenDefault,
 ): RegimenLaboral {
-  const prisma =
-    contrato?.regimen_laboral ?? empresa.regimen_laboral_default;
+  const prisma = contrato?.regimen_laboral ?? empresa.regimen_laboral_default;
   return mapearRegimenPrisma(prisma);
 }

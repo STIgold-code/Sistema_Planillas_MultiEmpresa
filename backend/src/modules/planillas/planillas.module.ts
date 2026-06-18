@@ -3,6 +3,10 @@ import { PlanillasController } from './planillas.controller';
 import { PlanillasService } from './planillas.service';
 import { PlanillaDetalleService } from './planilla-detalle.service';
 import { PlanillasCalcularService } from './planillas-calcular.service';
+import { PlanillaPromediosService } from './planilla-promedios.service';
+import { PlanillaParametrosService } from './planilla-parametros.service';
+import { PlanillaAuditoriaService } from './planilla-auditoria.service';
+import { PlanillaCargaService } from './planilla-carga.service';
 
 @Module({
   controllers: [PlanillasController],
@@ -10,6 +14,10 @@ import { PlanillasCalcularService } from './planillas-calcular.service';
     PlanillasService,
     PlanillaDetalleService,
     PlanillasCalcularService,
+    PlanillaPromediosService,
+    PlanillaParametrosService,
+    PlanillaAuditoriaService,
+    PlanillaCargaService,
   ],
   exports: [PlanillasService],
 })

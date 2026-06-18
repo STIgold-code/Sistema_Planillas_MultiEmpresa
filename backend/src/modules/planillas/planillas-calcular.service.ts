@@ -4,28 +4,20 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { Prisma, AccionAuditoria } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ahoraPeru } from '../../common/utils/datetime.util';
+import { calcularEmpleado } from './calculos/calcular-empleado';
+import { RegimenNoCertificadoError } from './aplicacion/guardia-certificacion';
 import {
-  ESSALUD_PORCENTAJE,
-  ESSALUD_MINIMO,
-  RMV,
-  ONP_PORCENTAJE,
-  round2,
-  safeNumber,
-} from './planillas.config';
-import {
-  calcularEmpleado,
-  EmpleadoParaCalculo,
-  PromediosHistoricos,
-} from './calculos/calcular-empleado';
-import { crearCalculadoraRegimen } from './dominio/regimenes/regimen.factory';
-import { resolverRegimenLaboral } from './aplicacion/resolver-regimen-laboral';
-import {
-  asegurarRegimenCertificado,
-  RegimenNoCertificadoError,
-} from './aplicacion/guardia-certificacion';
+  calcularDetalleEmpleado,
+  DetalleLegacy,
+} from './aplicacion/calcular-detalle-empleado';
+import { EmpleadoParaMapeo } from './aplicacion/mapear-entrada-calculo';
+import { PlanillaPromediosService } from './planilla-promedios.service';
+import { PlanillaParametrosService } from './planilla-parametros.service';
+import { PlanillaAuditoriaService } from './planilla-auditoria.service';
+import { PlanillaCargaService } from './planilla-carga.service';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -44,21 +36,28 @@ export interface CalculoWarning {
 }
 
 /**
- * Servicio dedicado al calculo de planilla (proceso pesado de ~450 LOC).
- * Extraido de PlanillasService para mantener el archivo principal por debajo
- * de 1.000 LOC. Mantiene comportamiento identico al original (cero transformacion).
+ * Servicio de cálculo de planilla.
  *
- * Tiene su propio findOneSimple y registrarAuditoria (duplicados del principal)
- * para evitar dependencias circulares.
+ * Orquesta la carga Prisma (empleados, tareo, acumulados IR), delega el cálculo
+ * por empleado al CAMINO REAL del motor régimen-parametrizado
+ * (`aplicacion/calcular-detalle-empleado`: mapper → factory → guardia → motor →
+ * overlay sobre el DTO auxiliar legacy) y persiste en una transacción.
+ *
+ * Los promedios históricos, la carga de parámetros legales y la auditoría se
+ * extrajeron a servicios dedicados (SRP / tamaño de archivo < 500 LOC).
  */
 @Injectable()
 export class PlanillasCalcularService {
   private readonly logger = new Logger(PlanillasCalcularService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private promedios: PlanillaPromediosService,
+    private parametros: PlanillaParametrosService,
+    private auditoria: PlanillaAuditoriaService,
+    private carga: PlanillaCargaService,
+  ) {}
 
-  // Helper local: busca planilla por id+empresa, lanza NotFoundException si no existe.
-  // Duplicado de PlanillasService.findOneSimple para evitar dep circular.
   private async findOneSimple(id: number, empresaId: number) {
     const planilla = await this.prisma.planilla.findFirst({
       where: { id, empresa_id: empresaId },
@@ -84,108 +83,7 @@ export class PlanillasCalcularService {
     return planilla;
   }
 
-  private async getPromediosHistoricos(
-    empleadoId: number,
-    empresaId: number,
-    mes: number,
-    anio: number,
-  ): Promise<PromediosHistoricos> {
-    // Calcular rango de 6 meses anteriores
-    const mesesAnteriores: { mes: number; anio: number }[] = [];
-    let mesTemp = mes;
-    let anioTemp = anio;
-
-    for (let i = 0; i < 6; i++) {
-      mesTemp--;
-      if (mesTemp < 1) {
-        mesTemp = 12;
-        anioTemp--;
-      }
-      mesesAnteriores.push({ mes: mesTemp, anio: anioTemp });
-    }
-
-    // Buscar planillas anteriores del empleado
-    const detallesAnteriores = await this.prisma.planillaDetalle.findMany({
-      where: {
-        empleado_id: empleadoId,
-        planilla: {
-          empresa_id: empresaId,
-          estado: { in: ['CALCULADA', 'REVISADA', 'APROBADA', 'PAGADA'] },
-          OR: mesesAnteriores.map((m) => ({ mes: m.mes, anio: m.anio })),
-        },
-      },
-      select: {
-        horas_extras: true,
-        horas_extras_25: true,
-        horas_extras_35: true,
-        bonificaciones: true,
-        bonificacion_nocturna: true,
-        gratificacion_monto: true,
-        dias_trabajados: true,
-        planilla: {
-          select: { mes: true, anio: true },
-        },
-      },
-      orderBy: {
-        planilla: { created_at: 'desc' },
-      },
-    });
-
-    // Calcular promedios
-    let totalHorasExtras = 0;
-    let totalBonificaciones = 0;
-    let mesesConDatos = 0;
-    let ultimaGratificacion = 0;
-
-    for (const detalle of detallesAnteriores) {
-      const he =
-        safeNumber(detalle.horas_extras) ||
-        safeNumber(detalle.horas_extras_25) +
-          safeNumber(detalle.horas_extras_35);
-      totalHorasExtras += he;
-      totalBonificaciones +=
-        safeNumber(detalle.bonificaciones) +
-        safeNumber(detalle.bonificacion_nocturna);
-      mesesConDatos++;
-
-      // Guardar última gratificación (julio o diciembre anterior)
-      if (
-        (detalle.planilla.mes === 7 || detalle.planilla.mes === 12) &&
-        safeNumber(detalle.gratificacion_monto) > 0
-      ) {
-        if (ultimaGratificacion === 0) {
-          ultimaGratificacion = safeNumber(detalle.gratificacion_monto);
-        }
-      }
-    }
-
-    const promedioHorasExtras =
-      mesesConDatos > 0 ? round2(totalHorasExtras / mesesConDatos) : 0;
-    const promedioBonificaciones =
-      mesesConDatos > 0 ? round2(totalBonificaciones / mesesConDatos) : 0;
-
-    // Calcular meses trabajados en el semestre actual
-    // Para gratificación julio: semestre enero-junio
-    // Para gratificación diciembre: semestre julio-noviembre
-    // Para CTS mayo: semestre noviembre-abril
-    // Para CTS noviembre: semestre mayo-octubre
-    const mesesTrabajadosSemestre = Math.min(mesesConDatos, 6);
-    // Nota: diasTrabajadosSemestre no se usa en los cálculos actuales.
-    // La lógica de días fracción se resuelve dentro de calcularCts con su propia variable diasCts.
-    const diasTrabajadosSemestre = 0;
-
-    return {
-      promedioHorasExtras,
-      promedioComisiones: 0, // TODO: Implementar si hay campo de comisiones
-      promedioBonificaciones,
-      mesesTrabajadosSemestre,
-      diasTrabajadosSemestre,
-      ultimaGratificacion,
-    };
-  }
-
   async calcular(id: number, empresaId: number, usuarioId?: number) {
-    // Obtener planilla primero (fuera de transacción para validaciones)
     const planilla = await this.findOneSimple(id, empresaId);
 
     if (
@@ -198,98 +96,20 @@ export class PlanillasCalcularService {
       );
     }
 
-    // ADVERTENCIA: Si la planilla está en REVISADA, tiene ediciones manuales que se perderán
     const tieneEdicionesManuales = planilla.estado === 'REVISADA';
 
-    // Si no hay periodo_tareo_id, buscar el periodo correspondiente al mes/año
-    let periodoTareoId = planilla.periodo_tareo_id;
-    let periodoTareo = null;
+    const { periodoTareoId, warningsPlanilla } =
+      await this.carga.resolverPeriodoTareo(planilla, empresaId);
 
-    if (!periodoTareoId) {
-      periodoTareo = await this.prisma.periodoTareo.findFirst({
-        where: {
-          empresa_id: empresaId,
-          anio: planilla.anio,
-          mes: planilla.mes,
-        },
-      });
-      periodoTareoId = periodoTareo?.id || null;
-    } else {
-      periodoTareo = await this.prisma.periodoTareo.findUnique({
-        where: { id: periodoTareoId },
-      });
-    }
-
-    // VALIDACIÓN: El tareo debe estar CERRADO para calcular la planilla
-    if (periodoTareo && periodoTareo.estado !== 'CERRADO') {
-      throw new BadRequestException(
-        `El período de tareo de ${planilla.mes}/${planilla.anio} debe estar CERRADO antes de calcular la planilla. Estado actual: ${periodoTareo.estado}`,
-      );
-    }
-
-    // WARNING: Si no hay periodo de tareo, se calculará sin datos de asistencia
-    const warningsPlanilla: string[] = [];
-    if (!periodoTareo) {
-      warningsPlanilla.push(
-        `No existe período de tareo para ${planilla.mes}/${planilla.anio}. Los cálculos de días, horas extras y feriados pueden ser incorrectos.`,
-      );
-    }
-
-    // Construir filtro de tareos - solo filtrar si hay periodo
-    const tareoWhere = periodoTareoId ? { periodo_id: periodoTareoId } : {};
-
-    // Calcular fechas del período para validar contratos
     const fechaInicioPeriodo = new Date(planilla.anio, planilla.mes - 1, 1);
-    const fechaFinPeriodo = new Date(planilla.anio, planilla.mes, 0); // Último día del mes
+    const fechaFinPeriodo = new Date(planilla.anio, planilla.mes, 0);
 
-    // Obtener empleados con contrato que cubra al menos parte del período (excluir solo los de tipo RECIBO)
-    const empleados = await this.prisma.empleado.findMany({
-      where: {
-        empresa_id: empresaId,
-        estado: { in: ['ACTIVO', 'PENDIENTE', 'CESADO'] },
-        NOT: {
-          tipo_pago: 'RECIBO',
-        },
-        // VALIDACIÓN: Empleados con contrato (cualquier estado) que cubra al menos parte del período
-        contratos: {
-          some: {
-            estado: { in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'] },
-            fecha_inicio: { lte: fechaFinPeriodo },
-            OR: [
-              { fecha_fin: null }, // Contrato indefinido
-              { fecha_fin: { gte: fechaInicioPeriodo } }, // Contrato que termina después del inicio del período
-            ],
-          },
-        },
-      },
-      include: {
-        regimen_pensionario: true,
-        banco_haberes: true,
-        // Incluir contrato del período para calcular días de ingreso/cese
-        contratos: {
-          where: {
-            estado: { in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'] },
-            fecha_inicio: { lte: fechaFinPeriodo },
-            OR: [
-              { fecha_fin: null },
-              { fecha_fin: { gte: fechaInicioPeriodo } },
-            ],
-          },
-          orderBy: { fecha_inicio: 'desc' },
-          take: 1,
-        },
-        tareos: {
-          where: tareoWhere,
-          include: {
-            detalles: {
-              include: {
-                tipo_marcacion: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const empleados = await this.carga.cargarEmpleados(
+      empresaId,
+      periodoTareoId,
+      fechaInicioPeriodo,
+      fechaFinPeriodo,
+    );
 
     if (empleados.length === 0) {
       throw new BadRequestException(
@@ -297,10 +117,6 @@ export class PlanillasCalcularService {
       );
     }
 
-    // Régimen laboral por defecto de la empresa (override por contrato más abajo).
-    // Multi-tenant: scoped por empresa_id. Si la empresa no existiera, se usa
-    // GENERAL como fallback seguro (paridad), pero el filtro previo garantiza que
-    // los empleados pertenecen a esta empresa.
     const empresa = await this.prisma.empresa.findUnique({
       where: { id: empresaId },
       select: { regimen_laboral_default: true },
@@ -309,47 +125,17 @@ export class PlanillasCalcularService {
       regimen_laboral_default: empresa?.regimen_laboral_default ?? 'GENERAL',
     } as const;
 
-    // Identificar empleados con y sin tareo para el reporte
-    const empleadosConTareo = empleados.filter(
-      (e) => e.tareos && e.tareos.length > 0,
+    // Parámetros legales: adapter Prisma (tabla parametros_legales) con fallback
+    // in-memory para las claves estructuradas. El dominio solo ve el puerto.
+    const parametrosLegales = await this.parametros.cargar();
+
+    const acumuladosPorEmpleado = await this.carga.cargarAcumuladosIR(
+      empleados.map((e) => e.id),
+      empresaId,
+      planilla.anio,
+      planilla.mes,
     );
-    const empleadosSinTareo = empleados.filter(
-      (e) => !e.tareos || e.tareos.length === 0,
-    );
 
-    // Cargar acumulado de IR 5ta categoría de meses anteriores del mismo año
-    // Esto es necesario para calcular correctamente la retención mensual
-    const empleadoIds = empleados.map((e) => e.id);
-    const acumuladosIR = await this.prisma.planillaDetalle.groupBy({
-      by: ['empleado_id'],
-      where: {
-        empleado_id: { in: empleadoIds },
-        planilla: {
-          empresa_id: empresaId, // SEGURIDAD: Filtrar por empresa para evitar fuga de datos multi-tenant
-          anio: planilla.anio,
-          mes: { lt: planilla.mes },
-          estado: { in: ['CALCULADA', 'REVISADA', 'APROBADA', 'PAGADA'] },
-        },
-      },
-      _sum: {
-        remuneracion_afecta: true,
-        renta_5ta: true,
-      },
-    });
-
-    // Crear mapa de acumulados por empleado para acceso rápido
-    const acumuladosPorEmpleado = new Map<
-      number,
-      { remuneracionAcumulada: number; retencionesAcumuladas: number }
-    >();
-    for (const acum of acumuladosIR) {
-      acumuladosPorEmpleado.set(acum.empleado_id, {
-        remuneracionAcumulada: Number(acum._sum.remuneracion_afecta) || 0,
-        retencionesAcumuladas: Number(acum._sum.renta_5ta) || 0,
-      });
-    }
-
-    // Calcular para cada empleado (fuera de transacción, es CPU-bound)
     const detalles: Prisma.PlanillaDetalleCreateManyInput[] = [];
     const warnings: CalculoWarning[] = [];
     let totalBruto = 0;
@@ -358,181 +144,73 @@ export class PlanillasCalcularService {
 
     for (const empleado of empleados) {
       try {
-        // Verificar si el empleado tiene tareo CON DETALLES registrados
-        // IMPORTANTE: Al generar el período, se crean registros de tareo vacíos para todos los empleados
-        // Por lo tanto, debemos verificar si el tareo tiene detalles de marcación, no solo si existe
         const tareo = empleado.tareos?.[0];
         const detallesTareo = tareo?.detalles || [];
-        const tieneTareoConDetalles = detallesTareo.length > 0;
 
-        // Si no tiene detalles en el tareo, agregar fila vacía (solo datos del empleado, sin montos)
-        if (!tieneTareoConDetalles) {
-          detalles.push({
-            planilla_id: planilla.id,
-            empleado_id: empleado.id,
-            // Todos los valores en 0 - el empleado aparece pero sin cálculos
-            total_dias: 0,
-            dias_trabajados: 0,
-            dias_falta: 0,
-            dias_vacaciones: 0,
-            dias_licencia_sin_goce: 0,
-            dias_licencia_con_goce: 0,
-            dias_licencia_fallecimiento: 0,
-            dias_licencia_paternidad: 0,
-            dias_descanso_medico: 0,
-            dias_subsidio_incapacidad: 0,
-            dias_subsidio_maternidad: 0,
-            dias_suspension: 0,
-            turno_dia: 0,
-            turno_noche: 0,
-            horas_8: 0,
-            cantidad_feriados: 0,
-            rem_basica: 0,
-            total_sueldo_estructura: 0,
-            haber_mensual: 0,
-            total_ingresos: 0,
-            total_descuentos: 0,
-            neto_pagar: 0,
-            remuneracion_afecta: 0,
-            observaciones: 'SIN TAREO REGISTRADO',
-          });
-
+        if (detallesTareo.length === 0) {
+          detalles.push(this.carga.detalleSinTareo(planilla.id, empleado.id));
           warnings.push({
             empleadoId: empleado.id,
             empleadoNombre: `${empleado.nombres} ${empleado.apellido_paterno}`,
             tipo: 'SIN_TAREO',
             mensaje: 'Empleado sin tareo registrado para este período',
           });
-
-          continue; // Saltar al siguiente empleado
+          continue;
         }
 
-        // Validaciones de advertencia
-        if (!empleado.regimen_pensionario) {
-          warnings.push({
-            empleadoId: empleado.id,
-            empleadoNombre: `${empleado.nombres} ${empleado.apellido_paterno}`,
-            tipo: 'SIN_REGIMEN',
-            mensaje: 'Empleado sin régimen pensionario configurado',
-          });
-        }
-
-        const sueldoBase = Number(empleado.sueldo_base) || 0;
-        if (sueldoBase <= 0) {
-          warnings.push({
-            empleadoId: empleado.id,
-            empleadoNombre: `${empleado.nombres} ${empleado.apellido_paterno}`,
-            tipo: 'SUELDO_CERO',
-            mensaje: 'Empleado con sueldo base cero o no configurado',
-          });
-        }
-
-        // =============================================
-        // RÉGIMEN LABORAL — resolución + guardia de certificación
-        // =============================================
-        // Régimen efectivo = contrato.regimen_laboral ?? empresa.default.
-        // Se cabla el motor (factory → estrategia) y se BLOQUEA la emisión de
-        // nómina real para régimenes no certificados (AGRARIO/CONSTRUCCION_CIVIL)
-        // ANTES de calcular/persistir, vía RegimenNoCertificadoError.
-        const contratoPeriodo = empleado.contratos?.[0] ?? null;
-        const regimenLaboral = resolverRegimenLaboral(
-          contratoPeriodo,
-          empresaParaRegimen,
+        this.carga.recolectarWarnings(
+          empleado,
+          detallesTareo,
+          planilla,
+          warnings,
         );
-        const calculadoraRegimen = crearCalculadoraRegimen(regimenLaboral);
-        asegurarRegimenCertificado(calculadoraRegimen);
 
-        // =============================================
-        // VALIDACIONES DE TAREO (Fase 1 - Críticas)
-        // =============================================
-        // NOTA: Si llegamos aquí, el empleado tiene tareo con detalles (verificado arriba con continue)
-        const nombreEmpleado = `${empleado.nombres} ${empleado.apellido_paterno}`;
-        const diasDelMesActual = new Date(
-          planilla.anio,
-          planilla.mes,
-          0,
-        ).getDate();
-        const diasConDetalle = detallesTareo.length;
-
-        // 1.2 Validar que el tareo tenga todos los días del mes
-        if (diasConDetalle < diasDelMesActual) {
-          const diasFaltantes = diasDelMesActual - diasConDetalle;
-          warnings.push({
-            empleadoId: empleado.id,
-            empleadoNombre: nombreEmpleado,
-            tipo: 'TAREO_INCOMPLETO',
-            mensaje: `Tareo incompleto: tiene ${diasConDetalle} días de ${diasDelMesActual}. Faltan ${diasFaltantes} días por marcar.`,
-          });
-        }
-
-        // 1.3 Validar que no haya días sin tipo_marcacion
-        const diasSinMarcacion = detallesTareo.filter(
-          (d) => !d.tipo_marcacion_id && !d.tipo_marcacion,
-        );
-        if (diasSinMarcacion.length > 0) {
-          const diasAfectados = diasSinMarcacion.map((d) => d.dia).join(', ');
-          warnings.push({
-            empleadoId: empleado.id,
-            empleadoNombre: nombreEmpleado,
-            tipo: 'DIAS_SIN_MARCACION',
-            mensaje: `${diasSinMarcacion.length} día(s) sin tipo de marcación: días ${diasAfectados}. Estos días serán ignorados en el cálculo.`,
-          });
-        }
-
-        // 1.4 Validar días laborables con horas = 0 o null
-        const diasLaborablesSinHoras = detallesTareo.filter(
-          (d) =>
-            d.tipo_marcacion?.es_laborable &&
-            (d.horas === null || Number(d.horas) === 0),
-        );
-        if (diasLaborablesSinHoras.length > 0) {
-          const diasAfectados = diasLaborablesSinHoras
-            .map((d) => d.dia)
-            .join(', ');
-          warnings.push({
-            empleadoId: empleado.id,
-            empleadoNombre: nombreEmpleado,
-            tipo: 'HORAS_CERO',
-            mensaje: `${diasLaborablesSinHoras.length} día(s) laborable(s) con horas = 0: días ${diasAfectados}. No se calcularán horas extras para estos días.`,
-          });
-        }
-
-        // Obtener acumulado de meses anteriores para IR 5ta
-        const acumuladoEmpleado = acumuladosPorEmpleado.get(empleado.id) || {
+        const acumulado = acumuladosPorEmpleado.get(empleado.id) || {
           remuneracionAcumulada: 0,
           retencionesAcumuladas: 0,
         };
 
-        // Obtener promedios históricos (últimos 6 meses) para CTS y gratificación
-        const promedios = await this.getPromediosHistoricos(
+        const promedios = await this.promedios.obtener(
           empleado.id,
           empresaId,
           planilla.mes,
           planilla.anio,
         );
 
-        const calculo = calcularEmpleado(
+        // Paso auxiliar legacy: estructura/días/aportes empleador/computables.
+        const detalleLegacy = calcularEmpleado(
           empleado,
           planilla.mes,
           planilla.anio,
-          acumuladoEmpleado.remuneracionAcumulada,
-          acumuladoEmpleado.retencionesAcumuladas,
+          acumulado.remuneracionAcumulada,
+          acumulado.retencionesAcumuladas,
           promedios,
-        );
+        ) as unknown as DetalleLegacy;
 
-        // Validar neto >= 0
-        if (calculo.neto_pagar < 0) {
-          const netoOriginal = calculo.neto_pagar;
-          const deficit = Math.abs(netoOriginal);
+        // CAMINO REAL: el motor nuevo calcula y sobreescribe los montos
+        // load-bearing del régimen sobre el DTO auxiliar. La guardia de
+        // certificación bloquea régimenes no certificados ANTES de calcular.
+        const calculo = calcularDetalleEmpleado({
+          empleado: empleado as unknown as EmpleadoParaMapeo,
+          empresa: empresaParaRegimen,
+          mes: planilla.mes,
+          anio: planilla.anio,
+          acumuladoRenta: acumulado.remuneracionAcumulada,
+          retencionesPreviasRenta: acumulado.retencionesAcumuladas,
+          detalleLegacy,
+          parametros: parametrosLegales,
+        }) as Record<string, number | string | boolean>;
+
+        const netoPagar = Number(calculo.neto_pagar) || 0;
+        if (netoPagar < 0) {
+          const deficit = Math.abs(netoPagar);
           warnings.push({
             empleadoId: empleado.id,
             empleadoNombre: `${empleado.nombres} ${empleado.apellido_paterno}`,
             tipo: 'NETO_NEGATIVO',
-            mensaje: `Neto negativo: S/. ${netoOriginal.toFixed(2)} (Ingresos: S/. ${calculo.total_ingresos.toFixed(2)}, Descuentos: S/. ${calculo.total_descuentos.toFixed(2)}). Déficit de S/. ${deficit.toFixed(2)} ajustado a 0.`,
+            mensaje: `Neto negativo: S/. ${netoPagar.toFixed(2)}. Déficit de S/. ${deficit.toFixed(2)} ajustado a 0.`,
           });
-          // Guardar el valor original en observaciones para auditoría
-          calculo.observaciones = `[NETO NEGATIVO AJUSTADO] Valor original: S/. ${netoOriginal.toFixed(2)}`;
-          // Corregir a 0 para evitar problemas
+          calculo.observaciones = `[NETO NEGATIVO AJUSTADO] Valor original: S/. ${netoPagar.toFixed(2)}`;
           calculo.neto_pagar = 0;
           calculo.neto_mes = 0;
         }
@@ -545,56 +223,83 @@ export class PlanillasCalcularService {
           banco_nombre: empleado.banco_haberes?.nombre || null,
           cuenta_numero: empleado.nro_cuenta_haberes || null,
           cci: empleado.cci_haberes || null,
-        });
+        } as Prisma.PlanillaDetalleCreateManyInput);
 
-        totalBruto += calculo.total_ingresos;
-        totalDescuentos += calculo.total_descuentos;
-        totalNeto += Math.max(0, calculo.neto_pagar);
+        totalBruto += Number(calculo.total_ingresos) || 0;
+        totalDescuentos += Number(calculo.total_descuentos) || 0;
+        totalNeto += Math.max(0, Number(calculo.neto_pagar) || 0);
       } catch (error) {
-        // Régimen no certificado: error de negocio explícito, no un fallo de
-        // cálculo. Se propaga con su mensaje claro (sin envolver en el genérico)
-        // para que el bloqueo de AGRARIO/CONSTRUCCION_CIVIL sea evidente.
         if (error instanceof RegimenNoCertificadoError) {
           this.logger.warn(
-            `Planilla bloqueada: empleado ${empleado.id} (${empleado.nombres} ${empleado.apellido_paterno}) en régimen no certificado "${error.regimen}".`,
+            `Planilla bloqueada: empleado ${empleado.id} en régimen no certificado "${error.regimen}".`,
           );
           throw new BadRequestException(
             `No se puede calcular la planilla del empleado ${empleado.nombres} ${empleado.apellido_paterno}: ${error.message}`,
           );
         }
         this.logger.error(
-          `Error al calcular empleado ${empleado.id} (${empleado.nombres} ${empleado.apellido_paterno}): ${error.message}`,
+          `Error al calcular empleado ${empleado.id} (${empleado.nombres} ${empleado.apellido_paterno}): ${(error as Error).message}`,
         );
         throw new BadRequestException(
-          `Error al calcular planilla del empleado ${empleado.nombres} ${empleado.apellido_paterno}: ${error.message}`,
+          `Error al calcular planilla del empleado ${empleado.nombres} ${empleado.apellido_paterno}: ${(error as Error).message}`,
         );
       }
     }
 
-    // Usar transacción para las operaciones de BD (delete + insert + update)
-    const result = await this.prisma.$transaction(
+    const result = await this.persistir({
+      id,
+      empresaId,
+      usuarioId,
+      planilla,
+      detalles,
+      periodoTareoId,
+      totalBruto,
+      totalDescuentos,
+      totalNeto,
+      totalEmpleados: empleados.length,
+    });
+
+    return this.armarRespuesta(
+      result,
+      warnings,
+      warningsPlanilla,
+      tieneEdicionesManuales,
+    );
+  }
+
+  private async persistir(args: {
+    id: number;
+    empresaId: number;
+    usuarioId?: number;
+    planilla: { estado: string; periodo_tareo_id: number | null };
+    detalles: Prisma.PlanillaDetalleCreateManyInput[];
+    periodoTareoId: number | null;
+    totalBruto: number;
+    totalDescuentos: number;
+    totalNeto: number;
+    totalEmpleados: number;
+  }) {
+    const {
+      id,
+      empresaId,
+      usuarioId,
+      planilla,
+      detalles,
+      periodoTareoId,
+      totalBruto,
+      totalDescuentos,
+      totalNeto,
+      totalEmpleados,
+    } = args;
+
+    return this.prisma.$transaction(
       async (tx) => {
-        // IMPORTANTE: Eliminar boletas existentes antes de eliminar detalles
-        // Las boletas están vinculadas a planilla_detalle_id
         await tx.boleta.deleteMany({
-          where: {
-            planilla_detalle: {
-              planilla_id: id,
-            },
-          },
+          where: { planilla_detalle: { planilla_id: id } },
         });
+        await tx.planillaDetalle.deleteMany({ where: { planilla_id: id } });
+        await tx.planillaDetalle.createMany({ data: detalles });
 
-        // Eliminar detalles existentes
-        await tx.planillaDetalle.deleteMany({
-          where: { planilla_id: id },
-        });
-
-        // Insertar detalles
-        await tx.planillaDetalle.createMany({
-          data: detalles,
-        });
-
-        // Actualizar totales de planilla
         const updated = await tx.planilla.update({
           where: { id },
           data: {
@@ -603,18 +308,15 @@ export class PlanillasCalcularService {
             total_bruto: totalBruto,
             total_descuentos: totalDescuentos,
             total_neto: totalNeto,
-            total_empleados: empleados.length,
+            total_empleados: totalEmpleados,
             ...(periodoTareoId && !planilla.periodo_tareo_id
               ? { periodo_tareo_id: periodoTareoId }
               : {}),
           },
-          include: {
-            _count: { select: { detalles: true } },
-          },
+          include: { _count: { select: { detalles: true } } },
         });
 
-        // Registrar auditoría
-        await this.registrarAuditoria(tx, {
+        await this.auditoria.registrar(tx, {
           tabla: 'planillas',
           registro_id: id,
           accion: 'CALCULAR',
@@ -623,7 +325,7 @@ export class PlanillasCalcularService {
           datos_anteriores: { estado: planilla.estado },
           datos_nuevos: {
             estado: 'CALCULADA',
-            total_empleados: empleados.length,
+            total_empleados: totalEmpleados,
             total_bruto: totalBruto,
             total_neto: totalNeto,
           },
@@ -631,86 +333,35 @@ export class PlanillasCalcularService {
 
         return updated;
       },
-      {
-        timeout: 60000, // 60 segundos para planillas grandes
-      },
+      { timeout: 60000 },
     );
+  }
 
-    // Retornar resultado con advertencias si las hay
+  private armarRespuesta(
+    result: unknown,
+    warnings: CalculoWarning[],
+    warningsPlanilla: string[],
+    tieneEdicionesManuales: boolean,
+  ) {
     const tieneWarnings =
       warnings.length > 0 ||
       warningsPlanilla.length > 0 ||
       tieneEdicionesManuales;
 
-    if (tieneWarnings) {
-      return {
-        ...result,
-        _warnings: warnings,
-        _warningCount: warnings.length,
-        ...(warningsPlanilla.length > 0 && {
-          _warningsPlanilla: warningsPlanilla,
-        }),
-        ...(tieneEdicionesManuales && {
-          _edicionesPerdidas: true,
-          _mensajeEdiciones:
-            'La planilla estaba en estado REVISADA. Las ediciones manuales previas han sido sobrescritas por el recálculo.',
-        }),
-      };
-    }
+    if (!tieneWarnings) return result;
 
-    return result;
-  }
-
-  private async registrarAuditoria(
-    tx: Prisma.TransactionClient,
-    params: {
-      tabla: string;
-      registro_id: number;
-      accion:
-        | 'CREAR'
-        | 'CALCULAR'
-        | 'EDITAR'
-        | 'APROBAR'
-        | 'RECHAZAR'
-        | 'PAGAR'
-        | 'ANULAR'
-        | 'ELIMINAR';
-      empresa_id: number;
-      usuario_id?: number;
-      datos_anteriores?: any;
-      datos_nuevos?: any;
-    },
-  ) {
-    try {
-      // Mapear acciones personalizadas a las del enum AccionAuditoria
-      const accionMap: Record<string, AccionAuditoria> = {
-        CREAR: AccionAuditoria.CREATE,
-        CALCULAR: AccionAuditoria.UPDATE,
-        EDITAR: AccionAuditoria.UPDATE,
-        APROBAR: AccionAuditoria.UPDATE,
-        RECHAZAR: AccionAuditoria.UPDATE,
-        PAGAR: AccionAuditoria.UPDATE,
-        ANULAR: AccionAuditoria.UPDATE,
-        ELIMINAR: AccionAuditoria.DELETE,
-      };
-
-      await tx.auditoria.create({
-        data: {
-          tabla_afectada: params.tabla,
-          registro_id: params.registro_id,
-          accion: accionMap[params.accion] || AccionAuditoria.UPDATE,
-          usuario_id: params.usuario_id || null,
-          datos_anteriores: params.datos_anteriores
-            ? { ...params.datos_anteriores, _accion_detalle: params.accion }
-            : null,
-          datos_nuevos: params.datos_nuevos
-            ? { ...params.datos_nuevos, _accion_detalle: params.accion }
-            : null,
-        },
-      });
-    } catch (error) {
-      // Si falla la auditoría, solo loguear pero no fallar la operación principal
-      this.logger.warn(`Error al registrar auditoría: ${error.message}`);
-    }
+    return {
+      ...(result as object),
+      _warnings: warnings,
+      _warningCount: warnings.length,
+      ...(warningsPlanilla.length > 0 && {
+        _warningsPlanilla: warningsPlanilla,
+      }),
+      ...(tieneEdicionesManuales && {
+        _edicionesPerdidas: true,
+        _mensajeEdiciones:
+          'La planilla estaba en estado REVISADA. Las ediciones manuales previas han sido sobrescritas por el recálculo.',
+      }),
+    };
   }
 }
