@@ -20,8 +20,9 @@ tmpclaude-*
 *.tmp
 ~$*
 
-# Artefactos de prueba/exportación puntuales
-*.sql
+# Artefactos de prueba/exportación puntuales (dumps de raíz, NO las migraciones de Prisma)
+/*.sql
+produccion.sql
 backups/
 
 # Nota: los .env del backend se versionan por convención del equipo (ver CLAUDE.md).
