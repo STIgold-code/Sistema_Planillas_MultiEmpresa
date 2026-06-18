@@ -11,8 +11,19 @@
  *
  * Concepts that DO vary by régimen and live behind this interface:
  *   gratificación, CTS, vacaciones, asignación familiar, salud del empleador
- *   (EsSalud 9% | SIS micro). Bonificación extraordinaria Ley 30334 deriva de
- *   la gratificación.
+ *   (EsSalud 9% | SIS micro), MÁS los conceptos PROPIOS de cada régimen (p. ej.
+ *   BUC, CONAFOVICER y fondo de capacitación en construcción civil; remuneración
+ *   diaria prorrateada en el agrario). Bonificación extraordinaria Ley 30334
+ *   deriva de la gratificación.
+ *
+ * CONTRATO DE COMPOSICIÓN (W1): el orquestador NO invoca un conjunto fijo de
+ * métodos por concepto, porque eso dejaba fuera los conceptos propios de cada
+ * régimen (BUC, CONAFOVICER, fondo de capacitación, remuneración diaria). En su
+ * lugar, cada estrategia ENSAMBLA su boleta COMPLETA en `conceptosRegimen()` y el
+ * orquestador la COLECTA de forma genérica (cero `if (regimen === ...)`, OCP).
+ * Las funciones por concepto siguen siendo públicas en cada estrategia para que
+ * los specs las prueben de forma aislada; pero el punto de composición único es
+ * `conceptosRegimen()`.
  */
 import { ContextoCalculo, RegimenLaboral, ResultadoConcepto } from '../tipos';
 import { ParametrosLegales } from '../parametros/parametros-legales';
@@ -33,6 +44,23 @@ export interface CalculadoraRegimen {
    * valor de la constante `CERTIFICADO_PRODUCCION` de la estrategia a `true`.
    */
   readonly certificadoProduccion: boolean;
+
+  /**
+   * Ensambla la lista COMPLETA de conceptos régimen-específicos de la boleta:
+   * los conceptos régimen-variables comunes (gratificación, CTS, vacaciones,
+   * asignación familiar, salud del empleador) MÁS los conceptos PROPIOS del
+   * régimen (BUC, CONAFOVICER, fondo de capacitación, remuneración diaria, etc.).
+   *
+   * NO incluye los conceptos régimen-agnósticos (haber, horas extras, jornada
+   * nocturna, pensión, renta 5ta) ni la bonificación extraordinaria Ley 30334:
+   * esos los compone el orquestador. La bonificación 30334 se deriva de la
+   * gratificación que esta lista contenga (clave `CLAVE_GRATIFICACION` o la grati
+   * propia del régimen, según corresponda).
+   */
+  conceptosRegimen(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto;
 
   gratificacion(
     ctx: ContextoCalculo,

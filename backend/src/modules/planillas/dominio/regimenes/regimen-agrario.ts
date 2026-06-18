@@ -52,6 +52,28 @@ export class RegimenAgrario implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.AGRARIO;
   readonly certificadoProduccion = CERTIFICADO_PRODUCCION;
 
+  /**
+   * Boleta COMPLETA del régimen agrario: en sistema SEPARADO compone grati/CTS
+   * agrarios; en sistema de PRORRATEO compone la remuneración diaria propia (en
+   * cuyo caso grati/CTS no se pagan por separado). Resuelve W1: el orquestador ya
+   * no deja afuera la remuneración diaria prorrateada.
+   */
+  conceptosRegimen(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto {
+    return {
+      conceptos: [
+        ...this.remuneracionDiaria(ctx, params).conceptos,
+        ...this.gratificacion(ctx, params).conceptos,
+        ...this.cts(ctx, params).conceptos,
+        ...this.vacaciones(ctx).conceptos,
+        ...this.asignacionFamiliar(ctx, params).conceptos,
+        ...this.saludEmpleador(ctx, params).conceptos,
+      ],
+    };
+  }
+
   gratificacion(
     ctx: ContextoCalculo,
     params: ParametrosLegales,

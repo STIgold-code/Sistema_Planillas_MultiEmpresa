@@ -10,8 +10,11 @@
  *   1. parsear-tareo → resumen de días/horas/HE.
  *   2. Conceptos compartidos: haber proporcional, horas extras, jornada nocturna
  *      → remuneración afecta (base de pensión, EsSalud y renta 5ta).
- *   3. Conceptos régimen-variables vía la estrategia: gratificación, CTS,
- *      vacaciones, asignación familiar, salud del empleador.
+ *   3. Conceptos régimen-específicos vía la estrategia: `conceptosRegimen()`
+ *      ensambla la boleta COMPLETA del régimen (gratificación, CTS, vacaciones,
+ *      asignación familiar, salud del empleador MÁS los conceptos PROPIOS de cada
+ *      régimen: BUC, CONAFOVICER, fondo de capacitación, remuneración diaria…).
+ *      El orquestador los COLECTA de forma genérica (cero `if (regimen === ...)`).
  *   4. Bonificación extraordinaria (Ley 30334) derivada de la gratificación.
  *   5. Descuentos: sistema pensionario (AFP/ONP), renta 5ta.
  *   6. Totaliza ingresos/descuentos/aportes y neto.
@@ -111,17 +114,14 @@ export function calcularBoleta(
     devengados,
   };
 
-  // 3. Beneficios régimen-variables (vía estrategia, sin conocer el régimen).
-  const gratificacion = calculadora.gratificacion(ctx, params);
-  const cts = calculadora.cts(ctx, params);
-  const vacaciones = calculadora.vacaciones(ctx, params);
-  const asignacionFamiliar = calculadora.asignacionFamiliar(ctx, params);
-  const saludEmpleador = calculadora.saludEmpleador(ctx, params);
+  // 3. Conceptos régimen-específicos: la estrategia ensambla su boleta COMPLETA
+  //    (régimen-variables comunes + conceptos propios), el orquestador la colecta
+  //    de forma genérica, sin conocer ningún régimen concreto (OCP).
+  const conceptosRegimen = calculadora.conceptosRegimen(ctx, params).conceptos;
 
   // 4. Bonificación extraordinaria (Ley 30334) derivada de la gratificación.
   const montoGratificacion =
-    gratificacion.conceptos.find((c) => c.clave === CLAVE_GRATIFICACION)
-      ?.monto ?? 0;
+    conceptosRegimen.find((c) => c.clave === CLAVE_GRATIFICACION)?.monto ?? 0;
   const bonificacion = calcularBonificacionExtraordinaria(
     montoGratificacion,
     params.essaludTasa(fecha),
@@ -141,15 +141,13 @@ export function calcularBoleta(
     entrada.retencionesPreviasRenta ?? 0,
   );
 
-  // 6. Consolidar y totalizar.
+  // 6. Consolidar y totalizar. La bonificación 30334 se inserta junto a la
+  //    gratificación del régimen; el resto de conceptos régimen-específicos
+  //    (incluidos los propios) vienen ya ensamblados en `conceptosRegimen`.
   const conceptos: ConceptoBoleta[] = [
     ...conceptosCompartidos,
-    ...gratificacion.conceptos,
+    ...conceptosRegimen,
     ...bonificacion.conceptos,
-    ...cts.conceptos,
-    ...vacaciones.conceptos,
-    ...asignacionFamiliar.conceptos,
-    ...saludEmpleador.conceptos,
     ...pension.conceptos,
     ...rentaQuinta.conceptos,
   ];

@@ -20,6 +20,12 @@ import {
   EmpleadoParaCalculo,
   PromediosHistoricos,
 } from './calculos/calcular-empleado';
+import { crearCalculadoraRegimen } from './dominio/regimenes/regimen.factory';
+import { resolverRegimenLaboral } from './aplicacion/resolver-regimen-laboral';
+import {
+  asegurarRegimenCertificado,
+  RegimenNoCertificadoError,
+} from './aplicacion/guardia-certificacion';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -291,6 +297,18 @@ export class PlanillasCalcularService {
       );
     }
 
+    // Régimen laboral por defecto de la empresa (override por contrato más abajo).
+    // Multi-tenant: scoped por empresa_id. Si la empresa no existiera, se usa
+    // GENERAL como fallback seguro (paridad), pero el filtro previo garantiza que
+    // los empleados pertenecen a esta empresa.
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { regimen_laboral_default: true },
+    });
+    const empresaParaRegimen = {
+      regimen_laboral_default: empresa?.regimen_laboral_default ?? 'GENERAL',
+    } as const;
+
     // Identificar empleados con y sin tareo para el reporte
     const empleadosConTareo = empleados.filter(
       (e) => e.tareos && e.tareos.length > 0,
@@ -410,6 +428,21 @@ export class PlanillasCalcularService {
         }
 
         // =============================================
+        // RÉGIMEN LABORAL — resolución + guardia de certificación
+        // =============================================
+        // Régimen efectivo = contrato.regimen_laboral ?? empresa.default.
+        // Se cabla el motor (factory → estrategia) y se BLOQUEA la emisión de
+        // nómina real para régimenes no certificados (AGRARIO/CONSTRUCCION_CIVIL)
+        // ANTES de calcular/persistir, vía RegimenNoCertificadoError.
+        const contratoPeriodo = empleado.contratos?.[0] ?? null;
+        const regimenLaboral = resolverRegimenLaboral(
+          contratoPeriodo,
+          empresaParaRegimen,
+        );
+        const calculadoraRegimen = crearCalculadoraRegimen(regimenLaboral);
+        asegurarRegimenCertificado(calculadoraRegimen);
+
+        // =============================================
         // VALIDACIONES DE TAREO (Fase 1 - Críticas)
         // =============================================
         // NOTA: Si llegamos aquí, el empleado tiene tareo con detalles (verificado arriba con continue)
@@ -518,6 +551,17 @@ export class PlanillasCalcularService {
         totalDescuentos += calculo.total_descuentos;
         totalNeto += Math.max(0, calculo.neto_pagar);
       } catch (error) {
+        // Régimen no certificado: error de negocio explícito, no un fallo de
+        // cálculo. Se propaga con su mensaje claro (sin envolver en el genérico)
+        // para que el bloqueo de AGRARIO/CONSTRUCCION_CIVIL sea evidente.
+        if (error instanceof RegimenNoCertificadoError) {
+          this.logger.warn(
+            `Planilla bloqueada: empleado ${empleado.id} (${empleado.nombres} ${empleado.apellido_paterno}) en régimen no certificado "${error.regimen}".`,
+          );
+          throw new BadRequestException(
+            `No se puede calcular la planilla del empleado ${empleado.nombres} ${empleado.apellido_paterno}: ${error.message}`,
+          );
+        }
         this.logger.error(
           `Error al calcular empleado ${empleado.id} (${empleado.nombres} ${empleado.apellido_paterno}): ${error.message}`,
         );

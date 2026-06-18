@@ -29,6 +29,21 @@ export class RegimenPequenaEmpresa implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.PEQUENA_EMPRESA;
   readonly certificadoProduccion = true;
 
+  conceptosRegimen(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto {
+    return {
+      conceptos: [
+        ...this.gratificacion(ctx).conceptos,
+        ...this.cts(ctx).conceptos,
+        ...this.vacaciones(ctx).conceptos,
+        ...this.asignacionFamiliar(ctx, params).conceptos,
+        ...this.saludEmpleador(ctx, params).conceptos,
+      ],
+    };
+  }
+
   gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
     return calcularGratificacion(
       {

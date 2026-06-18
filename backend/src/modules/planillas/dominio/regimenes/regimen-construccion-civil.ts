@@ -57,6 +57,29 @@ export class RegimenConstruccionCivil implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.CONSTRUCCION_CIVIL;
   readonly certificadoProduccion = CERTIFICADO_PRODUCCION;
 
+  /**
+   * Boleta COMPLETA de construcción civil: conceptos régimen-variables comunes
+   * MÁS los conceptos PROPIOS del régimen (BUC, CONAFOVICER, fondo de
+   * capacitación). Resuelve W1: el orquestador ya no deja afuera estos conceptos.
+   */
+  conceptosRegimen(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto {
+    return {
+      conceptos: [
+        ...this.gratificacion(ctx, params).conceptos,
+        ...this.bonificacionUnificada(ctx, params).conceptos,
+        ...this.cts(ctx, params).conceptos,
+        ...this.vacaciones(ctx).conceptos,
+        ...this.asignacionFamiliar(ctx, params).conceptos,
+        ...this.conafovicer(ctx, params).conceptos,
+        ...this.fondoCapacitacion(ctx, params).conceptos,
+        ...this.saludEmpleador(ctx, params).conceptos,
+      ],
+    };
+  }
+
   private tabla(ctx: ContextoCalculo, params: ParametrosLegales) {
     const categoria = ctx.categoriaConstruccion ?? CategoriaConstruccion.PEON;
     return params.construccionCivil(ctx.periodo.fecha, categoria);
