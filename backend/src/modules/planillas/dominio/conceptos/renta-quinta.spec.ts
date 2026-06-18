@@ -16,6 +16,7 @@ const params = (uit: number, tramos: TramoIR[]): ParametrosLegales => ({
   asignacionFamiliar: () => 0,
   essaludTasa: () => 0,
   essaludMinimo: () => 0,
+  sisMicroempresa: () => 0,
   tramosIR: () => tramos,
   sctrSalud: () => 0,
   sctrPension: () => 0,

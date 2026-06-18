@@ -13,6 +13,7 @@ const paramsStub = (rmv: number): ParametrosLegales => ({
   asignacionFamiliar: () => 0,
   essaludTasa: () => 0,
   essaludMinimo: () => 0,
+  sisMicroempresa: () => 0,
   tramosIR: (): TramoIR[] => [],
   sctrSalud: () => 0,
   sctrPension: () => 0,

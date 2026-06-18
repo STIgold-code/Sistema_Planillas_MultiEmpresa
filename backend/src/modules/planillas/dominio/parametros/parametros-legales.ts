@@ -21,6 +21,12 @@ export interface ParametrosLegales {
   essaludTasa(fecha: Date): number;
   /** Piso EsSalud (9% de RMV) vigente en `fecha`. */
   essaludMinimo(fecha: Date): number;
+  /**
+   * Aporte SIS semicontributivo (monto fijo mensual del empleador) para
+   * microempresa REMYPE, vigente en `fecha`.
+   * [ASUNCIÓN A VALIDAR: monto SIS microempresa y opción de afiliación a EsSalud].
+   */
+  sisMicroempresa(fecha: Date): number;
   /** Tramos progresivos de IR 5ta categoría vigentes en `fecha`. */
   tramosIR(fecha: Date): TramoIR[];
   /** Tasa SCTR Salud (fracción) vigente en `fecha`. */

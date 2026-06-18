@@ -44,10 +44,18 @@ export interface SemillaParametros {
   asignacionFamiliar?: ValorVigente<number>[];
   essaludTasa?: ValorVigente<number>[];
   essaludMinimo?: ValorVigente<number>[];
+  sisMicroempresa?: ValorVigente<number>[];
   tramosIR?: ValorVigente<TramoIR[]>[];
   sctrSalud?: ValorVigente<number>[];
   sctrPension?: ValorVigente<number>[];
 }
+
+/**
+ * Aporte SIS semicontributivo (microempresa REMYPE), monto fijo mensual del
+ * empleador. Placeholder.
+ * [ASUNCIÓN A VALIDAR: monto oficial SIS microempresa].
+ */
+const SIS_MICROEMPRESA = 15;
 
 /** Vigencia que arranca en la fecha de la RMV 2025 (placeholder histórico). */
 const VIGENCIA_BASE = new Date('2025-01-01');
@@ -64,6 +72,7 @@ function semillaPorDefecto(): Required<SemillaParametros> {
     asignacionFamiliar: uno(ASIGNACION_FAMILIAR),
     essaludTasa: uno(ESSALUD_PORCENTAJE),
     essaludMinimo: uno(ESSALUD_MINIMO),
+    sisMicroempresa: uno(SIS_MICROEMPRESA),
     tramosIR: uno(TRAMOS_IR_5TA as TramoIR[]),
     sctrSalud: uno(SCTR_SALUD_TASA),
     sctrPension: uno(SCTR_PENSION_TASA),
@@ -95,6 +104,13 @@ export class ParametrosLegalesEnMemoria implements ParametrosLegales {
   }
   essaludMinimo(fecha: Date): number {
     return this.resolver('essaludMinimo', this.semilla.essaludMinimo, fecha);
+  }
+  sisMicroempresa(fecha: Date): number {
+    return this.resolver(
+      'sisMicroempresa',
+      this.semilla.sisMicroempresa,
+      fecha,
+    );
   }
   tramosIR(fecha: Date): TramoIR[] {
     return this.resolver('tramosIR', this.semilla.tramosIR, fecha);

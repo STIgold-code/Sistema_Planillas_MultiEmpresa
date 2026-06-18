@@ -18,6 +18,7 @@ const params: ParametrosLegales = {
   asignacionFamiliar: () => 113,
   essaludTasa: () => 0.09,
   essaludMinimo: () => 101.7,
+  sisMicroempresa: () => 15,
   tramosIR: (): TramoIR[] => [
     { hasta: 5, tasa: 0.08 },
     { hasta: Infinity, tasa: 0.3 },

@@ -2,14 +2,17 @@
  * Factory: mapea `RegimenLaboral` → estrategia `CalculadoraRegimen`.
  *
  * Punto único de extensión (OCP): agregar un nuevo régimen es registrar UNA
- * línea en `REGISTRO`. El orquestador nunca cambia. Para PR3 solo GENERAL está
- * registrado; los demás régimenes (REMYPE/Micro/Hogar/Agrario/Construcción) se
- * suman en PR4+.
+ * línea en `REGISTRO`. El orquestador nunca cambia. Registrados: GENERAL (PR3),
+ * PEQUENA_EMPRESA, MICROEMPRESA y HOGAR (PR4). Los régimenes con verificación
+ * legal pendiente (AGRARIO, CONSTRUCCION_CIVIL) se suman en PR5.
  *
  * Régimen no registrado → `RegimenNoSoportadoError` (falla rápido, sin boleta).
  */
 import { CalculadoraRegimen } from './calculadora-regimen.interface';
 import { RegimenGeneral } from './regimen-general';
+import { RegimenPequenaEmpresa } from './regimen-pequena-empresa';
+import { RegimenMicroempresa } from './regimen-microempresa';
+import { RegimenHogar } from './regimen-hogar';
 import { RegimenLaboral } from '../tipos';
 
 /** Raised when no strategy is registered for a labor régimen. */
@@ -25,6 +28,9 @@ type FabricaRegimen = () => CalculadoraRegimen;
 /** Registro enum → fábrica de estrategia. Agregar un régimen = 1 línea. */
 const REGISTRO: Partial<Record<RegimenLaboral, FabricaRegimen>> = {
   [RegimenLaboral.GENERAL]: () => new RegimenGeneral(),
+  [RegimenLaboral.PEQUENA_EMPRESA]: () => new RegimenPequenaEmpresa(),
+  [RegimenLaboral.MICROEMPRESA]: () => new RegimenMicroempresa(),
+  [RegimenLaboral.HOGAR]: () => new RegimenHogar(),
 };
 
 export function crearCalculadoraRegimen(
