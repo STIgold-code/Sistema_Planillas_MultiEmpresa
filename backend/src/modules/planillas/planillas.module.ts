@@ -7,11 +7,13 @@ import { PlanillaPromediosService } from './planilla-promedios.service';
 import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
+import { PlanillaConsultaService } from './planilla-consulta.service';
 
 @Module({
   controllers: [PlanillasController],
   providers: [
     PlanillasService,
+    PlanillaConsultaService,
     PlanillaDetalleService,
     PlanillasCalcularService,
     PlanillaPromediosService,

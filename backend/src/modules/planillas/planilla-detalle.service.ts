@@ -2,11 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanillaConsultaService } from './planilla-consulta.service';
+import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { UpdatePlanillaDetalleDto } from './dto';
-import { Prisma, AccionAuditoria } from '@prisma/client';
+import { construirDataActualizacionDetalle } from './planilla-detalle-data';
 import {
   ESSALUD_PORCENTAJE,
   ESSALUD_MINIMO,
@@ -18,91 +19,11 @@ import {
 
 @Injectable()
 export class PlanillaDetalleService {
-  private readonly logger = new Logger(PlanillaDetalleService.name);
-
-  constructor(private readonly prisma: PrismaService) {}
-
-  // Versión ligera de findOne - no carga detalles (para validaciones)
-  private async findOneSimple(id: number, empresaId: number) {
-    const planilla = await this.prisma.planilla.findFirst({
-      where: { id, empresa_id: empresaId },
-      select: {
-        id: true,
-        empresa_id: true,
-        periodo_tareo_id: true,
-        anio: true,
-        mes: true,
-        estado: true,
-        fecha_generacion: true,
-        total_bruto: true,
-        total_descuentos: true,
-        total_neto: true,
-        total_empleados: true,
-      },
-    });
-
-    if (!planilla) {
-      throw new NotFoundException('Planilla no encontrada');
-    }
-
-    return planilla;
-  }
-
-  // =============================================
-  // MÉTODO DE AUDITORÍA
-  // =============================================
-  private async registrarAuditoria(
-    tx: Prisma.TransactionClient,
-    params: {
-      tabla: string;
-      registro_id: number;
-      accion:
-        | 'CREAR'
-        | 'CALCULAR'
-        | 'EDITAR'
-        | 'APROBAR'
-        | 'RECHAZAR'
-        | 'PAGAR'
-        | 'ANULAR'
-        | 'ELIMINAR';
-      empresa_id: number;
-      usuario_id?: number;
-      datos_anteriores?: any;
-      datos_nuevos?: any;
-    },
-  ) {
-    try {
-      // Mapear acciones personalizadas a las del enum AccionAuditoria
-      const accionMap: Record<string, AccionAuditoria> = {
-        CREAR: AccionAuditoria.CREATE,
-        CALCULAR: AccionAuditoria.UPDATE,
-        EDITAR: AccionAuditoria.UPDATE,
-        APROBAR: AccionAuditoria.UPDATE,
-        RECHAZAR: AccionAuditoria.UPDATE,
-        PAGAR: AccionAuditoria.UPDATE,
-        ANULAR: AccionAuditoria.UPDATE,
-        ELIMINAR: AccionAuditoria.DELETE,
-      };
-
-      await tx.auditoria.create({
-        data: {
-          tabla_afectada: params.tabla,
-          registro_id: params.registro_id,
-          accion: accionMap[params.accion] || AccionAuditoria.UPDATE,
-          usuario_id: params.usuario_id || null,
-          datos_anteriores: params.datos_anteriores
-            ? { ...params.datos_anteriores, _accion_detalle: params.accion }
-            : null,
-          datos_nuevos: params.datos_nuevos
-            ? { ...params.datos_nuevos, _accion_detalle: params.accion }
-            : null,
-        },
-      });
-    } catch (error) {
-      // Si falla la auditoría, solo loguear pero no fallar la operación principal
-      this.logger.warn(`Error al registrar auditoría: ${error.message}`);
-    }
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly consulta: PlanillaConsultaService,
+    private readonly auditoria: PlanillaAuditoriaService,
+  ) {}
 
   async updateDetalle(
     planillaId: number,
@@ -112,7 +33,7 @@ export class PlanillaDetalleService {
     usuarioId?: number,
   ) {
     // Usar versión simple para validación de estado
-    const planilla = await this.findOneSimple(planillaId, empresaId);
+    const planilla = await this.consulta.findOneSimple(planillaId, empresaId);
 
     if (planilla.estado !== 'CALCULADA' && planilla.estado !== 'REVISADA') {
       throw new BadRequestException(
@@ -452,89 +373,78 @@ export class PlanillaDetalleService {
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.planillaDetalle.update({
         where: { id: detalleId },
-        data: {
-          // Días
-          total_dias: totalDias,
-          dias_trabajados: diasTrabajados,
-          dias_cesado_no_lab: diasCesadoNoLab,
-          dias_nuevo_no_lab: diasNuevoNoLab,
-          dias_sin_cobertura: diasSinCobertura,
-          dias_falta: diasFalta,
-          dias_suspension: diasSuspension,
-          dias_vacaciones: diasVacaciones,
-          dias_subsidio_incapacidad: diasSubsidioIncapacidad,
-          dias_subsidio_maternidad: diasSubsidioMaternidad,
-          dias_descanso_medico: diasDescansoMedico,
-          dias_licencia_sin_goce: diasLicenciaSinGoce,
-          dias_licencia_fallecimiento: diasLicenciaFallecimiento,
-          dias_licencia_paternidad: diasLicenciaPaternidad,
-          dias_licencia_con_goce: diasLicenciaConGoce,
-          turno_dia: turnoDia,
-          turno_noche: turnoNoche,
-
-          // Ingresos afectos
-          haber_mensual: round2(haberMensual),
-          sueldo_nocturno: round2(sueldoNocturno),
-          pasaje_especial: round2(pasajeEspecial),
-          horas_extras_25: round2(horasExtras25),
-          horas_extras_35: round2(horasExtras35),
-          feriado_trabajado: round2(feriadoTrabajado),
-          descanso_medico_monto: round2(descansoMedicoMonto),
-          subsidio_incapacidad: round2(subsidioIncapacidad),
-          subsidio_maternidad: round2(subsidioMaternidad),
-          asignacion_familiar: round2(asignacionFamiliar),
-          licencia_goce_monto: round2(licenciaGoceMonto),
-          bonificaciones: round2(bonificaciones),
-          otros_ingresos: round2(otrosIngresos),
-
-          // Ingresos no afectos
-          remuneracion_vacacional: round2(remuneracionVacacional),
-          compensacion_vacacional: round2(compensacionVacacional),
-          cts_monto: round2(ctsMonto),
-          gratificacion_monto: round2(gratificacionMonto),
-          movilidad: round2(movilidad),
-          refrigerio: round2(refrigerio),
-          bono_desempeno_monto: round2(bonoDesempenoMonto),
-          asignacion_cliente: round2(asignacionCliente),
-          pegada_reenganche: round2(pegadaReenganche),
-          bono_productividad_monto: round2(bonoProductividadMonto),
-          bono_armado_monto: round2(bonoArmadoMonto),
-          bono_referido: round2(bonoReferido),
-          reintegro_dias_trab: round2(reintegroDiasTrab),
-          reintegro_inafecto: round2(reintegroInafecto),
-          ingreso_sobregiro: round2(ingresoSobregiro),
-          venta_vacaciones: round2(ventaVacaciones),
-
-          // Descuentos
-          afp_aporte: round2(afpAporte),
-          afp_prima: round2(afpPrima),
-          afp_comision: round2(afpComision),
-          onp: round2(onp),
-          adelanto_quincena: round2(adelantoQuincena),
-          adelanto_vacacional: round2(adelantoVacacional),
-          otros_adelantos: round2(otrosAdelantos),
-          adelanto_cts: round2(adelantoCts),
-          adelanto_gratificacion: round2(adelantoGratificacion),
-          otros_descuentos: round2(otrosDescuentos),
-          descuento_faltas: round2(descuentoFaltas),
-          descuento_sobregiro: round2(descuentoSobregiro),
-          descuento_reintegro: round2(descuentoReintegro),
-          prestamo: round2(prestamo),
-          retencion_judicial: round2(retencionJudicial),
-          renta_5ta: round2(renta5ta),
-
-          // Totales
-          total_ingresos_afectos: round2(totalIngresosAfectos),
-          total_ingresos_no_afectos: round2(totalIngresosNoAfectos),
-          total_ingresos: round2(totalIngresos),
-          total_descuentos: round2(totalDescuentos),
-          essalud_empleador: round2(essaludEmpleador),
-          remuneracion_afecta: round2(remuneracionAfecta),
-          neto_pagar: round2(netoPagar),
-
-          // Otros
+        data: construirDataActualizacionDetalle({
+          totalDias,
+          diasTrabajados,
+          diasCesadoNoLab,
+          diasNuevoNoLab,
+          diasSinCobertura,
+          diasFalta,
+          diasSuspension,
+          diasVacaciones,
+          diasSubsidioIncapacidad,
+          diasSubsidioMaternidad,
+          diasDescansoMedico,
+          diasLicenciaSinGoce,
+          diasLicenciaFallecimiento,
+          diasLicenciaPaternidad,
+          diasLicenciaConGoce,
+          turnoDia,
+          turnoNoche,
+          haberMensual,
+          sueldoNocturno,
+          pasajeEspecial,
+          horasExtras25,
+          horasExtras35,
+          feriadoTrabajado,
+          descansoMedicoMonto,
+          subsidioIncapacidad,
+          subsidioMaternidad,
+          asignacionFamiliar,
+          licenciaGoceMonto,
+          bonificaciones,
+          otrosIngresos,
+          remuneracionVacacional,
+          compensacionVacacional,
+          ctsMonto,
+          gratificacionMonto,
+          movilidad,
+          refrigerio,
+          bonoDesempenoMonto,
+          asignacionCliente,
+          pegadaReenganche,
+          bonoProductividadMonto,
+          bonoArmadoMonto,
+          bonoReferido,
+          reintegroDiasTrab,
+          reintegroInafecto,
+          ingresoSobregiro,
+          ventaVacaciones,
+          afpAporte,
+          afpPrima,
+          afpComision,
+          onp,
+          adelantoQuincena,
+          adelantoVacacional,
+          otrosAdelantos,
+          adelantoCts,
+          adelantoGratificacion,
+          otrosDescuentos,
+          descuentoFaltas,
+          descuentoSobregiro,
+          descuentoReintegro,
+          prestamo,
+          retencionJudicial,
+          renta5ta,
+          totalIngresosAfectos,
+          totalIngresosNoAfectos,
+          totalIngresos,
+          totalDescuentos,
+          essaludEmpleador,
+          remuneracionAfecta,
+          netoPagar,
           observaciones: dto.observaciones ?? detalle.observaciones,
-        },
+        }),
       });
 
       // Recalcular totales de planilla (dentro de transacción)
@@ -561,7 +471,7 @@ export class PlanillaDetalleService {
       });
 
       // Registrar auditoría
-      await this.registrarAuditoria(tx, {
+      await this.auditoria.registrar(tx, {
         tabla: 'planilla_detalles',
         registro_id: detalleId,
         accion: 'EDITAR',

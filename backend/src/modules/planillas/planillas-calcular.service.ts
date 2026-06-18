@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ahoraPeru } from '../../common/utils/datetime.util';
@@ -15,6 +10,7 @@ import { PlanillaPromediosService } from './planilla-promedios.service';
 import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
+import { PlanillaConsultaService } from './planilla-consulta.service';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -53,35 +49,11 @@ export class PlanillasCalcularService {
     private parametros: PlanillaParametrosService,
     private auditoria: PlanillaAuditoriaService,
     private carga: PlanillaCargaService,
+    private consulta: PlanillaConsultaService,
   ) {}
 
-  private async findOneSimple(id: number, empresaId: number) {
-    const planilla = await this.prisma.planilla.findFirst({
-      where: { id, empresa_id: empresaId },
-      select: {
-        id: true,
-        empresa_id: true,
-        periodo_tareo_id: true,
-        anio: true,
-        mes: true,
-        estado: true,
-        fecha_generacion: true,
-        total_bruto: true,
-        total_descuentos: true,
-        total_neto: true,
-        total_empleados: true,
-      },
-    });
-
-    if (!planilla) {
-      throw new NotFoundException('Planilla no encontrada');
-    }
-
-    return planilla;
-  }
-
   async calcular(id: number, empresaId: number, usuarioId?: number) {
-    const planilla = await this.findOneSimple(id, empresaId);
+    const planilla = await this.consulta.findOneSimple(id, empresaId);
 
     if (
       planilla.estado !== 'BORRADOR' &&
