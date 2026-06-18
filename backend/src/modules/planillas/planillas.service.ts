@@ -29,11 +29,6 @@ import {
   round2,
   safeNumber,
 } from './planillas.config';
-import {
-  calcularEmpleado,
-  EmpleadoParaCalculo,
-  PromediosHistoricos,
-} from './calculos/calcular-empleado';
 
 // Interfaz para advertencias de validación (exportada para tipado en controller)
 export interface CalculoWarning {

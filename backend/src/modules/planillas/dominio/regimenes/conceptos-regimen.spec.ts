@@ -70,6 +70,7 @@ const params: ParametrosLegales = {
   tramosIR: (): TramoIR[] => [{ hasta: Infinity, tasa: 0.08 }],
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  vidaLeyTasa: () => 0,
   agrario: (): ParametrosAgrario => AGRARIO_STUB,
   construccionCivil: (): ParametrosConstruccionCivil => CC_STUB,
 };

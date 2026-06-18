@@ -18,6 +18,7 @@ const paramsStub = (rmv: number): ParametrosLegales => ({
   tramosIR: (): TramoIR[] => [],
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  vidaLeyTasa: () => 0,
   ...stubParametrosRegimenes,
 });
 

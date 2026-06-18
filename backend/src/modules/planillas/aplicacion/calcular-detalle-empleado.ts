@@ -1,54 +1,57 @@
 /**
  * Orquestación por empleado del cálculo de planilla (borde de aplicación).
  *
- * Encadena el CAMINO REAL nuevo:
+ * Camino REAL nuevo, SIN motor legacy:
  *   1. Resuelve y valida el régimen (factory → estrategia → guardia certificación).
- *   2. Mapea Prisma → `EntradaCalculo` (mapper de aplicación).
- *   3. Calcula la boleta por el MOTOR NUEVO (`calcular-boleta`) usando el adapter
- *      Prisma de `ParametrosLegales`. El motor es la FUENTE DE VERDAD de los
- *      montos load-bearing del régimen.
- *   4. Completa los ~110 campos auxiliares del DTO (estructura salarial, días
- *      detallados, vida ley, SCTR empleador, computables, beneficios truncos) con
- *      el paso auxiliar legacy `calcularEmpleado`, y SOBREESCRIBE los montos
- *      load-bearing con los del motor nuevo. Así el motor queda en la ruta crítica
- *      real y la paridad de montos está blindada por `paridad-camino-real.spec`.
+ *   2. Construye el DTO COMPLETO (~110 campos: estructura salarial, días
+ *      detallados, ingresos/descuentos, aportes del empleador, remuneraciones
+ *      computables, beneficios truncos) con el motor PURO del dominio
+ *      `calcularDetalleCompleto`.
+ *   3. Mapea Prisma → `EntradaCalculo` y calcula los montos load-bearing del
+ *      régimen con el MOTOR `calcular-boleta` (fuente de verdad de los montos
+ *      régimen-variables, OCP).
+ *   4. SOBREESCRIBE los montos load-bearing del DTO completo con los del motor
+ *      de régimen. Para GENERAL ambos coinciden al céntimo (probado por
+ *      `paridad-detalle-completo.spec` y `paridad-camino-real.spec`); para los
+ *      demás régimenes el motor manda.
  *
- * Esta capa NO importa Nest. El servicio Nest le inyecta Prisma, los parámetros
- * legales y los promedios ya calculados.
+ * Esta capa NO importa Nest ni Prisma. El servicio Nest inyecta las filas y los
+ * parámetros legales.
  */
 import { ParametrosLegales } from '../dominio/parametros/parametros-legales';
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
+import { calcularDetalleCompleto } from '../dominio/detalle/calcular-detalle-completo';
+import { PromediosDetalle } from '../dominio/detalle/tipos-detalle';
 import { asegurarRegimenCertificado } from './guardia-certificacion';
 import {
   mapearEntradaCalculo,
   EmpleadoParaMapeo,
 } from './mapear-entrada-calculo';
+import {
+  mapearEntradaDetalle,
+  EmpleadoParaDetalle,
+} from './mapear-entrada-detalle';
 import { extraerMontosLoadBearing } from './mapear-resultado-detalle';
 import { EmpresaConRegimenDefault } from './resolver-regimen-laboral';
 
-/** Salida del paso auxiliar legacy (DTO completo de ~130 campos). */
+/** DTO de salida (mismo shape de ~130 campos que persiste el servicio). */
 export type DetalleLegacy = Record<string, unknown>;
 
 export interface ParametrosCalculoDetalle {
-  empleado: EmpleadoParaMapeo;
+  empleado: EmpleadoParaMapeo & EmpleadoParaDetalle;
   empresa: EmpresaConRegimenDefault;
   mes: number;
   anio: number;
   acumuladoRenta: number;
   retencionesPreviasRenta: number;
-  /**
-   * DTO auxiliar producido por el motor legacy (estructura/días/aportes
-   * empleador/computables/truncos). El motor nuevo sobreescribe sus montos
-   * load-bearing.
-   */
-  detalleLegacy: DetalleLegacy;
+  promedios: PromediosDetalle;
   parametros: ParametrosLegales;
 }
 
 /**
  * Calcula el detalle del empleado por el camino real nuevo y devuelve el DTO
- * completo con los montos load-bearing provenientes del MOTOR NUEVO.
+ * completo con los montos load-bearing provenientes del MOTOR de régimen.
  *
  * Lanza `RegimenNoCertificadoError` (vía la guardia) ANTES de calcular si el
  * régimen no está certificado para producción (AGRARIO/CONSTRUCCION_CIVIL).
@@ -56,7 +59,7 @@ export interface ParametrosCalculoDetalle {
 export function calcularDetalleEmpleado(
   params: ParametrosCalculoDetalle,
 ): DetalleLegacy {
-  const { empleado, empresa, mes, anio, detalleLegacy } = params;
+  const { empleado, empresa, mes, anio } = params;
 
   const entrada = mapearEntradaCalculo({
     empleado,
@@ -71,14 +74,26 @@ export function calcularDetalleEmpleado(
   // Guardia de certificación: bloquea régimenes no certificados ANTES de calcular.
   asegurarRegimenCertificado(calculadora);
 
+  // DTO auxiliar COMPLETO desde el motor puro del dominio (reemplaza al legacy).
+  const entradaDetalle = mapearEntradaDetalle({
+    empleado,
+    mes,
+    anio,
+    acumuladoRenta: params.acumuladoRenta,
+    retencionesPreviasRenta: params.retencionesPreviasRenta,
+    promedios: params.promedios,
+  });
+  const detalleCompleto = calcularDetalleCompleto(
+    entradaDetalle,
+    params.parametros,
+  );
+
+  // Montos load-bearing por el motor de régimen (fuente de verdad, OCP).
   const boleta = calcularBoleta(entrada, calculadora, params.parametros);
   const montos = extraerMontosLoadBearing(boleta);
 
-  // El motor nuevo es la fuente de verdad de los montos load-bearing; el resto del
-  // DTO (auxiliar) viene del paso legacy. La paridad de montos está garantizada
-  // por paridad-camino-real.spec (motor === legacy al céntimo en GENERAL).
   return {
-    ...detalleLegacy,
+    ...detalleCompleto,
     ...montos,
   };
 }

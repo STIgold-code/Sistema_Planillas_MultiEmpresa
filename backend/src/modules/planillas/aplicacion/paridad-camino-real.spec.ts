@@ -25,8 +25,10 @@
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { ParametrosLegalesEnMemoria } from '../infraestructura/parametros-legales-en-memoria';
-import { calcularEmpleado } from '../calculos/calcular-empleado';
-import { ESCENARIOS_GENERAL } from '../calculos/__fixtures__/empleados-general.fixture';
+import {
+  ESCENARIOS_GENERAL,
+  calcularDetalleOraculo,
+} from '../calculos/__fixtures__/empleados-general.fixture';
 import {
   mapearEntradaCalculo,
   EmpleadoParaMapeo,
@@ -57,14 +59,8 @@ describe('COMPUERTA DE PARIDAD — CAMINO REAL (mapper + motor) vs legacy', () =
   it.each(ESCENARIOS_GENERAL.map((e) => [e.nombre, e] as const))(
     'paridad de montos por el camino de producción: %s',
     (_nombre, escenario) => {
-      // --- Camino legacy (oráculo de paridad) ---
-      const legacy = calcularEmpleado(
-        escenario.empleado,
-        escenario.mes,
-        escenario.anio,
-        escenario.acumuladoRemuneracion,
-        escenario.acumuladoRetenciones,
-      );
+      // --- Oráculo de paridad: motor puro del DTO completo (ex-legacy) ---
+      const legacy = calcularDetalleOraculo(escenario);
 
       // --- Camino REAL nuevo: mapper de aplicación + factory + orquestador ---
       const entrada = mapearEntradaCalculo({

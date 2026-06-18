@@ -1,17 +1,21 @@
 /**
- * Integration parity for the real production overlay (PR6 slice 2).
+ * Integration parity for the real production per-employee path.
  *
- * `calcularDetalleEmpleado` is the exact per-employee path the service runs:
- * mapper → factory → guardia → motor → overlay sobre el DTO auxiliar legacy.
- * This test feeds the SAME golden fixtures and asserts that the FINAL DTO's
- * load-bearing amounts (sourced from the NEW engine) equal the legacy DTO at the
- * céntimo. If the overlay or the engine drifts, this fails.
+ * `calcularDetalleEmpleado` is the exact path the service runs WITHOUT the legacy
+ * engine: pure full-DTO engine (`calcularDetalleCompleto`) + régimen motor overlay
+ * of the load-bearing amounts. This test feeds the SAME golden fixtures and
+ * asserts that the FINAL DTO equals the cent-accurate oracle
+ * (`calcularDetalleOraculo`, the ex-legacy contract) on the load-bearing amounts
+ * AND preserves the auxiliary fields (vida ley, computables).
  */
 import { calcularDetalleEmpleado } from './calcular-detalle-empleado';
 import { ParametrosLegalesEnMemoria } from '../infraestructura/parametros-legales-en-memoria';
-import { calcularEmpleado } from '../calculos/calcular-empleado';
-import { ESCENARIOS_GENERAL } from '../calculos/__fixtures__/empleados-general.fixture';
+import {
+  ESCENARIOS_GENERAL,
+  calcularDetalleOraculo,
+} from '../calculos/__fixtures__/empleados-general.fixture';
 import { EmpleadoParaMapeo } from './mapear-entrada-calculo';
+import { EmpleadoParaDetalle } from './mapear-entrada-detalle';
 
 const parametros = new ParametrosLegalesEnMemoria();
 
@@ -32,42 +36,40 @@ const CAMPOS_LOAD_BEARING = [
   'renta_5ta',
 ] as const;
 
-describe('calcularDetalleEmpleado — paridad del DTO real (overlay motor sobre legacy)', () => {
+describe('calcularDetalleEmpleado — paridad del DTO real (motor puro + overlay régimen)', () => {
   it.each(ESCENARIOS_GENERAL.map((e) => [e.nombre, e] as const))(
-    'los montos load-bearing del DTO final = legacy: %s',
+    'los montos load-bearing del DTO final = oráculo: %s',
     (_nombre, escenario) => {
-      const legacy = calcularEmpleado(
-        escenario.empleado,
-        escenario.mes,
-        escenario.anio,
-        escenario.acumuladoRemuneracion,
-        escenario.acumuladoRetenciones,
-      );
+      const oraculo = calcularDetalleOraculo(escenario);
 
       const dto = calcularDetalleEmpleado({
-        empleado: escenario.empleado as unknown as EmpleadoParaMapeo,
+        empleado: escenario.empleado as unknown as EmpleadoParaMapeo &
+          EmpleadoParaDetalle,
         empresa: { regimen_laboral_default: 'GENERAL' },
         mes: escenario.mes,
         anio: escenario.anio,
         acumuladoRenta: escenario.acumuladoRemuneracion,
         retencionesPreviasRenta: escenario.acumuladoRetenciones,
-        detalleLegacy: legacy as unknown as Record<string, unknown>,
+        promedios: {
+          promedioHorasExtras: 0,
+          promedioComisiones: 0,
+          promedioBonificaciones: 0,
+          ultimaGratificacion: 0,
+        },
         parametros,
       });
 
       for (const campo of CAMPOS_LOAD_BEARING) {
-        expect(dto[campo]).toBe(legacy[campo as keyof typeof legacy]);
+        expect(dto[campo]).toBe(oraculo[campo as keyof typeof oraculo]);
       }
 
-      // bonificación extraordinaria: el motor la deriva igual que el legacy
-      // (solo en meses de gratificación).
       expect(dto.bonif_extraordinaria).toBe(
-        legacy.gratificacion_monto > 0 ? legacy.bonif_extraordinaria : 0,
+        oraculo.gratificacion_monto > 0 ? oraculo.bonif_extraordinaria : 0,
       );
 
-      // Los campos auxiliares NO load-bearing se conservan del legacy.
-      expect(dto.vida_ley_empleador).toBe(legacy.vida_ley_empleador);
-      expect(dto.rem_computable_cts).toBe(legacy.rem_computable_cts);
+      // Campos auxiliares conservados del motor puro del DTO completo.
+      expect(dto.vida_ley_empleador).toBe(oraculo.vida_ley_empleador);
+      expect(dto.rem_computable_cts).toBe(oraculo.rem_computable_cts);
     },
   );
 });

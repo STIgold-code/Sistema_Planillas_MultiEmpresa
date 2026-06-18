@@ -14,7 +14,23 @@
  * documented seam between plain fixture data and the Prisma-typed engine
  * inputs; it is intentional and isolated here so domain/test code stays framework-free.
  */
-import type { EmpleadoParaCalculo } from '../calcular-empleado';
+/**
+ * Tipo del payload de empleado que estos fixtures construyen. Antes provenía del
+ * motor legacy `calcular-empleado.ts` (ya retirado). Se define localmente como un
+ * shape laxo: el cast en el factory es el único borde documentado entre el dato
+ * de fixture plano y los consumidores tipados (motor puro / mapper de detalle).
+ */
+export type EmpleadoParaCalculo = Record<string, unknown>;
+
+import { calcularDetalleCompleto } from '../../dominio/detalle/calcular-detalle-completo';
+import { DetalleCompleto } from '../../dominio/detalle/tipos-detalle';
+import {
+  mapearEntradaDetalle,
+  EmpleadoParaDetalle,
+} from '../../aplicacion/mapear-entrada-detalle';
+import { ParametrosLegalesEnMemoria } from '../../infraestructura/parametros-legales-en-memoria';
+
+const PARAMETROS_ORACULO = new ParametrosLegalesEnMemoria();
 
 /** Pension régimen shape consumed by `calcularDeducciones`. */
 interface RegimenPensionarioFixture {
@@ -249,3 +265,28 @@ export const ESCENARIOS_GENERAL: EscenarioGeneral[] = [
     acumuladoRetenciones: 0,
   },
 ];
+
+/**
+ * Oráculo de paridad del DTO completo: ejecuta el motor PURO del dominio
+ * (`calcularDetalleCompleto` vía el mapper de aplicación) que reemplazó al legacy.
+ * Es la fuente de verdad de los ~110 campos auxiliares del DTO para los golden
+ * snapshots y las compuertas de paridad de montos del régimen.
+ */
+export function calcularDetalleOraculo(
+  escenario: EscenarioGeneral,
+): DetalleCompleto {
+  const entrada = mapearEntradaDetalle({
+    empleado: escenario.empleado as unknown as EmpleadoParaDetalle,
+    mes: escenario.mes,
+    anio: escenario.anio,
+    acumuladoRenta: escenario.acumuladoRemuneracion,
+    retencionesPreviasRenta: escenario.acumuladoRetenciones,
+    promedios: {
+      promedioHorasExtras: 0,
+      promedioComisiones: 0,
+      promedioBonificaciones: 0,
+      ultimaGratificacion: 0,
+    },
+  });
+  return calcularDetalleCompleto(entrada, PARAMETROS_ORACULO);
+}

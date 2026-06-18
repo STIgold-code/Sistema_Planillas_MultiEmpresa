@@ -1,65 +1,40 @@
 /**
- * Golden / parity net for the legacy GENERAL-régimen engine (SDD T01).
+ * Golden / regression net for the GENERAL régimen (SDD).
  *
- * Purpose: freeze the CURRENT output of the procedural `calcularEmpleado`
- * engine for representative GENERAL employees. These Jest snapshots are the
- * regression contract the new régimen-parameterized engine must reproduce
- * exactly (T14) before the legacy path is retired.
+ * Originally these snapshots froze the legacy procedural engine
+ * `calcularEmpleado`. The legacy engine has been RETIRED: the pure domain engine
+ * `calcularDetalleCompleto` (via the aplicación edge mapper) now produces the
+ * full DTO and was proven equal to the legacy AL CÉNTIMO field-by-field
+ * (`dominio/detalle/paridad-detalle-completo.spec.ts`) BEFORE deletion.
  *
- * These tests assert NOTHING about whether the legacy numbers are "correct" by
- * law — they capture behavior as-is. Any change to the engine output is a
- * deliberate decision that must update these snapshots consciously.
+ * The snapshot file is therefore the SERIALIZED CONTRACT: it must keep matching
+ * the new engine byte-for-byte. The describe/test titles are intentionally
+ * unchanged so the existing `__snapshots__` keys (the regression contract) stay
+ * valid — any drift in the new engine output fails here.
  */
-import { calcularEmpleado } from './calcular-empleado';
-import { ESCENARIOS_GENERAL } from './__fixtures__/empleados-general.fixture';
+import {
+  ESCENARIOS_GENERAL,
+  calcularDetalleOraculo,
+} from './__fixtures__/empleados-general.fixture';
 
 describe('calcularEmpleado - golden/parity net (GENERAL)', () => {
   it.each(ESCENARIOS_GENERAL.map((e) => [e.nombre, e] as const))(
     'snapshot estable: %s',
     (_nombre, escenario) => {
-      const resultado = calcularEmpleado(
-        escenario.empleado,
-        escenario.mes,
-        escenario.anio,
-        escenario.acumuladoRemuneracion,
-        escenario.acumuladoRetenciones,
-      );
-
-      expect(resultado).toMatchSnapshot();
+      expect(calcularDetalleOraculo(escenario)).toMatchSnapshot();
     },
   );
 
   it('es determinista: misma entrada produce misma salida', () => {
     const escenario = ESCENARIOS_GENERAL[0];
-    const primera = calcularEmpleado(
-      escenario.empleado,
-      escenario.mes,
-      escenario.anio,
-      escenario.acumuladoRemuneracion,
-      escenario.acumuladoRetenciones,
+    expect(calcularDetalleOraculo(escenario)).toEqual(
+      calcularDetalleOraculo(escenario),
     );
-    const segunda = calcularEmpleado(
-      escenario.empleado,
-      escenario.mes,
-      escenario.anio,
-      escenario.acumuladoRemuneracion,
-      escenario.acumuladoRetenciones,
-    );
-
-    expect(segunda).toEqual(primera);
   });
 
   it('cubre conceptos representativos: ingresos, descuentos y aportes', () => {
-    // Smoke assertions guarding the snapshot scope: the captured photo must
-    // exercise sueldo base, pension deductions and employer contributions.
     const [escenarioOnp] = ESCENARIOS_GENERAL;
-    const resultado = calcularEmpleado(
-      escenarioOnp.empleado,
-      escenarioOnp.mes,
-      escenarioOnp.anio,
-      escenarioOnp.acumuladoRemuneracion,
-      escenarioOnp.acumuladoRetenciones,
-    );
+    const resultado = calcularDetalleOraculo(escenarioOnp);
 
     expect(resultado.sueldo_base).toBeGreaterThan(0);
     expect(resultado.onp).toBeGreaterThan(0);

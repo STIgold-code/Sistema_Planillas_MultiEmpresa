@@ -96,6 +96,8 @@ export interface ParametrosLegales {
   sctrSalud(fecha: Date): number;
   /** Tasa SCTR Pensión (fracción) vigente en `fecha`. */
   sctrPension(fecha: Date): number;
+  /** Tasa de prima Vida Ley del empleador (fracción) vigente en `fecha` (D.U. 044-2019). */
+  vidaLeyTasa(fecha: Date): number;
   /** Parámetros del régimen agrario (Ley 31110) vigentes en `fecha`. */
   agrario(fecha: Date): ParametrosAgrario;
   /**

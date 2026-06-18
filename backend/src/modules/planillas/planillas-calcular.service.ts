@@ -7,13 +7,10 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ahoraPeru } from '../../common/utils/datetime.util';
-import { calcularEmpleado } from './calculos/calcular-empleado';
 import { RegimenNoCertificadoError } from './aplicacion/guardia-certificacion';
-import {
-  calcularDetalleEmpleado,
-  DetalleLegacy,
-} from './aplicacion/calcular-detalle-empleado';
+import { calcularDetalleEmpleado } from './aplicacion/calcular-detalle-empleado';
 import { EmpleadoParaMapeo } from './aplicacion/mapear-entrada-calculo';
+import { EmpleadoParaDetalle } from './aplicacion/mapear-entrada-detalle';
 import { PlanillaPromediosService } from './planilla-promedios.service';
 import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
@@ -177,27 +174,24 @@ export class PlanillasCalcularService {
           planilla.anio,
         );
 
-        // Paso auxiliar legacy: estructura/días/aportes empleador/computables.
-        const detalleLegacy = calcularEmpleado(
-          empleado,
-          planilla.mes,
-          planilla.anio,
-          acumulado.remuneracionAcumulada,
-          acumulado.retencionesAcumuladas,
-          promedios,
-        ) as unknown as DetalleLegacy;
-
-        // CAMINO REAL: el motor nuevo calcula y sobreescribe los montos
-        // load-bearing del régimen sobre el DTO auxiliar. La guardia de
-        // certificación bloquea régimenes no certificados ANTES de calcular.
+        // CAMINO REAL (sin legacy): el motor puro del dominio construye el DTO
+        // COMPLETO y el motor de régimen sobreescribe los montos load-bearing.
+        // La guardia de certificación bloquea régimenes no certificados ANTES de
+        // calcular.
         const calculo = calcularDetalleEmpleado({
-          empleado: empleado as unknown as EmpleadoParaMapeo,
+          empleado: empleado as unknown as EmpleadoParaMapeo &
+            EmpleadoParaDetalle,
           empresa: empresaParaRegimen,
           mes: planilla.mes,
           anio: planilla.anio,
           acumuladoRenta: acumulado.remuneracionAcumulada,
           retencionesPreviasRenta: acumulado.retencionesAcumuladas,
-          detalleLegacy,
+          promedios: {
+            promedioHorasExtras: promedios.promedioHorasExtras,
+            promedioComisiones: promedios.promedioComisiones,
+            promedioBonificaciones: promedios.promedioBonificaciones,
+            ultimaGratificacion: promedios.ultimaGratificacion,
+          },
           parametros: parametrosLegales,
         }) as Record<string, number | string | boolean>;
 

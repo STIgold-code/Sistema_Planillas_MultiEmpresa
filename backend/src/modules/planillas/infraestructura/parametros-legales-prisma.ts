@@ -89,9 +89,14 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
     return this.escalar('sctrPension', fecha);
   }
 
-  // --- Claves estructuradas: delegadas al fallback (DIP intacto) ---
+  // --- Claves estructuradas y no seedeadas: delegadas al fallback (DIP intacto) ---
   tramosIR(fecha: Date): TramoIR[] {
     return this.fallback.tramosIR(fecha);
+  }
+  // vidaLeyTasa no se seedea aún en `parametros_legales`; se delega al fallback
+  // in-memory (planillas.config) para no romper entornos sin esa fila.
+  vidaLeyTasa(fecha: Date): number {
+    return this.fallback.vidaLeyTasa(fecha);
   }
   agrario(fecha: Date): ParametrosAgrario {
     return this.fallback.agrario(fecha);

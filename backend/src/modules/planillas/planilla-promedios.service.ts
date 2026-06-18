@@ -1,7 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { round2, safeNumber } from './planillas.config';
-import { PromediosHistoricos } from './calculos/calcular-empleado';
+
+/**
+ * Promedios históricos de los últimos 6 meses que alimentan el cálculo de CTS y
+ * gratificación. (Antes vivía en el motor legacy `calcular-empleado.ts`, ya
+ * retirado.)
+ */
+export interface PromediosHistoricos {
+  promedioHorasExtras: number;
+  promedioComisiones: number;
+  promedioBonificaciones: number;
+  mesesTrabajadosSemestre: number;
+  diasTrabajadosSemestre: number;
+  ultimaGratificacion: number;
+}
 
 /**
  * Calcula los promedios históricos (últimos 6 meses) que alimentan CTS y

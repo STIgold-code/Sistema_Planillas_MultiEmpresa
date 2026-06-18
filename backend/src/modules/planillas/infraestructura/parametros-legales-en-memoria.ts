@@ -28,6 +28,7 @@ import {
   ESSALUD_MINIMO,
   SCTR_SALUD_TASA,
   SCTR_PENSION_TASA,
+  VIDA_LEY_TASA,
   TRAMOS_IR_5TA,
 } from '../planillas.config';
 
@@ -50,6 +51,7 @@ export interface SemillaParametros {
   tramosIR?: ValorVigente<TramoIR[]>[];
   sctrSalud?: ValorVigente<number>[];
   sctrPension?: ValorVigente<number>[];
+  vidaLeyTasa?: ValorVigente<number>[];
   /** Tabla agraria (Ley 31110) versionada por vigencia anual. */
   agrario?: ValorVigente<ParametrosAgrario>[];
   /** Tabla construcción civil versionada por vigencia, una serie por categoría. */
@@ -66,8 +68,15 @@ export interface SemillaParametros {
  */
 const SIS_MICROEMPRESA = 15;
 
-/** Vigencia que arranca en la fecha de la RMV 2025 (placeholder histórico). */
-const VIGENCIA_BASE = new Date('2025-01-01');
+/**
+ * Vigencia base de las claves escalares del adapter in-memory. Arranca temprano
+ * (no en 2025) porque el legacy era AÑO-AGNÓSTICO: usaba las constantes de
+ * `planillas.config` sin ventana de vigencia. Mantener una ventana abierta y
+ * temprana preserva esa semántica para cualquier período de cálculo y evita
+ * `ParametroLegalNoVigenteError` en planillas de años anteriores. La vigencia
+ * REAL versionada vive en la tabla `parametros_legales` (adapter Prisma).
+ */
+const VIGENCIA_BASE = new Date('2000-01-01');
 
 /** Vigencia de la convención colectiva CC 2026 (R.M. 197-2025-TR). */
 const VIGENCIA_CC_2026_DESDE = new Date('2026-01-01');
@@ -153,6 +162,7 @@ function semillaPorDefecto(): Required<SemillaParametros> {
     tramosIR: uno(TRAMOS_IR_5TA as TramoIR[]),
     sctrSalud: uno(SCTR_SALUD_TASA),
     sctrPension: uno(SCTR_PENSION_TASA),
+    vidaLeyTasa: uno(VIDA_LEY_TASA),
     agrario: [
       {
         valor: AGRARIO_2026,
@@ -205,6 +215,9 @@ export class ParametrosLegalesEnMemoria implements ParametrosLegales {
   }
   sctrPension(fecha: Date): number {
     return this.resolver('sctrPension', this.semilla.sctrPension, fecha);
+  }
+  vidaLeyTasa(fecha: Date): number {
+    return this.resolver('vidaLeyTasa', this.semilla.vidaLeyTasa, fecha);
   }
   agrario(fecha: Date): ParametrosAgrario {
     return this.resolver('agrario', this.semilla.agrario, fecha);

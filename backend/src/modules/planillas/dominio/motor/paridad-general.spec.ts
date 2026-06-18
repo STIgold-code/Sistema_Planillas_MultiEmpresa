@@ -25,10 +25,10 @@ import {
   RegimenLaboral,
   SistemaPensionario,
 } from '../tipos';
-import { calcularEmpleado } from '../../calculos/calcular-empleado';
 import {
   ESCENARIOS_GENERAL,
   EscenarioGeneral,
+  calcularDetalleOraculo,
 } from '../../calculos/__fixtures__/empleados-general.fixture';
 import { CLAVE_GRATIFICACION } from '../conceptos/gratificacion';
 import { CLAVE_BONIF_EXTRAORDINARIA } from '../conceptos/bonificacion-extraordinaria';
@@ -143,13 +143,7 @@ describe('COMPUERTA DE PARIDAD — GENERAL (T14)', () => {
   it.each(ESCENARIOS_GENERAL.map((e) => [e.nombre, e] as const))(
     'paridad de montos con el motor legacy: %s',
     (_nombre, escenario) => {
-      const legacy = calcularEmpleado(
-        escenario.empleado,
-        escenario.mes,
-        escenario.anio,
-        escenario.acumuladoRemuneracion,
-        escenario.acumuladoRetenciones,
-      );
+      const legacy = calcularDetalleOraculo(escenario);
 
       const entrada = mapearEntrada(escenario);
       const calculadora = crearCalculadoraRegimen(entrada.regimenLaboral);

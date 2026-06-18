@@ -22,12 +22,41 @@ import {
   SOBRETASA_NOCTURNA,
   round2,
 } from './planillas.config';
-import { calcularEmpleado } from './calculos/calcular-empleado';
+import { calcularDetalleCompleto } from './dominio/detalle/calcular-detalle-completo';
+import {
+  mapearEntradaDetalle,
+  EmpleadoParaDetalle,
+} from './aplicacion/mapear-entrada-detalle';
+import { ParametrosLegalesEnMemoria } from './infraestructura/parametros-legales-en-memoria';
 
 describe('PlanillasService.calcularEmpleado', () => {
-  // Helper: la función ya es standalone. Cast a any para permitir fixtures parciales en tests.
+  // El motor legacy fue retirado. Estas pruebas de comportamiento ahora ejercen
+  // el motor PURO del dominio `calcularDetalleCompleto` (vía el mapper de
+  // aplicación), que reprodujo el legacy al céntimo antes de borrarlo.
+  const PARAMS = new ParametrosLegalesEnMemoria();
 
-  const calcular = calcularEmpleado as any;
+  const calcular = (
+    empleado: Record<string, any>,
+    mes: number = 1,
+    anio: number = 2026,
+    acumuladoRenta: number = 0,
+    retencionesPreviasRenta: number = 0,
+  ) => {
+    const entrada = mapearEntradaDetalle({
+      empleado: empleado as unknown as EmpleadoParaDetalle,
+      mes,
+      anio,
+      acumuladoRenta,
+      retencionesPreviasRenta,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+    });
+    return calcularDetalleCompleto(entrada, PARAMS);
+  };
 
   /**
    * Fixture: construye un empleado mínimo para cálculo.
