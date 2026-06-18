@@ -3,6 +3,7 @@ import {
   CLAVE_BONIF_NOCTURNA,
 } from './jornada-nocturna';
 import { ParametrosLegales } from '../parametros/parametros-legales';
+import { stubParametrosRegimenes } from '../parametros/parametros-legales.stub';
 import { TramoIR } from '../tipos';
 
 const fecha = new Date('2026-03-31');
@@ -17,6 +18,7 @@ const paramsStub = (rmv: number): ParametrosLegales => ({
   tramosIR: (): TramoIR[] => [],
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  ...stubParametrosRegimenes,
 });
 
 const monto = (r: ReturnType<typeof calcularJornadaNocturna>): number =>

@@ -24,6 +24,7 @@ const SIN_CONCEPTOS: ResultadoConcepto = { conceptos: [] };
 
 export class RegimenMicroempresa implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.MICROEMPRESA;
+  readonly certificadoProduccion = true;
 
   gratificacion(): ResultadoConcepto {
     return SIN_CONCEPTOS;

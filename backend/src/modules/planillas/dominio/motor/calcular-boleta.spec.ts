@@ -1,6 +1,7 @@
 import { calcularBoleta } from './calcular-boleta';
 import { RegimenGeneral } from '../regimenes/regimen-general';
 import { ParametrosLegales } from '../parametros/parametros-legales';
+import { stubParametrosRegimenes } from '../parametros/parametros-legales.stub';
 import {
   EntradaCalculo,
   RegimenLaboral,
@@ -25,6 +26,7 @@ const params: ParametrosLegales = {
   ],
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  ...stubParametrosRegimenes,
 };
 
 const dias30 = Array.from({ length: 30 }, () => ({

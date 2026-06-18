@@ -27,6 +27,7 @@ const FRACCION_PEQUENA = 0.5;
 
 export class RegimenPequenaEmpresa implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.PEQUENA_EMPRESA;
+  readonly certificadoProduccion = true;
 
   gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
     return calcularGratificacion(

@@ -13,6 +13,8 @@ import { RegimenGeneral } from './regimen-general';
 import { RegimenPequenaEmpresa } from './regimen-pequena-empresa';
 import { RegimenMicroempresa } from './regimen-microempresa';
 import { RegimenHogar } from './regimen-hogar';
+import { RegimenAgrario } from './regimen-agrario';
+import { RegimenConstruccionCivil } from './regimen-construccion-civil';
 import { RegimenLaboral } from '../tipos';
 
 /** Raised when no strategy is registered for a labor régimen. */
@@ -31,6 +33,8 @@ const REGISTRO: Partial<Record<RegimenLaboral, FabricaRegimen>> = {
   [RegimenLaboral.PEQUENA_EMPRESA]: () => new RegimenPequenaEmpresa(),
   [RegimenLaboral.MICROEMPRESA]: () => new RegimenMicroempresa(),
   [RegimenLaboral.HOGAR]: () => new RegimenHogar(),
+  [RegimenLaboral.AGRARIO]: () => new RegimenAgrario(),
+  [RegimenLaboral.CONSTRUCCION_CIVIL]: () => new RegimenConstruccionCivil(),
 };
 
 export function crearCalculadoraRegimen(

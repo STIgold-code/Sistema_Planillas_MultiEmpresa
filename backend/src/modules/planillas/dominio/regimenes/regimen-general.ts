@@ -24,6 +24,7 @@ import { calcularSaludEmpleador } from '../conceptos/salud-empleador';
 
 export class RegimenGeneral implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.GENERAL;
+  readonly certificadoProduccion = true;
 
   gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
     return calcularGratificacion(

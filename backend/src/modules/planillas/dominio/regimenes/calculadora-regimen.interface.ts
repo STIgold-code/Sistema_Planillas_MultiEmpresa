@@ -20,6 +20,20 @@ import { ParametrosLegales } from '../parametros/parametros-legales';
 export interface CalculadoraRegimen {
   readonly regimen: RegimenLaboral;
 
+  /**
+   * Guarda de certificación: indica si la estrategia está CERTIFICADA para
+   * correr planilla real. Los régimenes cuyas reglas legales aún no fueron
+   * confirmadas por un contador (AGRARIO, CONSTRUCCION_CIVIL en PR5) devuelven
+   * `false`, de modo que un consumidor no pueda emitir nómina real sin que sea
+   * evidente que falta certificación. Por defecto (régimenes ya verificados) es
+   * `true`.
+   *
+   * Cómo se LEVANTA el flag: cuando el contador confirme los puntos
+   * ⚠️ NO CONFIRMADOS y se quiten los `it.skip(...)` de los specs, se cambia el
+   * valor de la constante `CERTIFICADO_PRODUCCION` de la estrategia a `true`.
+   */
+  readonly certificadoProduccion: boolean;
+
   gratificacion(
     ctx: ContextoCalculo,
     params: ParametrosLegales,

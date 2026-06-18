@@ -1,5 +1,6 @@
 import { calcularRentaQuinta, CLAVE_RENTA_5TA } from './renta-quinta';
 import { ParametrosLegales } from '../parametros/parametros-legales';
+import { stubParametrosRegimenes } from '../parametros/parametros-legales.stub';
 import { TramoIR } from '../tipos';
 
 const TRAMOS: TramoIR[] = [
@@ -20,6 +21,7 @@ const params = (uit: number, tramos: TramoIR[]): ParametrosLegales => ({
   tramosIR: () => tramos,
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  ...stubParametrosRegimenes,
 });
 
 const monto = (r: ReturnType<typeof calcularRentaQuinta>): number =>

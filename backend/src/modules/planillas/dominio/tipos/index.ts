@@ -17,6 +17,19 @@ export enum RegimenLaboral {
   HOGAR = 'HOGAR',
 }
 
+/** Tamaño de empresa (régimen agrario): define la tasa EsSalud por gradualidad. */
+export enum TamanoEmpresa {
+  GRANDE = 'GRANDE',
+  PEQUENA = 'PEQUENA',
+}
+
+/** Categoría de obrero en construcción civil. Define jornal básico y BUC. */
+export enum CategoriaConstruccion {
+  OPERARIO = 'OPERARIO',
+  OFICIAL = 'OFICIAL',
+  PEON = 'PEON',
+}
+
 /** Pension system the worker is affiliated to. Orthogonal to RegimenLaboral. */
 export enum SistemaPensionario {
   AFP = 'AFP',
@@ -144,6 +157,22 @@ export interface ContextoCalculo {
   periodo: PeriodoCalculo;
   resumenTareo: ResumenTareo;
   devengados: DatosDevengados;
+  /**
+   * Categoría de construcción civil (solo CONSTRUCCION_CIVIL). Resuelve jornal y
+   * BUC desde ParametrosLegales. Omitida en el resto de régimenes.
+   */
+  categoriaConstruccion?: CategoriaConstruccion;
+  /**
+   * Tamaño de empresa (solo AGRARIO): elige la tasa EsSalud por gradualidad
+   * (GRANDE 9% / PEQUEÑA 6% en 2026). Omitido en el resto de régimenes.
+   */
+  tamanoEmpresa?: TamanoEmpresa;
+  /**
+   * Régimen AGRARIO: si true, grati/CTS/vacaciones se prorratean dentro del
+   * jornal diario (sistema de prorrateo Ley 31110). Si false/omitido, se pagan
+   * por separado igual que el GENERAL.
+   */
+  usaProrrateoAgrario?: boolean;
 }
 
 /** Final boleta produced by the orchestrator. */

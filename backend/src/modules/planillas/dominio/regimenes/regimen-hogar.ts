@@ -30,6 +30,7 @@ const FRACCION_HOGAR = 1;
 
 export class RegimenHogar implements CalculadoraRegimen {
   readonly regimen = RegimenLaboral.HOGAR;
+  readonly certificadoProduccion = true;
 
   gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
     return calcularGratificacion(

@@ -1,6 +1,7 @@
 import { RegimenMicroempresa } from './regimen-microempresa';
 import { CalculadoraRegimen } from './calculadora-regimen.interface';
 import { ParametrosLegales } from '../parametros/parametros-legales';
+import { stubParametrosRegimenes } from '../parametros/parametros-legales.stub';
 import {
   ContextoCalculo,
   RegimenLaboral,
@@ -30,6 +31,7 @@ const params: ParametrosLegales = {
   tramosIR: (): TramoIR[] => [{ hasta: Infinity, tasa: 0.08 }],
   sctrSalud: () => 0,
   sctrPension: () => 0,
+  ...stubParametrosRegimenes,
 };
 
 const ctx = (overrides: Partial<ContextoCalculo> = {}): ContextoCalculo => ({
