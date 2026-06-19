@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist /FI \"PID eq 16528\" /V)",
+      "Bash(wmic:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run lint:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(done)",
+      "Bash(xargs:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(node:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx tsc:*)",
+      "mcp__railway__check-railway-status",
+      "mcp__railway__list-variables",
+      "mcp__railway__list-services",
+      "Bash(DATABASE_URL=\"postgresql://postgres:hsLTzSLICIXxQYWedtxvJriWaVUyqeQe@yamabiko.proxy.rlwy.net:12846/railway\" npx prisma migrate resolve:*)",
+      "mcp__railway__deploy",
+      "mcp__railway__get-logs",
+      "mcp__railway__list-deployments",
+      "Bash(DATABASE_URL=\"postgresql://postgres:hsLTzSLICIXxQYWedtxvJriWaVUyqeQe@yamabiko.proxy.rlwy.net:12846/railway\" npx prisma migrate deploy:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:hsLTzSLICIXxQYWedtxvJriWaVUyqeQe@yamabiko.proxy.rlwy.net:12846/railway\" npx prisma migrate status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(npx prisma:*)",
+      "Bash(timeout:*)"
+    ]
+  }
+}

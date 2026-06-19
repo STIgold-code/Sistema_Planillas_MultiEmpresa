@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/"
+
+[deploy]
+startCommand = "cd .next/standalone && node server.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

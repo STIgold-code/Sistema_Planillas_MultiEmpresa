@@ -1,0 +1,2468 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TokenRevocado {
+  id         Int      @id @default(autoincrement())
+  token_hash String   @unique @db.VarChar(64)
+  usuario_id Int?
+  expires_at DateTime
+  revoked_at DateTime @default(now())
+  usuario    Usuario? @relation(fields: [usuario_id], references: [id])
+
+  @@index([token_hash])
+  @@index([expires_at])
+  @@map("tokens_revocados")
+}
+
+/// Modelo de propiedad por objeto para el almacenamiento de archivos.
+/// Cada archivo subido (Wasabi o local) queda vinculado a una empresa para
+/// permitir autorizacion cross-tenant al servirlo. La autorizacion al servir
+/// se basa en este registro (campo `publico` + `empresa_id`), nunca en el
+/// prefijo de la key.
+model Archivo {
+  id            Int      @id @default(autoincrement())
+  /// Key del objeto en el storage (Wasabi o ruta relativa local). Es la
+  /// fuente de verdad y se usa para resolver propiedad al servir.
+  key           String   @unique @db.VarChar(500)
+  empresa_id    Int
+  /// Categoria logica del archivo (logos, firmas, documentos, contratos, etc.).
+  categoria     String   @db.VarChar(50)
+  /// true solo para archivos genuinamente publicos (logos, assets). Las firmas
+  /// del representante legal son SIEMPRE privadas aunque compartan prefijo.
+  publico       Boolean  @default(false)
+  subido_por_id Int?
+  mime          String?  @db.VarChar(150)
+  size          Int?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  empresa       Empresa  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  subido_por    Usuario? @relation(fields: [subido_por_id], references: [id], onDelete: SetNull)
+
+  @@index([empresa_id])
+  @@index([categoria])
+  @@map("archivos")
+}
+
+model Empresa {
+  id                             Int                          @id @default(autoincrement())
+  ruc                            String                       @unique @db.VarChar(11)
+  razon_social                   String                       @db.VarChar(200)
+  nombre_comercial               String?                      @db.VarChar(200)
+  direccion                      String?                      @db.VarChar(300)
+  telefono                       String?                      @db.VarChar(20)
+  centro_control                 String?                      @db.VarChar(100)
+  email                          String?                      @db.VarChar(100)
+  representante_legal            String?                      @db.VarChar(200)
+  dni_representante              String?                      @db.VarChar(12)
+  cargo_representante            String?                      @db.VarChar(100)
+  partida_electronica            String?                      @db.VarChar(20)
+  logo_url                       String?                      @db.VarChar(500)
+  firma_representante_url        String?                      @db.VarChar(500)
+  regimen_laboral_default        RegimenLaboral               @default(GENERAL)
+  activo                         Boolean                      @default(true)
+  created_at                     DateTime                     @default(now())
+  updated_at                     DateTime                     @updatedAt
+  archivos                       Archivo[]
+  areas                          Area[]
+  auditorias                     Auditoria[]
+  boletas                        Boleta[]
+  cargos                         Cargo[]
+  clientes                       Cliente[]
+  configuracion_tareo            ConfiguracionTareo?
+  configuracion_vacaciones       ConfiguracionVacaciones?
+  empleados                      Empleado[]
+  movimientos_vacacionales       MovimientoVacacional[]
+  periodos_tareo                 PeriodoTareo[]
+  periodos_vacacionales          PeriodoVacacional[]
+  planillas                      Planilla[]
+  plantillas_contrato            PlantillaContrato[]
+  plantillas_documento           PlantillaDocumento[]
+  plantillas_onboarding          PlantillaOnboarding[]
+  postulantes                    Postulante[]
+  procedencias                   Procedencia[]
+  procesos_onboarding            ProcesoOnboarding[]
+  reportes_generados             ReporteGenerado[]
+  roles                          Rol[]
+  entregas_uniforme              EntregaUniforme[]
+  ingresos_inventario            IngresoInventario[]
+  items_inventario               ItemInventario[]
+  movimientos_inventario         MovimientoInventario[]
+  proveedores                    Proveedor[]
+  solicitudes_descuento_uniforme SolicitudDescuentoUniforme[]
+  solicitudes_baja_item          SolicitudBajaItem[]
+  empleados_tallas               EmpleadoTalla[]
+  requerimientos_uniforme        RequerimientoUniforme[]
+  sedes                          Sede[]
+  sesiones_tareo                 SesionTareo[]
+  solicitudes_anulacion          SolicitudAnulacionContrato[]
+  solicitudes_cese               SolicitudCese[]
+  solicitudes_extension          SolicitudExtension[]
+  solicitudes_vacaciones         SolicitudVacaciones[]
+  tareo_justificaciones          TareoJustificacion[]
+  tipos_cese                     TipoCeseMaestro[]
+  tipos_documento_empleado       TipoDocumentoEmpleado[]
+  tipos_evaluacion               TipoEvaluacionMaestro[]
+  tipos_uniforme                 TipoUniforme[]
+  caracteristicas                Caracteristica[]
+  plantillas_uniforme            PlantillaUniforme[]
+  usuarios                       Usuario[]
+  vacantes                       Vacante[]
+  vinculos_laborales             VinculoLaboral[]
+
+  @@map("empresas")
+}
+
+model Rol {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @db.VarChar(100)
+  descripcion String?   @db.VarChar(300)
+  permisos    String[]  @default([])
+  empresa_id  Int
+  activo      Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  empresa     Empresa   @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  usuarios    Usuario[]
+
+  @@unique([nombre, empresa_id])
+  @@map("roles")
+}
+
+model Usuario {
+  id                              Int                          @id @default(autoincrement())
+  email                           String                       @unique @db.VarChar(150)
+  password                        String                       @db.VarChar(255)
+  nombre_completo                 String                       @db.VarChar(200)
+  activo                          Boolean                      @default(true)
+  empresa_id                      Int
+  rol_id                          Int
+  ultimo_acceso                   DateTime?
+  tokens_revocados_at             DateTime?
+  created_at                      DateTime                     @default(now())
+  updated_at                      DateTime                     @updatedAt
+  archivos_subidos                Archivo[]
+  auditorias                      Auditoria[]
+  boletas_generadas               Boleta[]                     @relation("BoletaGeneradaPor")
+  carnets_sucamec_registrados     CarnetSucamec[]
+  contratos                       Contrato[]
+  documentos_eliminados           EmpleadoDocumento[]          @relation("DocumentoEliminadoPor")
+  documentos_subidos              EmpleadoDocumento[]          @relation("DocumentoSubidoPor")
+  movimientos                     EmpleadoMovimiento[]
+  movimientos_vacacionales        MovimientoVacacional[]
+  periodos_cerrados               PeriodoTareo[]               @relation("PeriodoCerradoPor")
+  photocheck_logs                 PhotocheckLog[]
+  planillas_aprobadas             Planilla[]                   @relation("PlanillaAprobadaPor")
+  postulante_docs_eliminados      PostulanteDocumento[]        @relation("PostulanteDocEliminadoPor")
+  postulante_docs_subidos         PostulanteDocumento[]        @relation("PostulanteDocSubidoPor")
+  evaluaciones_postulante         PostulanteEvaluacion[]
+  entregas_uniforme               EntregaUniforme[]
+  ingresos_inventario             IngresoInventario[]
+  movimientos_inventario          MovimientoInventario[]
+  onboarding_responsable          ProcesoOnboarding[]          @relation("OnboardingResponsable")
+  reportes_generados              ReporteGenerado[]
+  sesiones_tareo                  SesionTareo[]
+  solicitudes_anulacion_resueltas SolicitudAnulacionContrato[] @relation("SolicitudAnulacionResuelta")
+  solicitudes_anulacion_creadas   SolicitudAnulacionContrato[] @relation("SolicitudAnulacionSolicitada")
+  descuentos_uniforme_solicitados SolicitudDescuentoUniforme[] @relation("DescuentoUniformeSolicitado")
+  descuentos_uniforme_resueltos   SolicitudDescuentoUniforme[] @relation("DescuentoUniformeResuelto")
+  bajas_item_solicitadas          SolicitudBajaItem[]          @relation("BajaItemSolicitada")
+  bajas_item_resueltas            SolicitudBajaItem[]          @relation("BajaItemResuelta")
+  requerimientos_uniforme         RequerimientoUniforme[]
+  solicitudes_cese_resueltas      SolicitudCese[]              @relation("SolicitudCeseResuelta")
+  solicitudes_cese_creadas        SolicitudCese[]              @relation("SolicitudCeseSolicitada")
+  solicitudes_extension_aprobadas SolicitudExtension[]         @relation("SolicitudExtensionAprobada")
+  solicitudes_extension_creadas   SolicitudExtension[]         @relation("SolicitudExtensionCreada")
+  solicitudes_vac_aprobadas_jefe  SolicitudVacaciones[]        @relation("SolicitudAprobadaJefe")
+  solicitudes_vac_aprobadas_rrhh  SolicitudVacaciones[]        @relation("SolicitudAprobadaRRHH")
+  solicitudes_vac_canceladas      SolicitudVacaciones[]        @relation("SolicitudCancelada")
+  solicitudes_vac_creadas         SolicitudVacaciones[]        @relation("SolicitudCreadaPor")
+  solicitudes_vac_rechazadas      SolicitudVacaciones[]        @relation("SolicitudRechazada")
+  tareas_onboarding               TareaEmpleadoOnboarding[]
+  tareo_detalle_audits            TareoDetalleAudit[]
+  tareo_justificaciones           TareoJustificacion[]
+  tokens_revocados                TokenRevocado[]
+  empresa                         Empresa                      @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  rol                             Rol                          @relation(fields: [rol_id], references: [id])
+
+  @@map("usuarios")
+}
+
+model Auditoria {
+  id               Int             @id @default(autoincrement())
+  usuario_id       Int?
+  usuario_email    String?         @db.VarChar(150)
+  accion           AccionAuditoria
+  tabla_afectada   String?         @db.VarChar(100)
+  registro_id      Int?
+  datos_anteriores Json?
+  datos_nuevos     Json?
+  empresa_id       Int?
+  created_at       DateTime        @default(now())
+  empresa          Empresa?        @relation(fields: [empresa_id], references: [id])
+  usuario          Usuario?        @relation(fields: [usuario_id], references: [id])
+
+  @@index([usuario_id])
+  @@index([tabla_afectada, registro_id, created_at(sort: Desc)])
+  @@index([empresa_id, created_at(sort: Desc)])
+  @@map("auditoria")
+}
+
+model Area {
+  id                    Int                   @id @default(autoincrement())
+  nombre                String                @db.VarChar(100)
+  empresa_id            Int
+  activo                Boolean               @default(true)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  empresa               Empresa               @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  empleados             Empleado[]
+  plantillas_onboarding PlantillaOnboarding[]
+  tareos                Tareo[]
+  vacantes              Vacante[]
+
+  @@unique([nombre, empresa_id])
+  @@map("areas")
+}
+
+model Cargo {
+  id                    Int                   @id @default(autoincrement())
+  nombre                String                @db.VarChar(100)
+  descripcion           String?               @db.VarChar(300)
+  empresa_id            Int
+  activo                Boolean               @default(true)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  empresa               Empresa               @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  empleados             Empleado[]
+  plantillas_onboarding PlantillaOnboarding[]
+  tareos                Tareo[]
+  vacantes              Vacante[]
+
+  @@unique([nombre, empresa_id])
+  @@map("cargos")
+}
+
+model Cliente {
+  id                Int        @id @default(autoincrement())
+  ruc               String     @db.VarChar(11)
+  razon_social      String     @db.VarChar(200)
+  nombre_comercial  String?    @db.VarChar(200)
+  direccion         String?    @db.VarChar(300)
+  telefono          String?    @db.VarChar(20)
+  email             String?    @db.VarChar(100)
+  contacto_nombre   String?    @db.VarChar(200)
+  contacto_telefono String?    @db.VarChar(20)
+  contacto_email    String?    @db.VarChar(100)
+  empresa_id        Int
+  activo            Boolean    @default(true)
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  empresa           Empresa    @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  contratos         Contrato[]
+  sedes             Sede[]
+
+  @@unique([ruc, empresa_id])
+  @@index([empresa_id])
+  @@map("clientes")
+}
+
+model Banco {
+  id                Int        @id @default(autoincrement())
+  nombre            String     @unique @db.VarChar(100)
+  codigo            String?    @unique @db.VarChar(10)
+  activo            Boolean    @default(true)
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  empleados_cts     Empleado[] @relation("BancoCTS")
+  empleados_haberes Empleado[] @relation("BancoHaberes")
+
+  @@map("bancos")
+}
+
+model Procedencia {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @db.VarChar(100)
+  descripcion String?      @db.VarChar(300)
+  empresa_id  Int
+  activo      Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  postulantes Postulante[]
+  empresa     Empresa      @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([nombre, empresa_id])
+  @@map("procedencias")
+}
+
+model RegimenPensionario {
+  id                  Int         @id @default(autoincrement())
+  nombre              String      @unique @db.VarChar(100)
+  tipo                TipoRegimen
+  aporte_obligatorio  Decimal?    @default(0) @db.Decimal(5, 2)
+  comision_flujo      Decimal?    @default(0) @db.Decimal(5, 2)
+  comision_saldo      Decimal?    @default(0) @db.Decimal(5, 2)
+  prima_seguro        Decimal?    @default(0) @db.Decimal(5, 2)
+  remuneracion_maxima Decimal?    @default(0) @db.Decimal(10, 2)
+  activo              Boolean     @default(true)
+  created_at          DateTime    @default(now())
+  updated_at          DateTime    @updatedAt
+  empleados           Empleado[]
+
+  @@map("regimenes_pensionarios")
+}
+
+model TipoMarcacion {
+  id                   Int            @id @default(autoincrement())
+  codigo               String         @unique @db.VarChar(10)
+  descripcion          String         @db.VarChar(100)
+  color                String?        @db.VarChar(20)
+  cuenta_como          String?        @db.VarChar(50)
+  horas_default        Int?           @default(8)
+  horas_diurnas        Int            @default(0)
+  horas_nocturnas      Int            @default(0)
+  requiere_calculo     Boolean        @default(false)
+  es_laborable         Boolean        @default(true)
+  activo               Boolean        @default(true)
+  created_at           DateTime       @default(now())
+  updated_at           DateTime       @updatedAt
+  es_feriado_trabajado Boolean        @default(false)
+  equivalente_codigo   String?        @db.VarChar(20)
+  genera_pago          Boolean        @default(true)
+  tareo_detalles       TareoDetalle[]
+
+  @@map("tipos_marcacion")
+}
+
+model Departamento {
+  id         Int         @id @default(autoincrement())
+  nombre     String      @unique @db.VarChar(100)
+  created_at DateTime    @default(now())
+  provincias Provincia[]
+
+  @@map("departamentos")
+}
+
+model Provincia {
+  id              Int          @id @default(autoincrement())
+  nombre          String       @db.VarChar(100)
+  departamento_id Int
+  created_at      DateTime     @default(now())
+  distritos       Distrito[]
+  departamento    Departamento @relation(fields: [departamento_id], references: [id], onDelete: Cascade)
+
+  @@unique([nombre, departamento_id])
+  @@map("provincias")
+}
+
+model Distrito {
+  id           Int          @id @default(autoincrement())
+  nombre       String       @db.VarChar(100)
+  provincia_id Int
+  created_at   DateTime     @default(now())
+  provincia    Provincia    @relation(fields: [provincia_id], references: [id], onDelete: Cascade)
+  empleados    Empleado[]
+  postulantes  Postulante[]
+
+  @@unique([nombre, provincia_id])
+  @@map("distritos")
+}
+
+model Empleado {
+  id                             Int                            @id @default(autoincrement())
+  tipo_documento                 TipoDocumento                  @default(DNI)
+  numero_documento               String                         @db.VarChar(12)
+  apellido_paterno               String                         @db.VarChar(100)
+  apellido_materno               String                         @db.VarChar(100)
+  nombres                        String                         @db.VarChar(100)
+  fecha_nacimiento               DateTime                       @db.Date
+  sexo                           SexoTipo
+  estado_civil                   String?                        @db.VarChar(20)
+  nacionalidad                   String?                        @default("PERUANA") @db.VarChar(50)
+  telefono                       String?                        @db.VarChar(20)
+  celular                        String?                        @db.VarChar(20)
+  email                          String?                        @db.VarChar(100)
+  foto_url                       String?                        @db.VarChar(500)
+  direccion                      String?                        @db.VarChar(300)
+  referencia                     String?                        @db.VarChar(200)
+  distrito_id                    Int?
+  area_id                        Int?
+  cargo_id                       Int?
+  sede_id                        Int?
+  fecha_ingreso                  DateTime                       @db.Date
+  fecha_planilla                 DateTime?                      @db.Date
+  fecha_cese                     DateTime?                      @db.Date
+  estado                         EstadoEmpleado                 @default(ACTIVO)
+  estado_documentacion           EstadoDocumentacion            @default(PENDIENTE)
+  sueldo_base                    Decimal                        @default(1130.00) @db.Decimal(10, 2)
+  tipo_pago                      TipoPago                       @default(PLANILLA)
+  turno                          TurnoTipo                      @default(DIA)
+  regimen_pensionario_id         Int?
+  cuspp                          String?                        @db.VarChar(20)
+  asignacion_familiar            Boolean                        @default(false)
+  sctr                           Boolean                        @default(false)
+  es_mype                        Boolean                        @default(false)
+  bono_productividad             Decimal?                       @db.Decimal(10, 2)
+  bono_desempeno                 Decimal?                       @db.Decimal(10, 2)
+  bono_movilidad                 Decimal?                       @db.Decimal(10, 2)
+  bono_refrigerio                Decimal?                       @db.Decimal(10, 2)
+  bono_armado                    Decimal?                       @db.Decimal(10, 2)
+  asignacion_cliente             Decimal?                       @db.Decimal(10, 2)
+  monto_adelanto                 Decimal?                       @db.Decimal(10, 2)
+  banco_haberes_id               Int?
+  nro_cuenta_haberes             String?                        @db.VarChar(30)
+  cci_haberes                    String?                        @db.VarChar(25)
+  banco_cts_id                   Int?
+  nro_cuenta_cts                 String?                        @db.VarChar(30)
+  cci_cts                        String?                        @db.VarChar(25)
+  celular_asignado               String?                        @db.VarChar(20)
+  email_asignado                 String?                        @db.VarChar(100)
+  estatura                       Decimal?                       @db.Decimal(3, 2)
+  peso                           Decimal?                       @db.Decimal(5, 2)
+  categoria_licencia             String?                        @db.VarChar(10)
+  estudios                       Json?
+  capacitaciones                 Json?
+  experiencias                   Json?
+  empresa_id                     Int
+  created_at                     DateTime                       @default(now())
+  updated_at                     DateTime                       @updatedAt
+  boletas                        Boleta[]
+  carnets_sucamec                CarnetSucamec[]
+  contratos                      Contrato[]
+  vinculos_laborales             VinculoLaboral[]
+  documentos_generados           DocumentoGenerado[]
+  area                           Area?                          @relation(fields: [area_id], references: [id])
+  banco_cts                      Banco?                         @relation("BancoCTS", fields: [banco_cts_id], references: [id])
+  banco_haberes                  Banco?                         @relation("BancoHaberes", fields: [banco_haberes_id], references: [id])
+  cargo                          Cargo?                         @relation(fields: [cargo_id], references: [id])
+  distrito                       Distrito?                      @relation(fields: [distrito_id], references: [id])
+  empresa                        Empresa                        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  regimen_pensionario            RegimenPensionario?            @relation(fields: [regimen_pensionario_id], references: [id])
+  sede                           Sede?                          @relation(fields: [sede_id], references: [id])
+  documentos                     EmpleadoDocumento[]
+  familiares                     EmpleadoFamiliar[]
+  movimientos                    EmpleadoMovimiento[]
+  movimientos_vacacionales       MovimientoVacacional[]
+  periodos_vacacionales          PeriodoVacacional[]
+  photocheck_logs                PhotocheckLog[]
+  planilla_detalles              PlanillaDetalle[]
+  postulante_origen              Postulante?
+  procesos_onboarding            ProcesoOnboarding[]
+  mentoria_onboarding            ProcesoOnboarding[]            @relation("OnboardingMentor")
+  entregas_uniforme              EntregaUniforme[]
+  items_inventario               ItemInventario[]
+  solicitudes_descuento_uniforme SolicitudDescuentoUniforme[]
+  empleado_tallas                EmpleadoTalla[]
+  requerimiento_detalles         RequerimientoUniformeDetalle[]
+  solicitudes_anulacion          SolicitudAnulacionContrato[]
+  solicitudes_cese               SolicitudCese[]
+  solicitudes_vacaciones         SolicitudVacaciones[]
+  tareos                         Tareo[]
+
+  @@unique([numero_documento, empresa_id])
+  @@index([empresa_id])
+  @@index([area_id])
+  @@index([sede_id])
+  @@index([distrito_id])
+  @@index([estado])
+  @@index([numero_documento])
+  @@index([empresa_id, estado])
+  @@map("empleados")
+}
+
+model EmpleadoFamiliar {
+  id                Int           @id @default(autoincrement())
+  empleado_id       Int
+  parentesco        String        @db.VarChar(50)
+  nombres_apellidos String        @db.VarChar(200)
+  tipo_documento    TipoDocumento @default(DNI)
+  numero_documento  String?       @db.VarChar(12)
+  fecha_nacimiento  DateTime?     @db.Date
+  telefono          String?       @db.VarChar(20)
+  es_dependiente    Boolean       @default(false)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  empleado          Empleado      @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+
+  @@index([empleado_id])
+  @@map("empleados_familiares")
+}
+
+model TipoDocumentoEmpleado {
+  id                    Int                   @id @default(autoincrement())
+  codigo                String                @db.VarChar(20)
+  nombre                String                @db.VarChar(100)
+  descripcion           String?               @db.VarChar(300)
+  es_obligatorio        Boolean               @default(false)
+  aplica_seleccion      Boolean               @default(false)
+  aplica_rrhh           Boolean               @default(false)
+  dias_alerta           Int?
+  orden                 Int                   @default(0)
+  activo                Boolean               @default(true)
+  empresa_id            Int
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  tipo_vigencia         TipoVigenciaDocumento @default(SIN_FECHAS)
+  documentos            EmpleadoDocumento[]
+  postulante_documentos PostulanteDocumento[]
+  empresa               Empresa               @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id])
+  @@map("tipos_documento_empleado")
+}
+
+model EmpleadoDocumento {
+  id                         Int                     @id @default(autoincrement())
+  empleado_id                Int
+  tipo_documento_empleado_id Int?
+  descripcion                String?                 @db.VarChar(300)
+  archivo_url                String                  @db.VarChar(500)
+  archivo_nombre             String?                 @db.VarChar(200)
+  fecha_emision              DateTime?               @db.Date
+  fecha_vencimiento          DateTime?               @db.Date
+  fecha_carga                DateTime                @default(now())
+  created_at                 DateTime                @default(now())
+  updated_at                 DateTime                @updatedAt
+  origen                     OrigenDocumentoEmpleado @default(RRHH)
+  version                    Int                     @default(1)
+  es_version_vigente         Boolean                 @default(true)
+  documento_origen_id        Int?
+  motivo_nueva_version       String?                 @db.VarChar(500)
+  subido_por_id              Int?
+  eliminado                  Boolean                 @default(false)
+  eliminado_en               DateTime?
+  eliminado_por_id           Int?
+  motivo_eliminacion         String?                 @db.VarChar(500)
+  carnets_sucamec            CarnetSucamec[]
+  documento_origen           EmpleadoDocumento?      @relation("VersionChain", fields: [documento_origen_id], references: [id], onDelete: Restrict)
+  versiones                  EmpleadoDocumento[]     @relation("VersionChain")
+  eliminado_por              Usuario?                @relation("DocumentoEliminadoPor", fields: [eliminado_por_id], references: [id])
+  empleado                   Empleado                @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  subido_por                 Usuario?                @relation("DocumentoSubidoPor", fields: [subido_por_id], references: [id])
+  tipo_documento_empleado    TipoDocumentoEmpleado?  @relation(fields: [tipo_documento_empleado_id], references: [id])
+
+  @@index([empleado_id])
+  @@index([tipo_documento_empleado_id])
+  @@index([fecha_vencimiento])
+  @@index([documento_origen_id])
+  @@index([es_version_vigente])
+  @@map("empleados_documentos")
+}
+
+model EmpleadoMovimiento {
+  id               Int            @id @default(autoincrement())
+  empleado_id      Int
+  tipo_movimiento  TipoMovimiento
+  fecha_movimiento DateTime       @db.Date
+  motivo           String?        @db.VarChar(500)
+  observaciones    String?
+  usuario_id       Int?
+  created_at       DateTime       @default(now())
+  empleado         Empleado       @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  usuario          Usuario?       @relation(fields: [usuario_id], references: [id])
+
+  @@index([empleado_id])
+  @@index([fecha_movimiento])
+  @@map("empleados_movimientos")
+}
+
+model Contrato {
+  id                    Int                          @id @default(autoincrement())
+  empleado_id           Int
+  plantilla_id          Int?
+  cliente_id            Int?
+  vinculo_laboral_id    Int?
+  tipo_contrato         String                       @db.VarChar(100)
+  modalidad             String?                      @db.VarChar(100)
+  fecha_inicio          DateTime                     @db.Date
+  fecha_fin             DateTime?                    @db.Date
+  fecha_firma           DateTime?                    @db.Date
+  estado                EstadoContrato               @default(ACTIVO)
+  renovar               Boolean                      @default(false)
+  remuneracion          Decimal?                     @db.Decimal(10, 2)
+  regimen_laboral       RegimenLaboral?
+  observaciones         String?
+  archivo_url           String?                      @db.VarChar(500)
+  empresa_cliente       String?                      @db.VarChar(200)
+  lugar_trabajo         String?                      @db.VarChar(300)
+  usuario_id            Int?
+  created_at            DateTime                     @default(now())
+  updated_at            DateTime                     @updatedAt
+  fecha_cese            DateTime?                    @db.Date
+  motivo_cese           String?                      @db.VarChar(500)
+  numero_renovacion     Int                          @default(1)
+  cliente               Cliente?                     @relation(fields: [cliente_id], references: [id])
+  empleado              Empleado                     @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  plantilla             PlantillaContrato?           @relation(fields: [plantilla_id], references: [id])
+  usuario               Usuario?                     @relation(fields: [usuario_id], references: [id])
+  vinculo_laboral       VinculoLaboral?              @relation(fields: [vinculo_laboral_id], references: [id], onDelete: SetNull)
+  solicitudes_anulacion SolicitudAnulacionContrato[]
+  solicitudes_cese      SolicitudCese[]
+
+  @@index([empleado_id])
+  @@index([estado])
+  @@index([fecha_fin])
+  @@index([plantilla_id])
+  @@index([cliente_id])
+  @@index([vinculo_laboral_id])
+  @@index([estado, fecha_fin])
+  @@map("contratos")
+}
+
+// Parámetros legales versionados por fecha de vigencia (RMV, UIT, topes, tasas).
+// Son valores NACIONALES de ley, no por empresa: por eso NO llevan empresa_id
+// (excepción deliberada a la regla multi-tenant). El cálculo de una boleta resuelve
+// el valor vigente según la fecha del periodo de planilla.
+model ParametroLegal {
+  id             Int       @id @default(autoincrement())
+  clave          String    @db.VarChar(50)
+  valor          Decimal   @db.Decimal(14, 6)
+  descripcion    String?   @db.VarChar(200)
+  vigencia_desde DateTime  @db.Date
+  vigencia_hasta DateTime? @db.Date
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  @@unique([clave, vigencia_desde])
+  @@index([clave])
+  @@map("parametros_legales")
+}
+
+model CarnetSucamec {
+  id                Int                 @id @default(autoincrement())
+  empleado_id       Int
+  numero_carnet     String              @unique @db.VarChar(20)
+  categoria         CategoriaSucamec    @default(BASICO)
+  fecha_emision     DateTime            @db.Date
+  fecha_vencimiento DateTime            @db.Date
+  estado            EstadoCarnetSucamec @default(VIGENTE)
+  observaciones     String?
+  usuario_id        Int?
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+  documento_id      Int?
+  documento         EmpleadoDocumento?  @relation(fields: [documento_id], references: [id])
+  empleado          Empleado            @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  usuario           Usuario?            @relation(fields: [usuario_id], references: [id])
+
+  @@index([empleado_id])
+  @@index([documento_id])
+  @@index([estado])
+  @@index([fecha_vencimiento])
+  @@index([estado, fecha_vencimiento])
+  @@map("carnets_sucamec")
+}
+
+model PlantillaContrato {
+  id                Int        @id @default(autoincrement())
+  nombre            String     @db.VarChar(200)
+  descripcion       String?    @db.VarChar(500)
+  tipo_contrato     String     @db.VarChar(100)
+  contenido         String
+  variables         Json?
+  archivo_base_url  String?    @db.VarChar(500)
+  activo            Boolean    @default(true)
+  es_predeterminada Boolean    @default(false)
+  empresa_id        Int
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  contratos         Contrato[]
+  empresa           Empresa    @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([nombre, empresa_id])
+  @@index([empresa_id])
+  @@index([tipo_contrato])
+  @@index([activo])
+  @@map("plantillas_contrato")
+}
+
+model PlantillaDocumento {
+  id                   Int                  @id @default(autoincrement())
+  codigo               String               @db.VarChar(20)
+  nombre               String               @db.VarChar(200)
+  descripcion          String?              @db.VarChar(500)
+  categoria            CategoriaDocumento   @default(LABORAL)
+  contenido            String?
+  archivo_base_url     String?              @db.VarChar(500)
+  tipo_archivo         TipoArchivoPlantilla @default(HTML)
+  variables            Json?
+  requiere_firma       Boolean              @default(true)
+  es_obligatorio       Boolean              @default(false)
+  orden                Int                  @default(0)
+  activo               Boolean              @default(true)
+  empresa_id           Int
+  created_at           DateTime             @default(now())
+  updated_at           DateTime             @updatedAt
+  documentos_generados DocumentoGenerado[]
+  empresa              Empresa              @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id])
+  @@index([categoria])
+  @@index([activo])
+  @@index([empresa_id, activo, categoria, orden])
+  @@map("plantillas_documento")
+}
+
+model DocumentoGenerado {
+  id                     Int                     @id @default(autoincrement())
+  empleado_id            Int
+  plantilla_documento_id Int
+  contenido_generado     String?
+  archivo_url            String?                 @db.VarChar(500)
+  archivo_firmado_url    String?                 @db.VarChar(500)
+  estado                 EstadoDocumentoGenerado @default(PENDIENTE)
+  fecha_generacion       DateTime                @default(now())
+  fecha_firma            DateTime?
+  generado_por           Int?
+  observaciones          String?                 @db.VarChar(500)
+  created_at             DateTime                @default(now())
+  updated_at             DateTime                @updatedAt
+  empleado               Empleado                @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  plantilla_documento    PlantillaDocumento      @relation(fields: [plantilla_documento_id], references: [id])
+
+  @@index([empleado_id])
+  @@index([plantilla_documento_id])
+  @@index([estado])
+  @@index([empleado_id, plantilla_documento_id])
+  @@index([generado_por])
+  @@map("documentos_generados")
+}
+
+model Vacante {
+  id                Int           @id @default(autoincrement())
+  codigo            String        @db.VarChar(20)
+  titulo            String        @db.VarChar(200)
+  descripcion       String?
+  cargo_id          Int?
+  area_id           Int?
+  sede_id           Int?
+  cantidad_puestos  Int           @default(1)
+  sueldo_ofrecido   Decimal?      @db.Decimal(10, 2)
+  tipo_contrato     String?       @db.VarChar(100)
+  modalidad         String?       @db.VarChar(50)
+  requisitos        Json?
+  fecha_publicacion DateTime?     @db.Date
+  fecha_cierre      DateTime?     @db.Date
+  estado            EstadoVacante @default(BORRADOR)
+  empresa_id        Int
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  postulantes       Postulante[]
+  area              Area?         @relation(fields: [area_id], references: [id])
+  cargo             Cargo?        @relation(fields: [cargo_id], references: [id])
+  empresa           Empresa       @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  sede              Sede?         @relation(fields: [sede_id], references: [id])
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id, estado])
+  @@index([sede_id])
+  @@map("vacantes")
+}
+
+model Postulante {
+  id                   Int                    @id @default(autoincrement())
+  tipo_documento       TipoDocumento          @default(DNI)
+  numero_documento     String                 @db.VarChar(12)
+  apellido_paterno     String                 @db.VarChar(100)
+  apellido_materno     String                 @db.VarChar(100)
+  nombres              String                 @db.VarChar(100)
+  fecha_nacimiento     DateTime?              @db.Date
+  sexo                 SexoTipo?
+  celular              String?                @db.VarChar(20)
+  telefono             String?                @db.VarChar(20)
+  email                String?                @db.VarChar(100)
+  foto_url             String?                @db.VarChar(500)
+  estado_civil         String?                @db.VarChar(20)
+  nacionalidad         String?                @db.VarChar(50)
+  direccion            String?                @db.VarChar(300)
+  referencia           String?                @db.VarChar(300)
+  distrito_id          Int?
+  estatura             Decimal?               @db.Decimal(3, 2)
+  peso                 Decimal?               @db.Decimal(5, 2)
+  categoria_licencia   String?                @db.VarChar(10)
+  estudios             Json?
+  experiencias         Json?
+  capacitaciones       Json?
+  vacante_id           Int
+  estado               EstadoPostulante       @default(EN_PROCESO)
+  fecha_postulacion    DateTime               @default(now())
+  evaluaciones         Json?
+  pretension_salarial  Decimal?               @db.Decimal(10, 2)
+  procedencia          ProcedenciaPostulante?
+  procedencia_id       Int?
+  motivo_rechazo       String?                @db.VarChar(500)
+  empleado_id          Int?                   @unique
+  empresa_id           Int
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
+  documentos           PostulanteDocumento[]
+  evaluaciones_detalle PostulanteEvaluacion[]
+  distrito             Distrito?              @relation(fields: [distrito_id], references: [id])
+  empleado             Empleado?              @relation(fields: [empleado_id], references: [id])
+  empresa              Empresa                @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  procedencia_rel      Procedencia?           @relation(fields: [procedencia_id], references: [id])
+  vacante              Vacante                @relation(fields: [vacante_id], references: [id])
+
+  @@unique([numero_documento, vacante_id])
+  @@index([empresa_id, estado])
+  @@index([vacante_id])
+  @@index([procedencia_id])
+  @@index([numero_documento])
+  @@map("postulantes")
+}
+
+model TipoEvaluacionMaestro {
+  id             Int                    @id @default(autoincrement())
+  codigo         String                 @db.VarChar(20)
+  nombre         String                 @db.VarChar(100)
+  descripcion    String?                @db.VarChar(500)
+  puntaje_maximo Decimal?               @db.Decimal(5, 2)
+  es_obligatorio Boolean                @default(false)
+  orden          Int                    @default(0)
+  activo         Boolean                @default(true)
+  empresa_id     Int
+  created_at     DateTime               @default(now())
+  updated_at     DateTime               @updatedAt
+  evaluaciones   PostulanteEvaluacion[]
+  empresa        Empresa                @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id])
+  @@map("tipos_evaluacion")
+}
+
+model PostulanteEvaluacion {
+  id                 Int                    @id @default(autoincrement())
+  postulante_id      Int
+  tipo               TipoEvaluacion?
+  tipo_evaluacion_id Int?
+  puntaje            Decimal?               @db.Decimal(5, 2)
+  comentario         String?                @db.VarChar(1000)
+  evaluador_id       Int?
+  archivo_url        String?                @db.VarChar(500)
+  archivo_nombre     String?                @db.VarChar(255)
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+  evaluador          Usuario?               @relation(fields: [evaluador_id], references: [id])
+  postulante         Postulante             @relation(fields: [postulante_id], references: [id], onDelete: Cascade)
+  tipo_evaluacion    TipoEvaluacionMaestro? @relation(fields: [tipo_evaluacion_id], references: [id])
+
+  @@index([postulante_id])
+  @@index([tipo_evaluacion_id])
+  @@map("postulante_evaluaciones")
+}
+
+model PostulanteDocumento {
+  id                         Int                    @id @default(autoincrement())
+  postulante_id              Int
+  tipo_documento_empleado_id Int?
+  descripcion                String?                @db.VarChar(300)
+  archivo_url                String                 @db.VarChar(500)
+  archivo_nombre             String?                @db.VarChar(200)
+  fecha_emision              DateTime?              @db.Date
+  fecha_vencimiento          DateTime?              @db.Date
+  fecha_carga                DateTime               @default(now())
+  created_at                 DateTime               @default(now())
+  updated_at                 DateTime               @updatedAt
+  version                    Int                    @default(1)
+  es_version_vigente         Boolean                @default(true)
+  documento_origen_id        Int?
+  motivo_nueva_version       String?                @db.VarChar(500)
+  subido_por_id              Int?
+  eliminado                  Boolean                @default(false)
+  eliminado_en               DateTime?
+  eliminado_por_id           Int?
+  motivo_eliminacion         String?                @db.VarChar(500)
+  documento_origen           PostulanteDocumento?   @relation("PostulanteDocVersionChain", fields: [documento_origen_id], references: [id], onDelete: Restrict)
+  versiones                  PostulanteDocumento[]  @relation("PostulanteDocVersionChain")
+  eliminado_por              Usuario?               @relation("PostulanteDocEliminadoPor", fields: [eliminado_por_id], references: [id])
+  postulante                 Postulante             @relation(fields: [postulante_id], references: [id], onDelete: Cascade)
+  subido_por                 Usuario?               @relation("PostulanteDocSubidoPor", fields: [subido_por_id], references: [id])
+  tipo_documento_empleado    TipoDocumentoEmpleado? @relation(fields: [tipo_documento_empleado_id], references: [id])
+
+  @@index([postulante_id])
+  @@index([tipo_documento_empleado_id])
+  @@index([fecha_vencimiento])
+  @@index([documento_origen_id])
+  @@index([es_version_vigente])
+  @@map("postulante_documentos")
+}
+
+model Sede {
+  id         Int            @id @default(autoincrement())
+  nombre     String         @db.VarChar(200)
+  direccion  String?        @db.VarChar(300)
+  cliente_id Int
+  empresa_id Int
+  activo     Boolean        @default(true)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+  empleados  Empleado[]
+  contactos  SedeContacto[]
+  cliente    Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  empresa    Empresa        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  tareos     Tareo[]
+  vacantes   Vacante[]
+
+  @@unique([nombre, cliente_id, empresa_id])
+  @@index([cliente_id])
+  @@index([empresa_id])
+  @@map("sedes")
+}
+
+model SedeContacto {
+  id           Int      @id @default(autoincrement())
+  sede_id      Int
+  nombre       String   @db.VarChar(200)
+  cargo        String?  @db.VarChar(100)
+  telefono     String?  @db.VarChar(20)
+  email        String?  @db.VarChar(100)
+  es_principal Boolean  @default(false)
+  activo       Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  sede         Sede     @relation(fields: [sede_id], references: [id], onDelete: Cascade)
+
+  @@index([sede_id])
+  @@map("sede_contactos")
+}
+
+model PeriodoTareo {
+  id                    Int                  @id @default(autoincrement())
+  empresa_id            Int
+  anio                  Int
+  mes                   Int
+  fecha_inicio          DateTime             @db.Date
+  fecha_fin             DateTime             @db.Date
+  estado                EstadoPeriodoTareo   @default(BORRADOR)
+  fecha_cierre          DateTime?
+  cerrado_por           Int?
+  observaciones         String?
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+  usuario_cierre        Usuario?             @relation("PeriodoCerradoPor", fields: [cerrado_por], references: [id])
+  empresa               Empresa              @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  planillas             Planilla[]
+  sesiones              SesionTareo[]
+  solicitudes_extension SolicitudExtension[]
+  tareos                Tareo[]
+
+  @@unique([empresa_id, anio, mes])
+  @@index([empresa_id])
+  @@index([estado])
+  @@map("periodos_tareo")
+}
+
+model Tareo {
+  id              Int                  @id @default(autoincrement())
+  periodo_id      Int
+  empleado_id     Int
+  area_id         Int?
+  sede_id         Int?
+  cargo_id        Int?
+  estado          EstadoTareo          @default(PENDIENTE)
+  observaciones   String?
+  created_at      DateTime             @default(now())
+  updated_at      DateTime             @updatedAt
+  detalles        TareoDetalle[]
+  justificaciones TareoJustificacion[]
+  area            Area?                @relation(fields: [area_id], references: [id])
+  cargo           Cargo?               @relation(fields: [cargo_id], references: [id])
+  empleado        Empleado             @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  periodo         PeriodoTareo         @relation(fields: [periodo_id], references: [id], onDelete: Cascade)
+  sede            Sede?                @relation(fields: [sede_id], references: [id])
+
+  @@unique([periodo_id, empleado_id])
+  @@index([periodo_id])
+  @@index([empleado_id])
+  @@index([area_id])
+  @@index([sede_id])
+  @@map("tareos")
+}
+
+model TareoDetalle {
+  id                Int                 @id @default(autoincrement())
+  tareo_id          Int
+  dia               Int
+  tipo_marcacion_id Int?
+  horas             Decimal?            @db.Decimal(4, 2)
+  observacion       String?             @db.VarChar(200)
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+  audits            TareoDetalleAudit[]
+  tareo             Tareo               @relation(fields: [tareo_id], references: [id], onDelete: Cascade)
+  tipo_marcacion    TipoMarcacion?      @relation(fields: [tipo_marcacion_id], references: [id])
+
+  @@unique([tareo_id, dia])
+  @@index([tareo_id])
+  @@index([tipo_marcacion_id])
+  @@map("tareo_detalles")
+}
+
+model TareoDetalleAudit {
+  id               Int          @id @default(autoincrement())
+  tareo_detalle_id Int
+  valor_anterior   String?      @db.VarChar(10)
+  valor_nuevo      String?      @db.VarChar(10)
+  usuario_id       Int?
+  ip_address       String?      @db.VarChar(45)
+  created_at       DateTime     @default(now())
+  tareo_detalle    TareoDetalle @relation(fields: [tareo_detalle_id], references: [id], onDelete: Cascade)
+  usuario          Usuario?     @relation(fields: [usuario_id], references: [id])
+
+  @@index([tareo_detalle_id])
+  @@index([usuario_id])
+  @@index([created_at])
+  @@map("tareo_detalle_audits")
+}
+
+model TareoJustificacion {
+  id                      Int                         @id @default(autoincrement())
+  tareo_id                Int
+  empresa_id              Int
+  dia_inicio              Int
+  dia_fin                 Int
+  tipo                    TipoJustificacion
+  tipo_documento          TipoDocumentoJustificacion  @default(OTROS)
+  codigo_certificado      String?
+  descripcion             String?
+  solicitud_vacaciones_id Int?
+  created_by              Int
+  created_at              DateTime                    @default(now())
+  updated_at              DateTime                    @updatedAt
+  archivos                TareoJustificacionArchivo[]
+  usuario                 Usuario                     @relation(fields: [created_by], references: [id])
+  empresa                 Empresa                     @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  solicitud_vacaciones    SolicitudVacaciones?        @relation(fields: [solicitud_vacaciones_id], references: [id])
+  tareo                   Tareo                       @relation(fields: [tareo_id], references: [id], onDelete: Cascade)
+
+  @@index([tareo_id])
+  @@index([empresa_id])
+  @@index([created_by])
+  @@index([solicitud_vacaciones_id])
+  @@map("tareo_justificaciones")
+}
+
+model TareoJustificacionArchivo {
+  id               Int                @id @default(autoincrement())
+  justificacion_id Int
+  archivo_url      String
+  archivo_nombre   String
+  archivo_tipo     String
+  archivo_size     Int
+  created_at       DateTime           @default(now())
+  justificacion    TareoJustificacion @relation(fields: [justificacion_id], references: [id], onDelete: Cascade)
+
+  @@index([justificacion_id])
+  @@map("tareo_justificacion_archivos")
+}
+
+model Planilla {
+  id               Int               @id @default(autoincrement())
+  empresa_id       Int
+  periodo_tareo_id Int?
+  anio             Int
+  mes              Int
+  estado           EstadoPlanilla    @default(BORRADOR)
+  fecha_generacion DateTime?
+  fecha_aprobacion DateTime?
+  fecha_pago       DateTime?
+  aprobado_por     Int?
+  total_bruto      Decimal           @default(0) @db.Decimal(12, 2)
+  total_descuentos Decimal           @default(0) @db.Decimal(12, 2)
+  total_neto       Decimal           @default(0) @db.Decimal(12, 2)
+  total_empleados  Int               @default(0)
+  observaciones    String?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  detalles         PlanillaDetalle[]
+  aprobador        Usuario?          @relation("PlanillaAprobadaPor", fields: [aprobado_por], references: [id])
+  empresa          Empresa           @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  periodo_tareo    PeriodoTareo?     @relation(fields: [periodo_tareo_id], references: [id])
+
+  @@unique([empresa_id, anio, mes])
+  @@index([empresa_id])
+  @@index([estado])
+  @@index([empresa_id, anio])
+  @@index([empresa_id, anio, estado])
+  @@map("planillas")
+}
+
+model PlanillaDetalle {
+  id                           Int      @id @default(autoincrement())
+  planilla_id                  Int
+  empleado_id                  Int
+  total_dias                   Int      @default(30)
+  dias_trabajados              Int      @default(0)
+  dias_no_laborados            Int      @default(0)
+  dias_falta                   Int      @default(0)
+  dias_cesado_no_lab           Int      @default(0)
+  dias_nuevo_no_lab            Int      @default(0)
+  dias_sin_cobertura           Int      @default(0)
+  dias_suspension              Int      @default(0)
+  dias_vacaciones              Int      @default(0)
+  dias_subsidio                Int      @default(0)
+  dias_subsidio_incapacidad    Int      @default(0)
+  dias_subsidio_maternidad     Int      @default(0)
+  dias_descanso_medico         Int      @default(0)
+  dias_licencia_sin_goce       Int      @default(0)
+  dias_licencia_fallecimiento  Int      @default(0)
+  dias_licencia_paternidad     Int      @default(0)
+  dias_licencia_con_goce       Int      @default(0)
+  turno_dia                    Int      @default(0)
+  turno_noche                  Int      @default(0)
+  horas_8                      Int      @default(0)
+  cantidad_feriados            Int      @default(0)
+  rem_basica                   Decimal  @default(0) @db.Decimal(10, 2)
+  bono_productividad_base      Decimal  @default(0) @db.Decimal(10, 2)
+  bono_desempeno_base          Decimal  @default(0) @db.Decimal(10, 2)
+  bono_movilidad_base          Decimal  @default(0) @db.Decimal(10, 2)
+  bono_refrigerio_base         Decimal  @default(0) @db.Decimal(10, 2)
+  asig_fam_cliente_base        Decimal  @default(0) @db.Decimal(10, 2)
+  he_25_estructura             Decimal  @default(0) @db.Decimal(10, 2)
+  he_35_estructura             Decimal  @default(0) @db.Decimal(10, 2)
+  bonif_nocturna_base          Decimal  @default(0) @db.Decimal(10, 2)
+  vac_base                     Decimal  @default(0) @db.Decimal(10, 2)
+  grat_base                    Decimal  @default(0) @db.Decimal(10, 2)
+  cts_base                     Decimal  @default(0) @db.Decimal(10, 2)
+  bono_armado_base             Decimal  @default(0) @db.Decimal(10, 2)
+  total_sueldo_estructura      Decimal  @default(0) @db.Decimal(10, 2)
+  diferencia_estructura        Decimal  @default(0) @db.Decimal(10, 2)
+  por_dias_trab                Decimal  @default(0) @db.Decimal(10, 2)
+  sueldo_neto_estructura       Decimal  @default(0) @db.Decimal(10, 2)
+  sueldo_base                  Decimal  @default(0) @db.Decimal(10, 2)
+  sueldo_proporcional          Decimal  @default(0) @db.Decimal(10, 2)
+  haber_mensual                Decimal  @default(0) @db.Decimal(10, 2)
+  sueldo_nocturno              Decimal  @default(0) @db.Decimal(10, 2)
+  pasaje_especial              Decimal  @default(0) @db.Decimal(10, 2)
+  horas_extras                 Decimal  @default(0) @db.Decimal(10, 2)
+  horas_extras_25              Decimal  @default(0) @db.Decimal(10, 2)
+  horas_extras_35              Decimal  @default(0) @db.Decimal(10, 2)
+  feriado_trabajado            Decimal  @default(0) @db.Decimal(10, 2)
+  descanso_medico_monto        Decimal  @default(0) @db.Decimal(10, 2)
+  subsidio_incapacidad         Decimal  @default(0) @db.Decimal(10, 2)
+  subsidio_maternidad          Decimal  @default(0) @db.Decimal(10, 2)
+  asignacion_familiar          Decimal  @default(0) @db.Decimal(10, 2)
+  licencia_goce_monto          Decimal  @default(0) @db.Decimal(10, 2)
+  bonificaciones               Decimal  @default(0) @db.Decimal(10, 2)
+  bonificacion_nocturna        Decimal  @default(0) @db.Decimal(10, 2)
+  vacaciones_ingreso           Decimal  @default(0) @db.Decimal(10, 2)
+  gratificacion_ingreso        Decimal  @default(0) @db.Decimal(10, 2)
+  cts_ingreso                  Decimal  @default(0) @db.Decimal(10, 2)
+  bono_armado_ingreso          Decimal  @default(0) @db.Decimal(10, 2)
+  otros_ingresos               Decimal  @default(0) @db.Decimal(10, 2)
+  remuneracion_vacacional      Decimal  @default(0) @db.Decimal(10, 2)
+  compensacion_vacacional      Decimal  @default(0) @db.Decimal(10, 2)
+  cts_monto                    Decimal  @default(0) @db.Decimal(10, 2)
+  gratificacion_monto          Decimal  @default(0) @db.Decimal(10, 2)
+  movilidad                    Decimal  @default(0) @db.Decimal(10, 2)
+  refrigerio                   Decimal  @default(0) @db.Decimal(10, 2)
+  bono_desempeno_monto         Decimal  @default(0) @db.Decimal(10, 2)
+  asignacion_cliente           Decimal  @default(0) @db.Decimal(10, 2)
+  pegada_reenganche            Decimal  @default(0) @db.Decimal(10, 2)
+  bono_productividad_monto     Decimal  @default(0) @db.Decimal(10, 2)
+  bono_armado_monto            Decimal  @default(0) @db.Decimal(10, 2)
+  bono_referido                Decimal  @default(0) @db.Decimal(10, 2)
+  bonos_modulo                 Decimal  @default(0) @db.Decimal(10, 2)
+  reintegro_dias_trab          Decimal  @default(0) @db.Decimal(10, 2)
+  reintegro_inafecto           Decimal  @default(0) @db.Decimal(10, 2)
+  ingreso_sobregiro            Decimal  @default(0) @db.Decimal(10, 2)
+  venta_vacaciones             Decimal  @default(0) @db.Decimal(10, 2)
+  afp_aporte                   Decimal  @default(0) @db.Decimal(10, 2)
+  afp_comision                 Decimal  @default(0) @db.Decimal(10, 2)
+  afp_seguro                   Decimal  @default(0) @db.Decimal(10, 2)
+  afp_prima                    Decimal  @default(0) @db.Decimal(10, 2)
+  onp                          Decimal  @default(0) @db.Decimal(10, 2)
+  essalud                      Decimal  @default(0) @db.Decimal(10, 2)
+  renta_5ta                    Decimal  @default(0) @db.Decimal(10, 2)
+  adelantos                    Decimal  @default(0) @db.Decimal(10, 2)
+  adelanto_quincena            Decimal  @default(0) @db.Decimal(10, 2)
+  adelanto_vacacional          Decimal  @default(0) @db.Decimal(10, 2)
+  otros_adelantos              Decimal  @default(0) @db.Decimal(10, 2)
+  adelanto_cts                 Decimal  @default(0) @db.Decimal(10, 2)
+  adelanto_gratificacion       Decimal  @default(0) @db.Decimal(10, 2)
+  prestamos                    Decimal  @default(0) @db.Decimal(10, 2)
+  prestamo                     Decimal  @default(0) @db.Decimal(10, 2)
+  otros_descuentos             Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_faltas             Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_sobregiro          Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_reintegro          Decimal  @default(0) @db.Decimal(10, 2)
+  retencion_judicial           Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_feriado            Decimal  @default(0) @db.Decimal(10, 2)
+  sctr                         Decimal  @default(0) @db.Decimal(10, 2)
+  quinta_categoria             Decimal  @default(0) @db.Decimal(10, 2)
+  total_ingresos_afectos       Decimal  @default(0) @db.Decimal(10, 2)
+  total_ingresos_no_afectos    Decimal  @default(0) @db.Decimal(10, 2)
+  total_ingresos               Decimal  @default(0) @db.Decimal(10, 2)
+  total_descuentos             Decimal  @default(0) @db.Decimal(10, 2)
+  total_descuentos_ley         Decimal  @default(0) @db.Decimal(10, 2)
+  total_descuentos_otros       Decimal  @default(0) @db.Decimal(10, 2)
+  remuneracion_afecta          Decimal  @default(0) @db.Decimal(10, 2)
+  neto_pagar                   Decimal  @default(0) @db.Decimal(10, 2)
+  neto_mes                     Decimal  @default(0) @db.Decimal(10, 2)
+  total_haberes                Decimal  @default(0) @db.Decimal(10, 2)
+  essalud_empleador            Decimal  @default(0) @db.Decimal(10, 2)
+  sctr_salud_empleador         Decimal  @default(0) @db.Decimal(10, 2)
+  sctr_pension_empleador       Decimal  @default(0) @db.Decimal(10, 2)
+  vida_ley_empleador           Decimal  @default(0) @db.Decimal(10, 2)
+  total_aportes_empleador      Decimal  @default(0) @db.Decimal(10, 2)
+  rem_computable_vacaciones    Decimal  @default(0) @db.Decimal(10, 2)
+  rem_computable_gratificacion Decimal  @default(0) @db.Decimal(10, 2)
+  rem_computable_cts           Decimal  @default(0) @db.Decimal(10, 2)
+  rem_computable_afp           Decimal  @default(0) @db.Decimal(10, 2)
+  rem_computable_renta         Decimal  @default(0) @db.Decimal(10, 2)
+  promedio_horas_extras        Decimal  @default(0) @db.Decimal(10, 2)
+  promedio_comisiones          Decimal  @default(0) @db.Decimal(10, 2)
+  sexto_gratificacion          Decimal  @default(0) @db.Decimal(10, 2)
+  bonif_extraordinaria         Decimal  @default(0) @db.Decimal(10, 2)
+  treintavo_diario             Decimal  @default(0) @db.Decimal(10, 2)
+  meses_cts                    Int      @default(0)
+  dias_cts                     Int      @default(0)
+  cts_periodo                  Decimal  @default(0) @db.Decimal(10, 2)
+  cts_trunca                   Decimal  @default(0) @db.Decimal(10, 2)
+  grat_trunca                  Decimal  @default(0) @db.Decimal(10, 2)
+  vac_truncas                  Decimal  @default(0) @db.Decimal(10, 2)
+  total_beneficios_sociales    Decimal  @default(0) @db.Decimal(10, 2)
+  regimen_pensionario          String?  @db.VarChar(50)
+  banco_nombre                 String?  @db.VarChar(100)
+  cuenta_numero                String?  @db.VarChar(30)
+  cci                          String?  @db.VarChar(30)
+  observaciones                String?
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @updatedAt
+  descanso_trabajado_monto     Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_permisos           Decimal  @default(0) @db.Decimal(10, 2)
+  descuento_tardanzas          Decimal  @default(0) @db.Decimal(10, 2)
+  dias_descanso_trabajado      Int      @default(0)
+  dias_falta_justificada       Int      @default(0)
+  dias_feriado_no_trabajado    Int      @default(0)
+  dias_horas_extra             Int      @default(0)
+  dias_pegada                  Int      @default(0)
+  dias_permiso                 Int      @default(0)
+  dias_retenido                Int      @default(0)
+  minutos_tardanza             Int      @default(0)
+  tiene_adelanto_quincenal     Boolean  @default(false)
+  boleta                       Boleta?
+  empleado                     Empleado @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  planilla                     Planilla @relation(fields: [planilla_id], references: [id], onDelete: Cascade)
+
+  @@unique([planilla_id, empleado_id])
+  @@index([planilla_id])
+  @@index([empleado_id])
+  @@map("planilla_detalles")
+}
+
+model Boleta {
+  id                     Int             @id @default(autoincrement())
+  empresa_id             Int
+  planilla_detalle_id    Int             @unique
+  empleado_id            Int
+  anio                   Int
+  mes                    Int
+  estado                 EstadoBoleta    @default(GENERADA)
+  fecha_generacion       DateTime        @default(now())
+  fecha_primera_descarga DateTime?
+  fecha_ultimo_acceso    DateTime?
+  fecha_envio_email      DateTime?
+  veces_descargada       Int             @default(0)
+  email_enviado_a        String?         @db.VarChar(255)
+  pdf_url                String?         @db.VarChar(500)
+  generado_por           Int?
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+  empleado               Empleado        @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa                Empresa         @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  generador              Usuario?        @relation("BoletaGeneradaPor", fields: [generado_por], references: [id])
+  planilla_detalle       PlanillaDetalle @relation(fields: [planilla_detalle_id], references: [id], onDelete: Cascade)
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([anio, mes])
+  @@index([estado])
+  @@map("boletas")
+}
+
+model PhotocheckLog {
+  id               Int              @id @default(autoincrement())
+  empleado_id      Int
+  generado_por     Int?
+  motivo           MotivoPhotocheck
+  observaciones    String?          @db.VarChar(500)
+  ip_address       String?          @db.VarChar(45)
+  fecha_generacion DateTime         @default(now())
+  created_at       DateTime         @default(now())
+  empleado         Empleado         @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  usuario          Usuario?         @relation(fields: [generado_por], references: [id])
+
+  @@index([empleado_id])
+  @@index([generado_por])
+  @@index([fecha_generacion])
+  @@map("photocheck_logs")
+}
+
+model ConfiguracionVacaciones {
+  id                       Int      @id @default(autoincrement())
+  empresa_id               Int      @unique
+  dias_regimen_general     Int      @default(30)
+  dias_regimen_mype        Int      @default(15)
+  dias_tiempo_parcial      Int      @default(6)
+  permitir_venta           Boolean  @default(true)
+  porcentaje_max_venta     Int      @default(50)
+  permitir_fraccionamiento Boolean  @default(true)
+  dias_minimo_goce         Int      @default(7)
+  permitir_acumulacion     Boolean  @default(true)
+  max_periodos_acumulados  Int      @default(2)
+  dias_alerta_vencimiento  Int      @default(30)
+  dias_alerta_acumulacion  Int      @default(45)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+  empresa                  Empresa  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@map("configuracion_vacaciones")
+}
+
+model PeriodoVacacional {
+  id                    Int                     @id @default(autoincrement())
+  empleado_id           Int
+  empresa_id            Int
+  numero_periodo        Int
+  fecha_inicio_periodo  DateTime                @db.Date
+  fecha_fin_periodo     DateTime                @db.Date
+  fecha_limite_goce     DateTime                @db.Date
+  dias_correspondientes Int
+  dias_gozados          Int                     @default(0)
+  dias_vendidos         Int                     @default(0)
+  dias_pendientes       Int                     @default(0)
+  estado                EstadoPeriodoVacacional @default(ACUMULANDO)
+  genera_triple         Boolean                 @default(false)
+  fecha_triple          DateTime?
+  monto_triple          Decimal?                @db.Decimal(10, 2)
+  pagado_triple         Boolean                 @default(false)
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+  movimientos           MovimientoVacacional[]
+  empleado              Empleado                @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa               Empresa                 @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  solicitudes           SolicitudVacaciones[]
+
+  @@unique([empleado_id, numero_periodo])
+  @@index([empleado_id])
+  @@index([empresa_id])
+  @@index([estado])
+  @@index([fecha_limite_goce])
+  @@map("periodos_vacacionales")
+}
+
+model SolicitudVacaciones {
+  id                      Int                       @id @default(autoincrement())
+  empleado_id             Int
+  periodo_vacacional_id   Int
+  empresa_id              Int
+  fecha_inicio_solicitada DateTime                  @db.Date
+  fecha_fin_solicitada    DateTime                  @db.Date
+  dias_solicitados        Int
+  fecha_inicio_aprobada   DateTime?                 @db.Date
+  fecha_fin_aprobada      DateTime?                 @db.Date
+  dias_aprobados          Int?
+  incluye_venta           Boolean                   @default(false)
+  dias_venta              Int                       @default(0)
+  estado                  EstadoSolicitudVacaciones @default(PENDIENTE_JEFE)
+  fecha_respuesta_jefe    DateTime?
+  aprobado_por_jefe_id    Int?
+  observacion_jefe        String?                   @db.VarChar(500)
+  motivo_modificacion     String?                   @db.VarChar(500)
+  fecha_respuesta_rrhh    DateTime?
+  aprobado_por_rrhh_id    Int?
+  observacion_rrhh        String?                   @db.VarChar(500)
+  motivo_rechazo          String?                   @db.VarChar(500)
+  rechazado_por_id        Int?
+  motivo_cancelacion      String?                   @db.VarChar(500)
+  cancelado_por_id        Int?
+  fecha_cancelacion       DateTime?
+  observaciones           String?                   @db.VarChar(500)
+  creado_por_id           Int
+  created_at              DateTime                  @default(now())
+  updated_at              DateTime                  @updatedAt
+  movimientos             MovimientoVacacional[]
+  aprobado_por_jefe       Usuario?                  @relation("SolicitudAprobadaJefe", fields: [aprobado_por_jefe_id], references: [id])
+  aprobado_por_rrhh       Usuario?                  @relation("SolicitudAprobadaRRHH", fields: [aprobado_por_rrhh_id], references: [id])
+  cancelado_por           Usuario?                  @relation("SolicitudCancelada", fields: [cancelado_por_id], references: [id])
+  creado_por              Usuario                   @relation("SolicitudCreadaPor", fields: [creado_por_id], references: [id])
+  empleado                Empleado                  @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa                 Empresa                   @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  periodo_vacacional      PeriodoVacacional         @relation(fields: [periodo_vacacional_id], references: [id])
+  rechazado_por           Usuario?                  @relation("SolicitudRechazada", fields: [rechazado_por_id], references: [id])
+  justificaciones_tareo   TareoJustificacion[]
+
+  @@index([empleado_id])
+  @@index([periodo_vacacional_id])
+  @@index([empresa_id])
+  @@index([estado])
+  @@index([fecha_inicio_aprobada])
+  @@map("solicitudes_vacaciones")
+}
+
+model MovimientoVacacional {
+  id                    Int                      @id @default(autoincrement())
+  periodo_vacacional_id Int
+  empleado_id           Int
+  empresa_id            Int
+  tipo                  TipoMovimientoVacacional
+  dias                  Int
+  fecha_movimiento      DateTime                 @db.Date
+  solicitud_id          Int?
+  concepto              String?                  @db.VarChar(200)
+  monto                 Decimal?                 @db.Decimal(10, 2)
+  usuario_id            Int?
+  created_at            DateTime                 @default(now())
+  empleado              Empleado                 @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa               Empresa                  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  periodo_vacacional    PeriodoVacacional        @relation(fields: [periodo_vacacional_id], references: [id], onDelete: Cascade)
+  solicitud             SolicitudVacaciones?     @relation(fields: [solicitud_id], references: [id])
+  usuario               Usuario?                 @relation(fields: [usuario_id], references: [id])
+
+  @@index([periodo_vacacional_id])
+  @@index([empleado_id])
+  @@index([empresa_id])
+  @@index([tipo])
+  @@index([fecha_movimiento])
+  @@map("movimientos_vacacionales")
+}
+
+model PlantillaOnboarding {
+  id            Int                 @id @default(autoincrement())
+  codigo        String              @db.VarChar(20)
+  nombre        String              @db.VarChar(200)
+  descripcion   String?             @db.VarChar(500)
+  cargo_id      Int?
+  area_id       Int?
+  duracion_dias Int                 @default(90)
+  activo        Boolean             @default(true)
+  empresa_id    Int
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+  area          Area?               @relation(fields: [area_id], references: [id])
+  cargo         Cargo?              @relation(fields: [cargo_id], references: [id])
+  empresa       Empresa             @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  procesos      ProcesoOnboarding[]
+  tareas        TareaOnboarding[]
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id])
+  @@index([cargo_id])
+  @@index([area_id])
+  @@index([activo])
+  @@map("plantillas_onboarding")
+}
+
+model TareaOnboarding {
+  id                 Int                       @id @default(autoincrement())
+  plantilla_id       Int
+  nombre             String                    @db.VarChar(200)
+  descripcion        String?                   @db.VarChar(500)
+  instrucciones      String?
+  fase               FaseOnboarding            @default(DIA_1)
+  responsable        ResponsableOnboarding     @default(RRHH)
+  dias_desde_ingreso Int                       @default(0)
+  duracion_horas     Decimal?                  @db.Decimal(4, 1)
+  es_obligatoria     Boolean                   @default(true)
+  requiere_evidencia Boolean                   @default(false)
+  orden              Int                       @default(0)
+  activo             Boolean                   @default(true)
+  created_at         DateTime                  @default(now())
+  updated_at         DateTime                  @updatedAt
+  tareas_empleado    TareaEmpleadoOnboarding[]
+  plantilla          PlantillaOnboarding       @relation(fields: [plantilla_id], references: [id], onDelete: Cascade)
+
+  @@index([plantilla_id])
+  @@index([fase])
+  @@index([responsable])
+  @@index([orden])
+  @@map("tareas_onboarding")
+}
+
+model ProcesoOnboarding {
+  id                  Int                       @id @default(autoincrement())
+  empleado_id         Int
+  plantilla_id        Int
+  empresa_id          Int
+  fecha_inicio        DateTime                  @default(now())
+  fecha_fin_esperada  DateTime
+  fecha_fin_real      DateTime?
+  estado              EstadoProcesoOnboarding   @default(PENDIENTE)
+  progreso_porcentaje Int                       @default(0)
+  responsable_rrhh_id Int?
+  mentor_id           Int?
+  observaciones       String?
+  created_at          DateTime                  @default(now())
+  updated_at          DateTime                  @updatedAt
+  empleado            Empleado                  @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa             Empresa                   @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  mentor              Empleado?                 @relation("OnboardingMentor", fields: [mentor_id], references: [id])
+  plantilla           PlantillaOnboarding       @relation(fields: [plantilla_id], references: [id])
+  responsable_rrhh    Usuario?                  @relation("OnboardingResponsable", fields: [responsable_rrhh_id], references: [id])
+  tareas              TareaEmpleadoOnboarding[]
+
+  @@index([empleado_id])
+  @@index([plantilla_id])
+  @@index([empresa_id])
+  @@index([estado])
+  @@index([fecha_fin_esperada])
+  @@map("procesos_onboarding")
+}
+
+model TareaEmpleadoOnboarding {
+  id                  Int                   @id @default(autoincrement())
+  proceso_id          Int
+  tarea_onboarding_id Int
+  estado              EstadoTareaOnboarding @default(PENDIENTE)
+  fecha_limite        DateTime
+  fecha_completada    DateTime?
+  completada_por_id   Int?
+  evidencia_url       String?               @db.VarChar(500)
+  evidencia_nombre    String?               @db.VarChar(200)
+  observaciones       String?               @db.VarChar(500)
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  completada_por      Usuario?              @relation(fields: [completada_por_id], references: [id])
+  proceso             ProcesoOnboarding     @relation(fields: [proceso_id], references: [id], onDelete: Cascade)
+  tarea_onboarding    TareaOnboarding       @relation(fields: [tarea_onboarding_id], references: [id])
+
+  @@unique([proceso_id, tarea_onboarding_id])
+  @@index([proceso_id])
+  @@index([tarea_onboarding_id])
+  @@index([estado])
+  @@index([fecha_limite])
+  @@map("tareas_empleado_onboarding")
+}
+
+model ConfiguracionTareo {
+  id                            Int      @id @default(autoincrement())
+  empresa_id                    Int      @unique
+  tiempo_limite_minutos         Int      @default(60)
+  requiere_corrector            Boolean  @default(true)
+  sesiones_por_dia              Int      @default(1)
+  sesiones_por_periodo          Int?
+  dias_post_cierre              Int      @default(5)
+  hora_limite_diaria            String?  @db.VarChar(5)
+  requiere_aprobacion_extension Boolean  @default(true)
+  max_extensiones_periodo       Int      @default(3)
+  notificar_email               Boolean  @default(true)
+  notificar_sistema             Boolean  @default(true)
+  created_at                    DateTime @default(now())
+  updated_at                    DateTime @updatedAt
+  empresa                       Empresa  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@map("configuracion_tareo")
+}
+
+model SesionTareo {
+  id                    Int                 @id @default(autoincrement())
+  empresa_id            Int
+  periodo_id            Int
+  usuario_id            Int
+  fecha                 DateTime            @db.Date
+  fecha_inicio          DateTime            @default(now())
+  fecha_fin             DateTime?
+  tiempo_limite_minutos Int
+  estado                EstadoSesionTareo   @default(ACTIVA)
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+  ultimo_heartbeat      DateTime?
+  empresa               Empresa             @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  periodo               PeriodoTareo        @relation(fields: [periodo_id], references: [id], onDelete: Cascade)
+  usuario               Usuario             @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  solicitud_extension   SolicitudExtension?
+
+  @@index([empresa_id])
+  @@index([periodo_id])
+  @@index([usuario_id])
+  @@index([estado])
+  @@index([fecha])
+  @@index([ultimo_heartbeat])
+  @@map("sesiones_tareo")
+}
+
+model SolicitudExtension {
+  id                    Int                      @id @default(autoincrement())
+  empresa_id            Int
+  periodo_id            Int
+  usuario_id            Int
+  sesion_tareo_id       Int                      @unique
+  motivo                String
+  tiempo_solicitado_min Int                      @default(30)
+  estado                EstadoSolicitudExtension @default(PENDIENTE)
+  aprobado_por_id       Int?
+  fecha_solicitud       DateTime                 @default(now())
+  fecha_respuesta       DateTime?
+  comentario_respuesta  String?                  @db.VarChar(500)
+  created_at            DateTime                 @default(now())
+  updated_at            DateTime                 @updatedAt
+  aprobado_por          Usuario?                 @relation("SolicitudExtensionAprobada", fields: [aprobado_por_id], references: [id])
+  empresa               Empresa                  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  periodo               PeriodoTareo             @relation(fields: [periodo_id], references: [id], onDelete: Cascade)
+  sesion                SesionTareo              @relation(fields: [sesion_tareo_id], references: [id], onDelete: Cascade)
+  usuario               Usuario                  @relation("SolicitudExtensionCreada", fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([empresa_id])
+  @@index([periodo_id])
+  @@index([usuario_id])
+  @@index([estado])
+  @@map("solicitudes_extension_tareo")
+}
+
+model SolicitudCese {
+  id                  Int                    @id @default(autoincrement())
+  empleado_id         Int
+  contrato_id         Int
+  empresa_id          Int
+  tipo_cese_id        Int?
+  motivo              String?
+  archivo_url         String?                @db.VarChar(500)
+  archivo_nombre      String?                @db.VarChar(200)
+  fecha_efectiva      DateTime               @db.Date
+  estado              EstadoSolicitudCese    @default(PENDIENTE)
+  solicitado_por_id   Int
+  resuelto_por_id     Int?
+  fecha_resolucion    DateTime?
+  observaciones_admin String?                @db.VarChar(500)
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+  archivos            SolicitudCeseArchivo[]
+  contrato            Contrato               @relation(fields: [contrato_id], references: [id])
+  empleado            Empleado               @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa             Empresa                @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  resuelto_por        Usuario?               @relation("SolicitudCeseResuelta", fields: [resuelto_por_id], references: [id])
+  solicitado_por      Usuario                @relation("SolicitudCeseSolicitada", fields: [solicitado_por_id], references: [id])
+  tipo_cese           TipoCeseMaestro?       @relation(fields: [tipo_cese_id], references: [id], onDelete: Restrict)
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([estado])
+  @@index([contrato_id])
+  @@index([empresa_id, estado])
+  @@map("solicitudes_cese")
+}
+
+model SolicitudCeseArchivo {
+  id                Int           @id @default(autoincrement())
+  solicitud_cese_id Int
+  archivo_url       String        @db.VarChar(500)
+  archivo_nombre    String        @db.VarChar(200)
+  archivo_tipo      String?       @db.VarChar(100)
+  archivo_tamano    Int?
+  created_at        DateTime      @default(now())
+  solicitud_cese    SolicitudCese @relation(fields: [solicitud_cese_id], references: [id], onDelete: Cascade)
+
+  @@index([solicitud_cese_id])
+  @@map("solicitudes_cese_archivos")
+}
+
+model SolicitudAnulacionContrato {
+  id                  Int                                 @id @default(autoincrement())
+  contrato_id         Int
+  empleado_id         Int
+  empresa_id          Int
+  motivo              String                              @db.VarChar(2000)
+  estado              EstadoSolicitudAnulacionContrato    @default(PENDIENTE)
+  solicitado_por_id   Int
+  resuelto_por_id     Int?
+  fecha_resolucion    DateTime?
+  observaciones_admin String?                             @db.VarChar(500)
+  created_at          DateTime                            @default(now())
+  updated_at          DateTime                            @updatedAt
+  archivos            SolicitudAnulacionContratoArchivo[]
+  contrato            Contrato                            @relation(fields: [contrato_id], references: [id])
+  empleado            Empleado                            @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa             Empresa                             @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  resuelto_por        Usuario?                            @relation("SolicitudAnulacionResuelta", fields: [resuelto_por_id], references: [id])
+  solicitado_por      Usuario                             @relation("SolicitudAnulacionSolicitada", fields: [solicitado_por_id], references: [id])
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([contrato_id])
+  @@index([estado])
+  @@index([empresa_id, estado])
+  @@map("solicitudes_anulacion_contrato")
+}
+
+model SolicitudAnulacionContratoArchivo {
+  id                     Int                        @id @default(autoincrement())
+  solicitud_anulacion_id Int
+  archivo_url            String                     @db.VarChar(500)
+  archivo_nombre         String                     @db.VarChar(200)
+  archivo_tipo           String?                    @db.VarChar(100)
+  archivo_tamano         Int?
+  created_at             DateTime                   @default(now())
+  solicitud_anulacion    SolicitudAnulacionContrato @relation(fields: [solicitud_anulacion_id], references: [id], onDelete: Cascade)
+
+  @@index([solicitud_anulacion_id])
+  @@map("solicitudes_anulacion_contrato_archivos")
+}
+
+// ==================== INVENTARIO DE UNIFORMES ====================
+
+model Proveedor {
+  id             Int                     @id @default(autoincrement())
+  nombre         String                  @db.VarChar(200)
+  ruc            String?                 @db.VarChar(11)
+  contacto       String?                 @db.VarChar(150)
+  telefono       String?                 @db.VarChar(20)
+  email          String?                 @db.VarChar(150)
+  direccion      String?                 @db.VarChar(300)
+  activo         Boolean                 @default(true)
+  empresa_id     Int
+  created_at     DateTime                @default(now())
+  updated_at     DateTime                @updatedAt
+  empresa        Empresa                 @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  ingresos       IngresoInventario[]
+  items          ItemInventario[]
+  requerimientos RequerimientoUniforme[]
+
+  @@index([empresa_id])
+  @@map("proveedores")
+}
+
+model TipoUniforme {
+  id                     Int                            @id @default(autoincrement())
+  nombre                 String                         @db.VarChar(120)
+  descripcion            String?                        @db.VarChar(300)
+  genero                 GeneroUniforme                 @default(UNISEX)
+  precio_referencial     Decimal?                       @db.Decimal(10, 2)
+  cantidad_estandar      Int                            @default(1)
+  codigo_prefijo         String?                        @db.VarChar(10)
+  activo                 Boolean                        @default(true)
+  empresa_id             Int
+  created_at             DateTime                       @default(now())
+  updated_at             DateTime                       @updatedAt
+  empresa                Empresa                        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items                  ItemInventario[]
+  empleado_tallas        EmpleadoTalla[]
+  requerimiento_detalles RequerimientoUniformeDetalle[]
+  tallas                 TallaTipoUniforme[]
+  plantilla_items        PlantillaUniformeItem[]
+  caracteristicas        Caracteristica[]
+
+  @@unique([nombre, empresa_id])
+  @@index([empresa_id])
+  @@map("tipos_uniforme")
+}
+
+/// Atributo descriptivo libre que el PO carga en el maestro y se asocia a
+/// una o varias prendas (TipoUniforme) — sale en el cargo PDF al proveedor.
+/// Ej.: "Drill azul marino M40", "Costura reforzada doble", "Anti-fluido".
+model Caracteristica {
+  id             Int            @id @default(autoincrement())
+  nombre         String         @db.VarChar(120)
+  descripcion    String?        @db.VarChar(500)
+  activo         Boolean        @default(true)
+  empresa_id     Int
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  empresa        Empresa        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  tipos_uniforme TipoUniforme[]
+
+  @@unique([nombre, empresa_id])
+  @@index([empresa_id])
+  @@map("caracteristicas")
+}
+
+model PlantillaUniforme {
+  id             Int                     @id @default(autoincrement())
+  nombre         String                  @db.VarChar(120)
+  predeterminada Boolean                 @default(false)
+  activo         Boolean                 @default(true)
+  empresa_id     Int
+  created_at     DateTime                @default(now())
+  updated_at     DateTime                @updatedAt
+  empresa        Empresa                 @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items          PlantillaUniformeItem[]
+
+  @@unique([nombre, empresa_id])
+  @@index([empresa_id])
+  @@map("plantillas_uniforme")
+}
+
+model PlantillaUniformeItem {
+  id               Int               @id @default(autoincrement())
+  plantilla_id     Int
+  tipo_uniforme_id Int
+  cantidad         Int               @default(1)
+  plantilla        PlantillaUniforme @relation(fields: [plantilla_id], references: [id], onDelete: Cascade)
+  tipo_uniforme    TipoUniforme      @relation(fields: [tipo_uniforme_id], references: [id], onDelete: Cascade)
+
+  @@unique([plantilla_id, tipo_uniforme_id])
+  @@index([plantilla_id])
+  @@map("plantillas_uniforme_items")
+}
+
+model TallaTipoUniforme {
+  id               Int          @id @default(autoincrement())
+  tipo_uniforme_id Int
+  valor            String       @db.VarChar(20)
+  orden            Int          @default(0)
+  stock_minimo     Int          @default(0)
+  tipo_uniforme    TipoUniforme @relation(fields: [tipo_uniforme_id], references: [id], onDelete: Cascade)
+
+  @@unique([tipo_uniforme_id, valor])
+  @@index([tipo_uniforme_id])
+  @@map("tallas_tipo_uniforme")
+}
+
+model IngresoInventario {
+  id               Int                    @id @default(autoincrement())
+  proveedor_id     Int
+  requerimiento_id Int?
+  fecha_ingreso    DateTime               @db.Date
+  numero_documento String?                @db.VarChar(50)
+  observaciones    String?                @db.VarChar(500)
+  // Digitalización de factura del proveedor (Flujo 2 — Compras/Factura).
+  // Campos opcionales: una compra puede registrarse sin digitalizar factura
+  // (compatibilidad con el flujo simple anterior).
+  numero_factura   String?                @db.VarChar(50)
+  fecha_factura    DateTime?              @db.Date
+  monto_total      Decimal?               @db.Decimal(12, 2)
+  archivo_url      String?                @db.VarChar(500)
+  archivo_nombre   String?                @db.VarChar(200)
+  usuario_id       Int
+  empresa_id       Int
+  created_at       DateTime               @default(now())
+  updated_at       DateTime               @updatedAt
+  proveedor        Proveedor              @relation(fields: [proveedor_id], references: [id])
+  requerimiento    RequerimientoUniforme? @relation(fields: [requerimiento_id], references: [id], onDelete: SetNull)
+  usuario          Usuario                @relation(fields: [usuario_id], references: [id])
+  empresa          Empresa                @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items            ItemInventario[]
+
+  @@unique([empresa_id, proveedor_id, numero_factura])
+  @@index([empresa_id])
+  @@index([proveedor_id])
+  @@index([requerimiento_id])
+  @@map("ingresos_inventario")
+}
+
+model ItemInventario {
+  id               Int                              @id @default(autoincrement())
+  codigo           String                           @db.VarChar(40)
+  tipo_uniforme_id Int
+  ingreso_id       Int
+  proveedor_id     Int
+  entrega_id       Int?
+  talla            String                           @db.VarChar(20)
+  precio           Decimal                          @db.Decimal(10, 2)
+  estado           EstadoItemInventario             @default(DISPONIBLE)
+  condicion        CondicionItemInventario          @default(NUEVO)
+  empleado_id      Int?
+  empresa_id       Int
+  created_at       DateTime                         @default(now())
+  updated_at       DateTime                         @updatedAt
+  tipo_uniforme    TipoUniforme                     @relation(fields: [tipo_uniforme_id], references: [id], onDelete: Restrict)
+  ingreso          IngresoInventario                @relation(fields: [ingreso_id], references: [id], onDelete: Restrict)
+  proveedor        Proveedor                        @relation(fields: [proveedor_id], references: [id], onDelete: Restrict)
+  entrega          EntregaUniforme?                 @relation(fields: [entrega_id], references: [id], onDelete: SetNull)
+  empleado         Empleado?                        @relation(fields: [empleado_id], references: [id], onDelete: SetNull)
+  empresa          Empresa                          @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  movimientos      MovimientoInventario[]
+  descuento_items  SolicitudDescuentoUniformeItem[]
+  solicitudes_baja SolicitudBajaItem[]
+
+  @@unique([codigo, empresa_id])
+  @@index([empresa_id])
+  @@index([tipo_uniforme_id])
+  @@index([estado])
+  @@index([empleado_id])
+  @@index([entrega_id])
+  @@index([empresa_id, estado])
+  @@index([empresa_id, codigo])
+  @@index([empresa_id, estado, tipo_uniforme_id, talla])
+  @@map("items_inventario")
+}
+
+model EntregaUniforme {
+  id               Int              @id @default(autoincrement())
+  empleado_id      Int
+  fecha_entrega    DateTime         @db.Date
+  entregado_por_id Int
+  observaciones    String?          @db.VarChar(500)
+  empresa_id       Int
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  empleado         Empleado         @relation(fields: [empleado_id], references: [id], onDelete: Restrict)
+  entregado_por    Usuario          @relation(fields: [entregado_por_id], references: [id])
+  empresa          Empresa          @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items            ItemInventario[]
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@map("entregas_uniforme")
+}
+
+model MovimientoInventario {
+  id              Int                      @id @default(autoincrement())
+  item_id         Int
+  tipo_movimiento TipoMovimientoInventario
+  empleado_id     Int?
+  motivo          String?                  @db.VarChar(500)
+  usuario_id      Int
+  empresa_id      Int
+  fecha           DateTime                 @default(now())
+  item            ItemInventario           @relation(fields: [item_id], references: [id], onDelete: Restrict)
+  usuario         Usuario                  @relation(fields: [usuario_id], references: [id])
+  empresa         Empresa                  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@index([item_id])
+  @@index([empresa_id])
+  @@index([empresa_id, fecha])
+  @@index([empresa_id, tipo_movimiento])
+  @@index([empleado_id])
+  @@map("movimientos_inventario")
+}
+
+model SolicitudDescuentoUniforme {
+  id                  Int                              @id @default(autoincrement())
+  empleado_id         Int
+  motivo              String                           @db.VarChar(500)
+  estado              EstadoSolicitudDescuentoUniforme @default(PENDIENTE)
+  monto_total         Decimal?                         @db.Decimal(10, 2)
+  solicitado_por_id   Int
+  resuelto_por_id     Int?
+  fecha_resolucion    DateTime?
+  observaciones_admin String?                          @db.VarChar(500)
+  empresa_id          Int
+  created_at          DateTime                         @default(now())
+  updated_at          DateTime                         @updatedAt
+  empleado            Empleado                         @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  solicitado_por      Usuario                          @relation("DescuentoUniformeSolicitado", fields: [solicitado_por_id], references: [id])
+  resuelto_por        Usuario?                         @relation("DescuentoUniformeResuelto", fields: [resuelto_por_id], references: [id])
+  empresa             Empresa                          @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  items               SolicitudDescuentoUniformeItem[]
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([estado])
+  @@index([empresa_id, estado])
+  @@map("solicitudes_descuento_uniforme")
+}
+
+model SolicitudDescuentoUniformeItem {
+  id                Int                        @id @default(autoincrement())
+  solicitud_id      Int
+  item_id           Int
+  precio_referencia Decimal                    @db.Decimal(10, 2)
+  monto_descuento   Decimal?                   @db.Decimal(10, 2)
+  solicitud         SolicitudDescuentoUniforme @relation(fields: [solicitud_id], references: [id], onDelete: Cascade)
+  item              ItemInventario             @relation(fields: [item_id], references: [id])
+
+  @@index([solicitud_id])
+  @@index([item_id])
+  @@map("solicitudes_descuento_uniforme_items")
+}
+
+enum EstadoSolicitudBaja {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+/// Solicitud de baja de una prenda del almacén (dañada/inservible). El operario
+/// la solicita (queda PENDIENTE, la prenda sigue DISPONIBLE) y el admin la
+/// aprueba (la prenda pasa a BAJA) o rechaza. El admin también puede dar de baja
+/// directo, en cuyo caso la solicitud se crea ya APROBADA.
+model SolicitudBajaItem {
+  id                  Int                 @id @default(autoincrement())
+  item_id             Int
+  motivo              String              @db.VarChar(500)
+  estado              EstadoSolicitudBaja @default(PENDIENTE)
+  solicitado_por_id   Int
+  resuelto_por_id     Int?
+  fecha_resolucion    DateTime?
+  observaciones_admin String?             @db.VarChar(500)
+  empresa_id          Int
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+  item                ItemInventario      @relation(fields: [item_id], references: [id])
+  solicitado_por      Usuario             @relation("BajaItemSolicitada", fields: [solicitado_por_id], references: [id])
+  resuelto_por        Usuario?            @relation("BajaItemResuelta", fields: [resuelto_por_id], references: [id])
+  empresa             Empresa             @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@index([empresa_id])
+  @@index([item_id])
+  @@index([estado])
+  @@index([empresa_id, estado])
+  @@map("solicitudes_baja_item")
+}
+
+model EmpleadoTalla {
+  id               Int          @id @default(autoincrement())
+  empleado_id      Int
+  tipo_uniforme_id Int
+  talla            String       @db.VarChar(20)
+  empresa_id       Int
+  updated_at       DateTime     @updatedAt
+  empleado         Empleado     @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  tipo_uniforme    TipoUniforme @relation(fields: [tipo_uniforme_id], references: [id], onDelete: Cascade)
+  empresa          Empresa      @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([empleado_id, tipo_uniforme_id, empresa_id])
+  @@index([empresa_id])
+  @@map("empleados_tallas")
+}
+
+model RequerimientoUniforme {
+  id               Int                            @id @default(autoincrement())
+  nombre           String                         @db.VarChar(200)
+  fecha            DateTime                       @db.Date
+  estado           EstadoRequerimientoUniforme    @default(BORRADOR)
+  usuario_id       Int
+  proveedor_id     Int?
+  empresa_id       Int
+  aprobado_por_id  Int?
+  fecha_aprobacion DateTime?
+  created_at       DateTime                       @default(now())
+  updated_at       DateTime                       @updatedAt
+  usuario          Usuario                        @relation(fields: [usuario_id], references: [id])
+  proveedor        Proveedor?                     @relation(fields: [proveedor_id], references: [id])
+  empresa          Empresa                        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  detalles         RequerimientoUniformeDetalle[]
+  ingresos         IngresoInventario[]
+
+  @@index([empresa_id])
+  @@index([proveedor_id])
+  @@map("requerimientos_uniforme")
+}
+
+model RequerimientoUniformeDetalle {
+  id               Int                   @id @default(autoincrement())
+  requerimiento_id Int
+  empleado_id      Int?
+  tipo_uniforme_id Int
+  talla            String                @db.VarChar(20)
+  cantidad         Int                   @default(1)
+  requerimiento    RequerimientoUniforme @relation(fields: [requerimiento_id], references: [id], onDelete: Cascade)
+  empleado         Empleado?             @relation(fields: [empleado_id], references: [id], onDelete: SetNull)
+  tipo_uniforme    TipoUniforme          @relation(fields: [tipo_uniforme_id], references: [id], onDelete: Restrict)
+
+  @@index([requerimiento_id])
+  @@index([empleado_id])
+  @@map("requerimientos_uniforme_detalles")
+}
+
+model TipoCeseMaestro {
+  id               Int             @id @default(autoincrement())
+  nombre           String          @db.VarChar(100)
+  descripcion      String?         @db.VarChar(300)
+  empresa_id       Int
+  activo           Boolean         @default(true)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  solicitudes_cese SolicitudCese[]
+  empresa          Empresa         @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([nombre, empresa_id])
+  @@map("tipos_cese")
+}
+
+model ReporteGenerado {
+  id                   Int            @id @default(autoincrement())
+  empresa_id           Int
+  usuario_id           Int
+  codigo_reporte       String         @db.VarChar(50)
+  nombre_reporte       String         @db.VarChar(150)
+  categoria            String         @db.VarChar(50)
+  formato              FormatoReporte
+  filtros              Json?
+  total_registros      Int            @default(0)
+  archivo_url          String?        @db.VarChar(500)
+  archivo_nombre       String?        @db.VarChar(200)
+  tiempo_generacion_ms Int?
+  created_at           DateTime       @default(now())
+  empresa              Empresa        @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  usuario              Usuario        @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([empresa_id, created_at(sort: Desc)])
+  @@index([empresa_id, codigo_reporte])
+  @@index([usuario_id])
+  @@map("reportes_generados")
+}
+
+enum TipoRegimen {
+  AFP
+  ONP
+  SIN_REGIMEN
+}
+
+// Régimen laboral peruano (D.L. 728, REMYPE, etc.). Determina cómo se calcula la
+// planilla (gratificaciones, CTS, vacaciones, salud). OJO: es ortogonal a
+// TipoRegimen/RegimenPensionario (AFP/ONP), que es el sistema de pensiones.
+enum RegimenLaboral {
+  GENERAL
+  PEQUENA_EMPRESA
+  MICROEMPRESA
+  AGRARIO
+  CONSTRUCCION_CIVIL
+  HOGAR
+}
+
+enum TipoDocumento {
+  DNI
+  CE
+  PASAPORTE
+}
+
+enum SexoTipo {
+  M
+  F
+}
+
+enum EstadoEmpleado {
+  ACTIVO
+  BAJA
+  VACACIONES
+  SUSPENDIDO
+  CESE
+  PENDIENTE
+  CESADO
+}
+
+enum EstadoDocumentacion {
+  PENDIENTE
+  INCOMPLETO
+  COMPLETO
+  VENCIDO
+}
+
+enum TipoPago {
+  PLANILLA
+  RECIBO
+}
+
+enum TurnoTipo {
+  DIA
+  NOCHE
+}
+
+enum TipoMovimiento {
+  ALTA
+  BAJA
+  RENUNCIA
+  VACACIONES
+  SUSPENSION
+  REINCORPORACION
+  ANULACION_CONTRATO
+}
+
+enum EstadoContrato {
+  ACTIVO
+  PENDIENTE
+  RENOVADO
+  CESADO
+  ANULADO
+}
+
+enum AccionAuditoria {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  CALCULAR
+  APROBAR
+  RECHAZAR
+  PAGAR
+  ANULAR
+  CERRAR_PERIODO
+  REABRIR_PERIODO
+  INICIAR_SESION
+  FINALIZAR_SESION
+  APROBAR_JEFE
+  APROBAR_RRHH
+}
+
+enum TipoVigenciaDocumento {
+  SIN_FECHAS
+  SOLO_EMISION
+  CON_VENCIMIENTO
+}
+
+enum EstadoVacante {
+  BORRADOR
+  PUBLICADA
+  EN_PROCESO
+  CERRADA
+  CANCELADA
+}
+
+enum EstadoPostulante {
+  EN_PROCESO
+  APROBADO
+  RECHAZADO
+}
+
+enum TipoEvaluacion {
+  CURRICULAR
+  ENTREVISTA
+  PSICOLOGICA
+  TECNICA
+  REFERENCIAS
+  MEDICA
+  OTRO
+}
+
+enum ProcedenciaPostulante {
+  COMPUTRABAJO
+  RECOMENDADO
+  REDES
+}
+
+enum EstadoPeriodoTareo {
+  BORRADOR
+  EN_PROCESO
+  CERRADO
+  ANULADO
+}
+
+enum CategoriaDocumento {
+  INGRESO
+  LABORAL
+  SALIDA
+  CARTA_PRE_AVISO
+}
+
+enum OrigenDocumentoEmpleado {
+  SELECCION
+  RRHH
+}
+
+enum EstadoDocumentoGenerado {
+  PENDIENTE
+  FIRMADO
+  RECHAZADO
+}
+
+enum EstadoTareo {
+  PENDIENTE
+  COMPLETO
+  VALIDADO
+}
+
+enum MotivoPhotocheck {
+  NUEVO
+  RENOVACION
+  PERDIDA
+  DETERIORO
+}
+
+enum TipoJustificacion {
+  CERTIFICADO_MEDICO
+  DESCANSO_MEDICO
+  PERMISO_PERSONAL
+  PERMISO_LABORAL
+  LICENCIA_MATERNIDAD
+  LICENCIA_PATERNIDAD
+  LICENCIA_FALLECIMIENTO
+  VACACIONES
+  OTRO
+}
+
+enum TipoDocumentoJustificacion {
+  CCI
+  PRIVADO
+  OTROS
+}
+
+enum EstadoPeriodoVacacional {
+  ACUMULANDO
+  DISPONIBLE
+  PARCIAL
+  AGOTADO
+  VENCIDO
+}
+
+enum EstadoSolicitudVacaciones {
+  PENDIENTE_JEFE
+  PENDIENTE_RRHH
+  APROBADA
+  EN_GOCE
+  GOZADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum TipoMovimientoVacacional {
+  GOCE
+  VENTA
+  ADELANTO
+  TRUNCAS
+  AJUSTE
+}
+
+enum EstadoCarnetSucamec {
+  VIGENTE
+  VENCIDO
+  SUSPENDIDO
+  ANULADO
+}
+
+enum CategoriaSucamec {
+  BASICO
+  ESPECIALIZADO
+  RESGUARDO
+  PROTECCION
+  TRANSPORTE
+  TECNOLOGIA
+  CAPACITADOR
+}
+
+enum TipoArchivoPlantilla {
+  HTML
+  WORD
+  EXCEL
+}
+
+enum EstadoPlanilla {
+  BORRADOR
+  CALCULADA
+  REVISADA
+  APROBADA
+  PAGADA
+  ANULADA
+}
+
+enum EstadoBoleta {
+  GENERADA
+  DESCARGADA
+  ENVIADA
+  CONFIRMADA
+}
+
+enum FaseOnboarding {
+  PRE_INGRESO
+  DIA_1
+  SEMANA_1
+  MES_1
+  MES_3
+  CONTINUO
+}
+
+enum ResponsableOnboarding {
+  RRHH
+  JEFE_DIRECTO
+  TI
+  SEGURIDAD
+  EMPLEADO
+  MENTOR
+  ADMINISTRACION
+}
+
+enum EstadoProcesoOnboarding {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADO
+  CANCELADO
+}
+
+enum EstadoTareaOnboarding {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
+  OMITIDA
+  VENCIDA
+}
+
+enum EstadoSesionTareo {
+  ACTIVA
+  FINALIZADA
+  EXPIRADA
+}
+
+enum EstadoSolicitudExtension {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum EstadoSolicitudCese {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum FormatoReporte {
+  EXCEL
+  PDF
+}
+
+enum EstadoVinculo {
+  ACTIVO
+  CERRADO
+}
+
+enum GeneroUniforme {
+  UNISEX
+  MASCULINO
+  FEMENINO
+}
+
+enum EstadoItemInventario {
+  DISPONIBLE
+  ENTREGADO
+  BAJA
+}
+
+enum CondicionItemInventario {
+  NUEVO
+  USADO
+}
+
+enum TipoMovimientoInventario {
+  ENTRADA
+  ENTREGA
+  DEVOLUCION
+  BAJA
+}
+
+enum EstadoSolicitudDescuentoUniforme {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum EstadoRequerimientoUniforme {
+  BORRADOR
+  APROBADO
+  FINALIZADO
+}
+
+enum EstadoSolicitudAnulacionContrato {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+model VinculoLaboral {
+  id            Int           @id @default(autoincrement())
+  empleado_id   Int
+  empresa_id    Int
+  fecha_inicio  DateTime      @db.Date
+  fecha_fin     DateTime?     @db.Date
+  estado        EstadoVinculo @default(ACTIVO)
+  motivo_cierre String?       @db.VarChar(500)
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  contratos Contrato[]
+  empleado  Empleado   @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa   Empresa    @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@index([empleado_id])
+  @@index([empresa_id])
+  @@index([empleado_id, estado])
+  @@map("vinculos_laborales")
+}
