@@ -374,6 +374,9 @@ export class ContratosService {
           empresa_cliente: dto.empresa_cliente,
           cliente_id: dto.cliente_id,
           lugar_trabajo: dto.lugar_trabajo,
+          // Override opcional del régimen laboral. Si no viene, queda null y el
+          // motor de cálculo hereda el regimen_laboral_default de la empresa.
+          regimen_laboral: dto.regimen_laboral ?? null,
           usuario_id: usuarioId,
         },
         include: {

@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { RegimenLaboral } from '@prisma/client';
 
 export enum EstadoContrato {
   VIGENTE = 'ACTIVO',
@@ -81,4 +82,12 @@ export class CreateContratoDto {
   @IsOptional()
   @IsInt()
   cargo_id?: number;
+
+  // Régimen laboral del contrato. Opcional: si no se especifica, el contrato
+  // hereda el régimen por defecto de la empresa (regimen_laboral_default).
+  @IsOptional()
+  @IsEnum(RegimenLaboral, {
+    message: 'El régimen laboral no es válido',
+  })
+  regimen_laboral?: RegimenLaboral;
 }

@@ -139,6 +139,7 @@ export class ContratoLifecycleService {
           empresa_cliente: dto.empresa_cliente,
           cliente_id: dto.cliente_id,
           lugar_trabajo: dto.lugar_trabajo,
+          regimen_laboral: dto.regimen_laboral ?? null,
           usuario_id: usuarioId,
         },
         include: {
@@ -241,6 +242,7 @@ export class ContratoLifecycleService {
           empresa_cliente: dto.empresa_cliente,
           cliente_id: dto.cliente_id,
           lugar_trabajo: dto.lugar_trabajo,
+          regimen_laboral: dto.regimen_laboral ?? null,
           usuario_id: usuarioId,
         },
         include: {

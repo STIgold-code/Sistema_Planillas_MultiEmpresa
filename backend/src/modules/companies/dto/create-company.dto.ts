@@ -4,8 +4,10 @@ import {
   IsOptional,
   IsBoolean,
   IsEmail,
+  IsEnum,
   Length,
 } from 'class-validator';
+import { RegimenLaboral } from '@prisma/client';
 
 export class CreateCompanyDto {
   @IsString()
@@ -36,4 +38,12 @@ export class CreateCompanyDto {
   @IsBoolean()
   @IsOptional()
   activo?: boolean;
+
+  // Régimen laboral por defecto de la empresa. Opcional: si no se envía, el
+  // schema aplica GENERAL. Los contratos sin override heredan este valor.
+  @IsEnum(RegimenLaboral, {
+    message: 'El régimen laboral por defecto no es válido',
+  })
+  @IsOptional()
+  regimen_laboral_default?: RegimenLaboral;
 }
