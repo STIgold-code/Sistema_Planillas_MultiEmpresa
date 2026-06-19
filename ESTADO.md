@@ -21,8 +21,13 @@ De repo vacío a motor de planillas integrado:
    **motor legacy `calcular-empleado.ts` retirado** con paridad al céntimo; servicios heredados
    partidos bajo 500 líneas.
 
-Estado de tests: **333 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
-Todo el trabajo consolidado en **PR #1** (`feat/motor-planillas-paridad-general` → `main`).
+7. **Revisión adversarial + fixes (PR #1):** 3 revisores independientes encontraron 7 críticos
+   (bypass de guardia de certificación en updateDetalle/generarBoletas, IDOR cross-tenant en
+   periodoTareo, doble conteo agrario prorrateado, bonif. 30334 huérfana en CC/agrario, falta
+   UNIQUE + resolución de vigencia no determinista en ParametroLegal). **Todos corregidos con
+   test de regresión.** PR #1 **mergeado a `main`**.
+
+Estado de tests: **350 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
 
 ## Pendiente
 
