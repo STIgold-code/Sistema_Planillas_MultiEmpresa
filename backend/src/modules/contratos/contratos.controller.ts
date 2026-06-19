@@ -13,6 +13,7 @@ import {
   Res,
   BadRequestException,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -20,12 +21,15 @@ import { ContratosService } from './contratos.service';
 import { ContratosExcelService } from './contratos-excel.service';
 import { CreateContratoDto, UpdateContratoDto, FilterContratoDto } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { multerOptions } from '../uploads/uploads.config';
 import {
   fechaHoyPeru,
   parsearFechaISOenPeru,
 } from '../../common/utils/datetime.util';
 
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('contratos')
 export class ContratosController {
   constructor(
