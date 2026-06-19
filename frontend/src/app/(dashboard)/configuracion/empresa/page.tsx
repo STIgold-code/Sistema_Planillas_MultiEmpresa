@@ -23,9 +23,17 @@ import {
   FormMessage,
   FormDescription,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LogoUpload } from '@/components/empresa/logo-upload';
-import { Loader2, Building2, Save } from 'lucide-react';
+import { Loader2, Building2, Save, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { REGIMENES_LISTA, obtenerRegimenInfo } from '@/lib/regimenes';
 
 const empresaSchema = z.object({
   ruc: z
@@ -44,6 +52,14 @@ const empresaSchema = z.object({
   partida_electronica: z.string().optional(),
   logo_url: z.string().optional().nullable(),
   firma_representante_url: z.string().optional().nullable(),
+  regimen_laboral_default: z.enum([
+    'GENERAL',
+    'PEQUENA_EMPRESA',
+    'MICROEMPRESA',
+    'AGRARIO',
+    'CONSTRUCCION_CIVIL',
+    'HOGAR',
+  ]),
 });
 
 type EmpresaFormValues = z.infer<typeof empresaSchema>;
@@ -67,6 +83,7 @@ export default function EmpresaConfigPage() {
       partida_electronica: '',
       logo_url: null,
       firma_representante_url: null,
+      regimen_laboral_default: 'GENERAL',
     },
   });
 
@@ -86,6 +103,8 @@ export default function EmpresaConfigPage() {
         partida_electronica: empresa.partida_electronica || '',
         logo_url: empresa.logo_url || null,
         firma_representante_url: empresa.firma_representante_url || null,
+        regimen_laboral_default:
+          obtenerRegimenInfo(empresa.regimen_laboral_default)?.value ?? 'GENERAL',
       });
     }
   }, [empresa, form]);
@@ -106,6 +125,7 @@ export default function EmpresaConfigPage() {
         partida_electronica: data.partida_electronica || undefined,
         logo_url: data.logo_url || undefined,
         firma_representante_url: data.firma_representante_url || undefined,
+        regimen_laboral_default: data.regimen_laboral_default,
       });
       toast.success('Datos de la empresa actualizados correctamente');
     } catch (err) {
@@ -211,6 +231,46 @@ export default function EmpresaConfigPage() {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="regimen_laboral_default"
+                  render={({ field }) => {
+                    const info = obtenerRegimenInfo(field.value);
+                    return (
+                      <FormItem>
+                        <FormLabel>Régimen laboral por defecto</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecciona un régimen" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {REGIMENES_LISTA.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>
+                                {r.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {info && (
+                          <FormDescription className="flex items-start gap-1.5">
+                            <Info
+                              className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span>{info.implicaciones}</span>
+                          </FormDescription>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               </CardContent>
             </Card>

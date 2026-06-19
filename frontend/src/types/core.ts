@@ -37,6 +37,8 @@ export interface Empresa {
   partida_electronica?: string;
   logo_url?: string;
   firma_representante_url?: string;
+  /** Régimen laboral por defecto para los contratos de la empresa. */
+  regimen_laboral_default?: string;
   activo: boolean;
 }
 

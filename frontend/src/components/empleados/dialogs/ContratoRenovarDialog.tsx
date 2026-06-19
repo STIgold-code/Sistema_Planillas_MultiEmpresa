@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { ContratoForm, Cliente, Sede, Cargo } from '../hooks/contratos.types';
 import { PlantillaContrato } from '@/types';
+import { RegimenLaboralField } from './RegimenLaboralField';
 
 export interface ContratoRenovarDialogProps {
   open: boolean;
@@ -145,6 +146,11 @@ export function ContratoRenovarDialog({
                 </SelectContent>
               </Select>
             </div>
+            <RegimenLaboralField
+              id="regimen_laboral_renovar"
+              value={form.regimen_laboral}
+              onChange={(v) => setForm({ ...form, regimen_laboral: v })}
+            />
             <div className="space-y-2">
               <Label>Lugar de Trabajo</Label>
               <Input

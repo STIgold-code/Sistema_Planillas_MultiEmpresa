@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { ContratoForm, Cliente, Sede, Cargo } from '../hooks/contratos.types';
 import { PlantillaContrato } from '@/types';
+import { RegimenLaboralField } from './RegimenLaboralField';
 
 const TIPOS_CONTRATO = [
   { value: 'SUJETO_A_MODALIDAD', label: 'Sujeto a Modalidad' },
@@ -112,6 +113,11 @@ export function ContratoNuevoDialog({
                 </Select>
               </div>
             </div>
+            <RegimenLaboralField
+              id="regimen_laboral_nuevo"
+              value={form.regimen_laboral}
+              onChange={(v) => setForm({ ...form, regimen_laboral: v })}
+            />
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Fecha Inicio *</Label>

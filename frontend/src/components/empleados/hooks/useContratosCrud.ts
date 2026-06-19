@@ -140,6 +140,7 @@ export function useContratosCrud({
         empleado_id: empleadoId,
         tipo_contrato: form.tipo_contrato,
         modalidad: form.modalidad || undefined,
+        regimen_laboral: form.regimen_laboral || undefined,
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin || undefined,
         remuneracion: form.remuneracion ? parseFloat(form.remuneracion) : undefined,
@@ -216,6 +217,7 @@ export function useContratosCrud({
       plantilla_id: plantillaPredeterminada?.id.toString() || '',
       generar_documento: !!plantillaPredeterminada,
       cargo_id: cargoId?.toString() || '',
+      regimen_laboral: contratoVigente.regimen_laboral || '',
     });
     setShowRenovarModal(true);
   };
@@ -259,6 +261,7 @@ export function useContratosCrud({
       plantilla_id: plantillaPredeterminada?.id.toString() || '',
       generar_documento: !!plantillaPredeterminada,
       cargo_id: cargoId?.toString() || '',
+      regimen_laboral: ultimoContratoVencido.regimen_laboral || '',
     });
     setShowRenovarModal(true);
   };
@@ -274,6 +277,7 @@ export function useContratosCrud({
       await api.post(`/contratos/${ultimoContratoVencido.id}/renovar`, {
         empleado_id: empleadoId,
         tipo_contrato: form.tipo_contrato,
+        regimen_laboral: form.regimen_laboral || undefined,
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin || undefined,
         remuneracion: form.remuneracion ? parseFloat(form.remuneracion) : undefined,
@@ -339,6 +343,7 @@ export function useContratosCrud({
         empleado_id: empleadoId,
         tipo_contrato: form.tipo_contrato,
         modalidad: form.modalidad || undefined,
+        regimen_laboral: form.regimen_laboral || undefined,
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin || undefined,
         remuneracion: form.remuneracion ? parseFloat(form.remuneracion) : undefined,
@@ -393,6 +398,7 @@ export function useContratosCrud({
       await api.post(`/contratos/${contratoARenovar.id}/renovar`, {
         empleado_id: empleadoId,
         tipo_contrato: form.tipo_contrato,
+        regimen_laboral: form.regimen_laboral || undefined,
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin || undefined,
         remuneracion: form.remuneracion ? parseFloat(form.remuneracion) : undefined,

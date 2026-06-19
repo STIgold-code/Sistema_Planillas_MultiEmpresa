@@ -18,6 +18,7 @@ interface UpdateEmpresaData {
   partida_electronica?: string;
   logo_url?: string;
   firma_representante_url?: string;
+  regimen_laboral_default?: string;
 }
 
 export function useEmpresa() {
