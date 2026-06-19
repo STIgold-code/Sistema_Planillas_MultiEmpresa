@@ -101,8 +101,15 @@ export function calcularDetalleCompleto(
     c.diasSubsidioMaternidad > 0
       ? redondear2((sueldoBase / 30) * c.diasSubsidioMaternidad)
       : 0;
-  // PARIDAD: el legacy fija asignación familiar = 0.
-  const asignacionFamiliar = 0;
+  // Asignación familiar (10% RMV por ley ≈ S/113). Se paga cuando el trabajador
+  // tiene derecho (`empleado.asignacion_familiar`, cableado en `tieneAsignacionFamiliar`).
+  // CAMBIO INTENCIONAL: el legacy fijaba este ingreso en 0 para todos (subpago
+  // heredado); ahora se paga el monto fijo del parámetro legal cuando corresponde.
+  // [ASUNCIÓN A VALIDAR] monto fijo por ley, NO prorrateado por días en mes
+  // incompleto (el legacy no lo prorrateaba y la spec no indica prorrateo).
+  const asignacionFamiliar = entrada.tieneAsignacionFamiliar
+    ? params.asignacionFamiliar(fecha)
+    : 0;
   const licenciaGoceMonto = redondear2(
     (sueldoBase / 30) *
       (c.diasLicenciaFallecimiento +

@@ -218,15 +218,35 @@ describe('mapearEntradaCalculo', () => {
     expect(entrada.retencionesPreviasRenta).toBe(250);
   });
 
-  it('tieneHijos es false para preservar paridad con el legacy (asig. familiar no viene del tareo)', () => {
-    // PARIDAD: el motor legacy `calcularEmpleado` fija asignación familiar = 0
-    // ("no viene del tareo"). Para no mover el cálculo del camino real respecto al
-    // legacy, el mapper NO activa la asignación familiar todavía. Es una BRECHA
-    // LEGAL conocida del legacy (no paga asig. familiar), heredada a propósito en
-    // este slice para mantener paridad al céntimo. Habilitarla es un cambio de
-    // comportamiento separado que actualizará los golden conscientemente.
+  // CAMBIO DE COMPORTAMIENTO INTENCIONAL: el legacy fijaba la asignación familiar
+  // en 0 para TODOS (subpago heredado). El mapper ahora cablea el dato real
+  // `empleado.asignacion_familiar` al flag de dominio `tieneHijos` (derecho a la
+  // asignación, 10% RMV por ley), igual que el camino de detalle.
+  it('cablea tieneHijos desde empleado.asignacion_familiar = true (corrige subpago legacy)', () => {
     const entrada = mapearEntradaCalculo({
       empleado: empleadoBase({ asignacion_familiar: true }),
+      empresa: EMPRESA,
+      mes: PERIODO.mes,
+      anio: PERIODO.anio,
+    });
+
+    expect(entrada.tieneHijos).toBe(true);
+  });
+
+  it('mantiene tieneHijos en false cuando empleado.asignacion_familiar = false', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ asignacion_familiar: false }),
+      empresa: EMPRESA,
+      mes: PERIODO.mes,
+      anio: PERIODO.anio,
+    });
+
+    expect(entrada.tieneHijos).toBe(false);
+  });
+
+  it('trata asignacion_familiar null como sin derecho (tieneHijos false)', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ asignacion_familiar: null }),
       empresa: EMPRESA,
       mes: PERIODO.mes,
       anio: PERIODO.anio,

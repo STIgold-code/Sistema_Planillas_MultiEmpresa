@@ -6,7 +6,11 @@
  * resuelve vía `ParametrosLegales` en la estrategia y se inyecta aquí.
  *
  * Régimen-variable: micro/hogar pueden no otorgarla (la estrategia decide no
- * invocarla). Aquí solo se modela la regla "tiene hijos → monto plano".
+ * invocarla). Aquí solo se modela la regla "tiene derecho → monto plano".
+ *
+ * El flag `tieneHijos` representa el DERECHO a cobrar la asignación familiar
+ * (fuente: `empleado.asignacion_familiar`), no literalmente la tenencia de hijos.
+ * El monto se paga cuando el trabajador tiene derecho, según ley (10% RMV ≈ S/113).
  */
 import { ConceptoBoleta, ResultadoConcepto } from '../tipos';
 

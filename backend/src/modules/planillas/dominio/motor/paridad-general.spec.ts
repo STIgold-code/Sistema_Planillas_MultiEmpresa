@@ -48,6 +48,7 @@ const params = new ParametrosLegalesEnMemoria();
 
 interface FixtureEmpleadoLectura {
   sueldo_base: number;
+  asignacion_familiar?: boolean | null;
   regimen_pensionario: {
     tipo: 'AFP' | 'ONP';
     aporte_obligatorio: number;
@@ -120,7 +121,10 @@ function mapearEntrada(escenario: EscenarioGeneral): EntradaCalculo {
   return {
     regimenLaboral: RegimenLaboral.GENERAL,
     remuneracionBasica: empleado.sueldo_base,
-    tieneHijos: false, // los fixtures legacy no otorgan asig. familiar (no viene del tareo)
+    // Asignación familiar desde el dato real del empleado (10% RMV por ley). Los
+    // fixtures GENERAL usan asignacion_familiar=false, por lo que el monto sigue
+    // en 0 y la paridad de los demás conceptos se mantiene al céntimo.
+    tieneHijos: !!empleado.asignacion_familiar,
     afiliacion: mapearAfiliacion(empleado.regimen_pensionario),
     periodo: {
       anio: escenario.anio,
