@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { Prisma, EstadoBoleta } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';

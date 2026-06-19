@@ -44,8 +44,7 @@ import {
   FileDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { RegimenBadge } from '@/components/RegimenBadge';
 
 type EstadoBoleta = 'GENERADA' | 'DESCARGADA' | 'ENVIADA' | 'CONFIRMADA';
 
@@ -72,6 +71,7 @@ interface Boleta {
     neto_pagar: number;
     total_ingresos: number;
     total_descuentos: number;
+    regimen_laboral: string | null;
   };
   generador?: {
     id: number;
@@ -471,6 +471,7 @@ export default function BoletasPage() {
                   <TableRow>
                     <TableHead>Período</TableHead>
                     <TableHead>Empleado</TableHead>
+                    <TableHead>Régimen</TableHead>
                     <TableHead>Área</TableHead>
                     <TableHead className="text-right">Neto</TableHead>
                     <TableHead>Estado</TableHead>
@@ -495,6 +496,11 @@ export default function BoletasPage() {
                             {boleta.empleado.numero_documento}
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <RegimenBadge
+                          regimen={boleta.planilla_detalle.regimen_laboral}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
