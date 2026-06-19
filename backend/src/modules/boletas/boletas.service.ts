@@ -6,14 +6,9 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { FilterBoletaDto, GenerarBoletasDto } from './dto';
 import { Prisma, EstadoBoleta } from '@prisma/client';
-import PDFDocument from 'pdfkit';
 import { EmailService } from '../../common/services/email.service';
-import { dibujarBoletaA4 } from './boleta-pdf';
 import { BoletasPdfService } from './boletas-pdf.service';
-import {
-  ahoraPeru,
-  formatearFechaPeru,
-} from '../../common/utils/datetime.util';
+import { ahoraPeru } from '../../common/utils/datetime.util';
 import { asegurarEmpleadoCertificado } from '../planillas/aplicacion/asegurar-empleado-certificado';
 import { RegimenNoCertificadoError } from '../planillas/aplicacion/guardia-certificacion';
 
@@ -80,6 +75,7 @@ export class BoletasService {
               neto_pagar: true,
               total_ingresos: true,
               total_descuentos: true,
+              regimen_laboral: true,
             },
           },
           generador: {
@@ -167,6 +163,7 @@ export class BoletasService {
               neto_pagar: true,
               total_ingresos: true,
               total_descuentos: true,
+              regimen_laboral: true,
             },
           },
         },
@@ -471,7 +468,8 @@ export class BoletasService {
         resultados.enviadas++;
       } catch (error) {
         resultados.fallidas++;
-        resultados.errores.push(`Boleta ${id}: ${error.message}`);
+        const mensaje = error instanceof Error ? error.message : String(error);
+        resultados.errores.push(`Boleta ${id}: ${mensaje}`);
       }
     }
 
