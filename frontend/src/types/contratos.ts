@@ -33,6 +33,8 @@ export interface Contrato {
   };
   tipo_contrato: string;
   modalidad?: string;
+  /** Régimen laboral del contrato. Si es null/undefined, hereda el de la empresa. */
+  regimen_laboral?: string;
   fecha_inicio: string;
   fecha_fin?: string;
   fecha_firma?: string;

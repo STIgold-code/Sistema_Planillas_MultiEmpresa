@@ -37,6 +37,8 @@ export interface ContratoForm {
   plantilla_id: string;
   generar_documento: boolean;
   cargo_id: string;
+  /** Régimen laboral del contrato. '' = heredar el default de la empresa. */
+  regimen_laboral: string;
 }
 
 export const initialFormState: ContratoForm = {
@@ -52,4 +54,5 @@ export const initialFormState: ContratoForm = {
   plantilla_id: '',
   generar_documento: true,
   cargo_id: '',
+  regimen_laboral: '',
 };
