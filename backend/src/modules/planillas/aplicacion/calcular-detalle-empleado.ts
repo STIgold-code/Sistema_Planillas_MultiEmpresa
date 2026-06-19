@@ -95,5 +95,12 @@ export function calcularDetalleEmpleado(
   return {
     ...detalleCompleto,
     ...montos,
+    // Snapshot del régimen laboral efectivamente resuelto y usado para este
+    // empleado (contrato > default de empresa). Se persiste tal cual en
+    // PlanillaDetalle.regimen_laboral: la planilla es una FOTO del cálculo y el
+    // régimen del contrato puede cambiar después. El enum del dominio comparte
+    // los mismos miembros que el enum Prisma (mapeo 1:1 por contrato de diseño),
+    // por lo que el valor es directamente asignable al campo Prisma.
+    regimen_laboral: entrada.regimenLaboral,
   };
 }

@@ -1230,6 +1230,7 @@ model PlanillaDetalle {
   grat_trunca                  Decimal  @default(0) @db.Decimal(10, 2)
   vac_truncas                  Decimal  @default(0) @db.Decimal(10, 2)
   total_beneficios_sociales    Decimal  @default(0) @db.Decimal(10, 2)
+  regimen_laboral              RegimenLaboral?
   regimen_pensionario          String?  @db.VarChar(50)
   banco_nombre                 String?  @db.VarChar(100)
   cuenta_numero                String?  @db.VarChar(30)
