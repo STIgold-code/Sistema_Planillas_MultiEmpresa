@@ -14,6 +14,7 @@ import { Pencil } from 'lucide-react';
 import { Planilla, PlanillaDetalle } from '@/types';
 import { formatDateSafe } from '@/lib/utils';
 import { IndicadorTasasSBS } from '@/components/planilla/IndicadorTasasSBS';
+import { RegimenBadge } from '@/components/RegimenBadge';
 
 interface PlanillaTablaProps {
   planilla: Planilla;
@@ -51,7 +52,7 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
               {/* Fila de grupos */}
               <TableRow className="border-b-0 bg-white">
                 <TableHead colSpan={3} className="sticky left-0 z-50 bg-slate-200 min-w-[270px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]"></TableHead>
-                <TableHead colSpan={11} className="text-center bg-slate-100 border-x text-[10px] font-semibold">DATOS EMPLEADO</TableHead>
+                <TableHead colSpan={12} className="text-center bg-slate-100 border-x text-[10px] font-semibold">DATOS EMPLEADO</TableHead>
                 <TableHead colSpan={16} className="text-center bg-amber-100 border-r text-[10px] font-semibold text-amber-700">DÍAS DEL PERÍODO</TableHead>
                 <TableHead colSpan={16} className="text-center bg-cyan-100 border-r text-[10px] font-semibold text-cyan-700">ESTRUCTURA SALARIAL</TableHead>
                 <TableHead colSpan={28} className="text-center bg-green-100 border-r text-[10px] font-semibold text-green-700">INGRESOS</TableHead>
@@ -68,6 +69,7 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
                 <TableHead className="sticky left-[35px] z-50 bg-slate-200 min-w-[55px] text-center border-r text-slate-700 font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]">ID</TableHead>
                 <TableHead className="sticky left-[90px] z-50 bg-slate-200 min-w-[180px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]">Empleado</TableHead>
                 {/* DATOS EMPLEADO */}
+                <TableHead className="min-w-[110px] bg-slate-100">Régimen</TableHead>
                 <TableHead className="min-w-[55px] bg-slate-100">Situac.</TableHead>
                 <TableHead className="min-w-[75px] bg-slate-100">D.N.I.</TableHead>
                 <TableHead className="min-w-[80px] bg-slate-100">Cliente</TableHead>
@@ -181,7 +183,7 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
             <TableBody>
               {planilla.detalles?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={104} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={105} className="text-center py-8 text-muted-foreground">
                     {planilla.estado === 'BORRADOR'
                       ? 'Haga clic en "Calcular" para generar el detalle de la planilla'
                       : 'No hay empleados en esta planilla'}
@@ -197,6 +199,13 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
                       {getNombreCompleto(detalle.empleado)}
                     </TableCell>
                     {/* DATOS EMPLEADO */}
+                    <TableCell className="bg-slate-100/30">
+                      {detalle.regimen_laboral ? (
+                        <RegimenBadge regimen={detalle.regimen_laboral} />
+                      ) : (
+                        <span className="text-muted-foreground" title="Sin régimen registrado">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="bg-slate-100/30">{detalle.empleado?.estado === 'ACTIVO' ? 'OPER.' : detalle.empleado?.estado || '-'}</TableCell>
                     <TableCell className="font-mono bg-slate-100/30">{detalle.empleado?.numero_documento}</TableCell>
                     <TableCell className="bg-slate-100/30 truncate max-w-[80px]" title={detalle.empleado?.sede?.cliente?.razon_social}>{detalle.empleado?.sede?.cliente?.razon_social || detalle.empleado?.sede?.cliente?.nombre_comercial || '-'}</TableCell>

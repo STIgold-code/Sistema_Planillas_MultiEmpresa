@@ -8,6 +8,7 @@
  * (`calcularDetalleOraculo`, the ex-legacy contract) on the load-bearing amounts
  * AND preserves the auxiliary fields (vida ley, computables).
  */
+import { RegimenLaboral as RegimenLaboralPrisma } from '@prisma/client';
 import { calcularDetalleEmpleado } from './calcular-detalle-empleado';
 import { ParametrosLegalesEnMemoria } from '../infraestructura/parametros-legales-en-memoria';
 import {
@@ -72,4 +73,49 @@ describe('calcularDetalleEmpleado — paridad del DTO real (motor puro + overlay
       expect(dto.rem_computable_cts).toBe(oraculo.rem_computable_cts);
     },
   );
+});
+
+describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', () => {
+  const escenario = ESCENARIOS_GENERAL[0];
+
+  const calcular = (
+    contratos: { regimen_laboral: RegimenLaboralPrisma | null }[],
+    regimenDefaultEmpresa: RegimenLaboralPrisma,
+  ) => {
+    const empleado = {
+      ...(escenario.empleado as object),
+      contratos,
+    } as unknown as EmpleadoParaMapeo & EmpleadoParaDetalle;
+
+    return calcularDetalleEmpleado({
+      empleado,
+      empresa: { regimen_laboral_default: regimenDefaultEmpresa },
+      mes: escenario.mes,
+      anio: escenario.anio,
+      acumuladoRenta: escenario.acumuladoRemuneracion,
+      retencionesPreviasRenta: escenario.acumuladoRetenciones,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+      parametros,
+    });
+  };
+
+  it('persiste el régimen del contrato cuando lo declara (PEQUENA_EMPRESA)', () => {
+    const dto = calcular([{ regimen_laboral: 'PEQUENA_EMPRESA' }], 'GENERAL');
+    expect(dto.regimen_laboral).toBe('PEQUENA_EMPRESA');
+  });
+
+  it('persiste el régimen por defecto de la empresa cuando el contrato no lo declara', () => {
+    const dto = calcular([{ regimen_laboral: null }], 'MICROEMPRESA');
+    expect(dto.regimen_laboral).toBe('MICROEMPRESA');
+  });
+
+  it('persiste GENERAL cuando ese es el régimen efectivo resuelto', () => {
+    const dto = calcular([{ regimen_laboral: null }], 'GENERAL');
+    expect(dto.regimen_laboral).toBe('GENERAL');
+  });
 });

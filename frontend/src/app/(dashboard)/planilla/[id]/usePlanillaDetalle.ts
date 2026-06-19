@@ -7,6 +7,10 @@ import { Planilla, PlanillaDetalle } from '@/types';
 import { toast } from 'sonner';
 import { EditForm, ConfirmAction } from './types';
 import { exportarPlanillaExcel } from './planilla-export';
+import {
+  detectarBloqueoCertificacion,
+  type BloqueoCertificacion,
+} from '@/lib/error-certificacion';
 
 const DEFAULT_EDIT_FORM: EditForm = {
   horas_extras_25: 0,
@@ -53,6 +57,8 @@ export function usePlanillaDetalle() {
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [downloadingBoletas, setDownloadingBoletas] = useState(false);
+  const [bloqueoCertificacion, setBloqueoCertificacion] =
+    useState<BloqueoCertificacion | null>(null);
 
   const fetchPlanilla = async () => {
     setLoading(true);
@@ -80,8 +86,17 @@ export function usePlanillaDetalle() {
       await api.post(`/planillas/${id}/calcular`, {});
       toast.success('Planilla calculada correctamente');
       fetchPlanilla();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al calcular la planilla');
+    } catch (error: unknown) {
+      const bloqueo = detectarBloqueoCertificacion(error);
+      if (bloqueo) {
+        setBloqueoCertificacion(bloqueo);
+      } else {
+        const mensaje =
+          error && typeof error === 'object' && 'message' in error
+            ? String((error as { message?: unknown }).message)
+            : '';
+        toast.error(mensaje || 'Error al calcular la planilla');
+      }
     } finally {
       setCalculating(false);
     }
@@ -247,6 +262,8 @@ export function usePlanillaDetalle() {
     confirmAction,
     setConfirmAction,
     downloadingBoletas,
+    bloqueoCertificacion,
+    setBloqueoCertificacion,
     handleCalcular,
     handleAprobar,
     handlePagar,

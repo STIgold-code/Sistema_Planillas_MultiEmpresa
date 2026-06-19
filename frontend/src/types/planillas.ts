@@ -30,6 +30,8 @@ export interface PlanillaDetalle {
   id: number;
   planilla_id: number;
   empleado_id: number;
+  /** Régimen laboral efectivo de la fila. Null en filas calculadas antes de exponer el campo. */
+  regimen_laboral?: string | null;
   empleado?: {
     id: number;
     estado?: string;

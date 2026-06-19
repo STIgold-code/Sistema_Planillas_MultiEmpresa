@@ -7,6 +7,8 @@ import { PlanillaResumen } from './components/PlanillaResumen';
 import { PlanillaTabla } from './components/PlanillaTabla';
 import { EditDetalleDialog } from './components/EditDetalleDialog';
 import { ConfirmActionDialog } from './components/ConfirmActionDialog';
+import { PlanillaRegimenResumen } from './components/PlanillaRegimenResumen';
+import { BloqueoCertificacionDialog } from './components/BloqueoCertificacionDialog';
 
 export default function PlanillaDetallePage() {
   const {
@@ -24,6 +26,8 @@ export default function PlanillaDetallePage() {
     confirmAction,
     setConfirmAction,
     downloadingBoletas,
+    bloqueoCertificacion,
+    setBloqueoCertificacion,
     handleCalcular,
     handleAprobar,
     handlePagar,
@@ -72,6 +76,8 @@ export default function PlanillaDetallePage() {
 
       <PlanillaResumen planilla={planilla} formatCurrency={formatCurrency} />
 
+      <PlanillaRegimenResumen detalles={planilla.detalles ?? []} />
+
       <PlanillaTabla
         planilla={planilla}
         canEdit={canEdit ?? false}
@@ -98,6 +104,11 @@ export default function PlanillaDetallePage() {
         onAprobar={handleAprobar}
         onPagar={handlePagar}
         onAnular={handleAnular}
+      />
+
+      <BloqueoCertificacionDialog
+        bloqueo={bloqueoCertificacion}
+        onClose={() => setBloqueoCertificacion(null)}
       />
     </div>
   );
