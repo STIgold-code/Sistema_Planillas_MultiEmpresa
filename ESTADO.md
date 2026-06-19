@@ -29,6 +29,14 @@ De repo vacío a motor de planillas integrado:
 
 Estado de tests: **350 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
 
+## Fase 4–5 — Régimen end-to-end (en curso)
+
+- **PR #2 (mergeado):** API expone `regimen_laboral` (contrato override + empresa default) + test e2e que prueba que el régimen fluye API→motor y bloquea no-certificados.
+- **PR #3 (mergeado):** UI — selector de régimen en contrato/empresa, `RegimenBadge`, fuente única `lib/regimenes.ts`.
+- **PR #4 (abierto):** planilla guarda el régimen usado (snapshot) y lo muestra (columna + resumen multi-régimen); modal de bloqueo de certificación con buena UX.
+
+El circuito está cerrado de punta a punta: pantalla → API → motor → planilla.
+
 ## Pendiente
 
 - **Validación de contador (bloqueante para Agrario/CC):** 5 puntos legales marcados `it.skip`
