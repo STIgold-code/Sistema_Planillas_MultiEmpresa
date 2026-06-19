@@ -3,8 +3,10 @@ import {
   IsOptional,
   IsBoolean,
   IsEmail,
+  IsEnum,
   Length,
 } from 'class-validator';
+import { RegimenLaboral } from '@prisma/client';
 
 export class UpdateCompanyDto {
   @IsString()
@@ -63,4 +65,11 @@ export class UpdateCompanyDto {
   @IsString()
   @IsOptional()
   firma_representante_url?: string;
+
+  // Régimen laboral por defecto de la empresa.
+  @IsEnum(RegimenLaboral, {
+    message: 'El régimen laboral por defecto no es válido',
+  })
+  @IsOptional()
+  regimen_laboral_default?: RegimenLaboral;
 }
