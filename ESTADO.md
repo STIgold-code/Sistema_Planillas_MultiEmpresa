@@ -48,8 +48,9 @@ Veredicto: segura para producción.
 - **Validación de contador (bloqueante para Agrario/CC):** 5 puntos legales marcados `it.skip`
   (vacaciones agrario, base CONAFOVICER, BAE/SCTR, días mínimos grati CC, movilidad). Agrario y
   Construcción civil quedan `certificadoProduccion=false` hasta esa firma.
-- **Gap legal heredado:** asignación familiar fijada en 0 (no viene del tareo) — habilitarla es
-  un cambio de comportamiento (requiere actualizar los snapshots golden conscientemente).
+- **Asignación familiar:** ✅ CORREGIDA (PR #7) — se paga el 10% RMV según `Empleado.asignacion_familiar`.
+  Dos asunciones a confirmar con contador: es afecta a pensión/EsSalud (default correcto, Ley 25129) y
+  no se prorratea por días.
 - **Fases siguientes:** API/casos de uso (Fase 4), Frontend (Fase 5), Exportación configurable (Fase 6).
 - **Deploy:** crear proyecto Sentry NUEVO para este producto (no reusar el de ERMIR).
 
