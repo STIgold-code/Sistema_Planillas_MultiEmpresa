@@ -15,8 +15,11 @@
  *  - Jornada nocturna: la nomenclatura declara horas_nocturnas > 0.
  *  - Tasas pensionarias: el schema las guarda como porcentaje (10, 13, 1.74…);
  *    el dominio las espera como fracción → se dividen entre 100.
- *  - `tieneHijos`: false. El legacy fija asignación familiar = 0 ("no viene del
- *    tareo"); se hereda esa brecha a propósito para no mover el cálculo.
+ *  - Asignación familiar (campo de dominio `tieneHijos`): se cablea desde el dato
+ *    real `empleado.asignacion_familiar` (derecho del trabajador, 10% RMV por ley).
+ *    Esto CORRIGE un subpago heredado del legacy, que la fijaba en 0 para todos.
+ *    Es un cambio de comportamiento intencional respecto al legacy SOLO en este
+ *    concepto; el resto de la paridad de montos se mantiene al céntimo.
  */
 import {
   AfiliacionPensionaria,
@@ -149,9 +152,14 @@ export function mapearEntradaCalculo(
   return {
     regimenLaboral,
     remuneracionBasica: aNumero(empleado.sueldo_base),
-    // PARIDAD: el legacy no paga asignación familiar (la fija en 0). Se hereda esa
-    // brecha a propósito para mantener paridad al céntimo con el camino legacy.
-    tieneHijos: false,
+    // Asignación familiar (10% RMV por ley). El campo de dominio se llama
+    // `tieneHijos` por razones históricas, pero la fuente de verdad es el derecho
+    // del trabajador: `empleado.asignacion_familiar`. El legacy fijaba este flag en
+    // 0 para TODOS (subpago heredado); aquí se cablea el dato real para que la
+    // asignación se pague cuando corresponde, igual que el camino de detalle
+    // (`mapear-entrada-detalle.ts`, `tieneAsignacionFamiliar`). Ambos caminos
+    // comparten ahora la MISMA fuente: `empleado.asignacion_familiar`.
+    tieneHijos: !!empleado.asignacion_familiar,
     afiliacion: mapearAfiliacion(empleado.regimen_pensionario),
     periodo: {
       anio,

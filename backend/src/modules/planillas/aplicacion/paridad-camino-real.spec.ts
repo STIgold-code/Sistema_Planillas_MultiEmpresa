@@ -18,9 +18,12 @@
  * diferencia legítima se documenta explícitamente abajo.
  *
  * Diferencias intencionales documentadas:
- *  - Asignación familiar: el legacy la fija en 0 ("no viene del tareo"). El mapper
- *    pasa `tieneHijos: false`, de modo que el camino real tampoco la paga. Paridad
- *    preservada a propósito (brecha legal heredada, a habilitar en cambio aparte).
+ *  - Asignación familiar: AHORA se paga según el dato real
+ *    `empleado.asignacion_familiar` (10% RMV por ley), corrigiendo el subpago
+ *    heredado del legacy. Los fixtures GENERAL usan asignacion_familiar=false, por
+ *    lo que el oráculo y el camino real siguen en 0 y la paridad de los demás
+ *    conceptos se mantiene al céntimo. La aserción compara contra el oráculo
+ *    (`legacy.asignacion_familiar`), que lee la misma fuente, no contra un 0 fijo.
  */
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';

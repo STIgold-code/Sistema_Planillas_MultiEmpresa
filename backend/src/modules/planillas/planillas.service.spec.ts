@@ -159,17 +159,15 @@ describe('PlanillasService.calcularEmpleado', () => {
     });
 
     /**
-     * DECISIÓN DE DISEÑO ACTUAL (planillas.service.ts:1417):
-     * La asignación familiar se deja en 0 durante el cálculo automático.
-     * RRHH debe editarla manualmente por cada empleado desde la UI.
+     * COMPORTAMIENTO CORRECTO (Ley 25129): cuando el empleado tiene derecho
+     * (`asignacion_familiar = true`), la asignación familiar (10% RMV = S/113) se
+     * calcula AUTOMÁTICAMENTE durante el cálculo de la planilla.
      *
-     * Legalmente (Ley 25129), si el empleado tiene hijos menores a 18 años
-     * o estudiando, le corresponde 10% de la RMV (S/ 113) automáticamente.
-     *
-     * FIXME: discutir con el PO si este flujo manual es intencional o si
-     * debería calcularse automático cuando el flag del empleado es true.
+     * CAMBIO INTENCIONAL: el legacy fijaba este monto en 0 para todos (subpago
+     * heredado) y exigía edición manual post-cálculo. Esa brecha quedó corregida
+     * al cablear el dato real del empleado en ambos caminos de cálculo.
      */
-    it('NO calcula asignación familiar automáticamente (requiere edición manual post-cálculo)', () => {
+    it('calcula la asignación familiar automáticamente cuando el empleado tiene derecho', () => {
       const r = calcular(
         crearEmpleado({
           sueldo_base: RMV,
@@ -177,7 +175,7 @@ describe('PlanillasService.calcularEmpleado', () => {
           tareos: crearTareoAsistenciaCompleta(30),
         }),
       );
-      expect(r.asignacion_familiar).toBe(0);
+      expect(r.asignacion_familiar).toBe(ASIGNACION_FAMILIAR);
     });
 
     it('la constante ASIGNACION_FAMILIAR refleja el 10% de la RMV vigente', () => {
