@@ -8,6 +8,8 @@ import { PlanillaConsultaService } from './planilla-consulta.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { UpdatePlanillaDetalleDto } from './dto';
 import { construirDataActualizacionDetalle } from './planilla-detalle-data';
+import { asegurarEmpleadoCertificado } from './aplicacion/asegurar-empleado-certificado';
+import { RegimenNoCertificadoError } from './aplicacion/guardia-certificacion';
 import {
   ESSALUD_PORCENTAJE,
   ESSALUD_MINIMO,
@@ -52,6 +54,15 @@ export class PlanillaDetalleService {
         empleado: {
           include: {
             regimen_pensionario: true,
+            empresa: { select: { regimen_laboral_default: true } },
+            contratos: {
+              where: {
+                estado: { in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'] },
+              },
+              orderBy: { fecha_inicio: 'desc' },
+              take: 1,
+              select: { regimen_laboral: true },
+            },
           },
         },
       },
@@ -59,6 +70,21 @@ export class PlanillaDetalleService {
 
     if (!detalle) {
       throw new NotFoundException('Detalle de planilla no encontrado');
+    }
+
+    // Guardia de certificación: bloquea la edición/recálculo de un detalle cuyo
+    // régimen laboral no está certificado para producción (AGRARIO/CC) ANTES de
+    // recalcular o persistir. Mismo mecanismo que el cálculo de planilla.
+    try {
+      asegurarEmpleadoCertificado({
+        contratos: detalle.empleado.contratos,
+        empresa: detalle.empleado.empresa,
+      });
+    } catch (error) {
+      if (error instanceof RegimenNoCertificadoError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
     }
 
     // Helper para obtener valor actualizado o existente

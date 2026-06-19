@@ -35,7 +35,10 @@ import {
   ParametrosLegales,
   ParametrosConstruccionCivil,
 } from '../parametros/parametros-legales';
-import { calcularGratiConstruccion } from '../conceptos/grati-construccion-civil';
+import {
+  calcularGratiConstruccion,
+  CLAVE_GRATI_CC,
+} from '../conceptos/grati-construccion-civil';
 import { calcularCtsConstruccion } from '../conceptos/cts-construccion-civil';
 import { calcularConafovicer } from '../conceptos/conafovicer';
 import { calcularBuc } from '../conceptos/bonificacion-unificada-construccion';
@@ -78,6 +81,14 @@ export class RegimenConstruccionCivil implements CalculadoraRegimen {
         ...this.saludEmpleador(ctx, params).conceptos,
       ],
     };
+  }
+
+  aportaHaberBase(): boolean {
+    return false;
+  }
+
+  clavesGratificacion(): string[] {
+    return [CLAVE_GRATI_CC];
   }
 
   private tabla(ctx: ContextoCalculo, params: ParametrosLegales) {

@@ -62,6 +62,29 @@ export interface CalculadoraRegimen {
     params: ParametrosLegales,
   ): ResultadoConcepto;
 
+  /**
+   * Señala si la estrategia aporta su PROPIA remuneración base dentro de
+   * `conceptosRegimen()` (p. ej. el agrario en modo PRORRATEO emite
+   * `remuneracion_diaria_agraria`, que ya incluye el sueldo base prorrateado).
+   *
+   * Cuando devuelve `true`, el orquestador NO debe emitir además el
+   * `haber_mensual` genérico (= sueldoBase/30 × días), porque eso contaría el
+   * sueldo base dos veces (C-3). Por defecto `false`: la mayoría de los régimenes
+   * NO aportan su base y dependen del haber genérico del orquestador.
+   */
+  aportaHaberBase(ctx: ContextoCalculo): boolean;
+
+  /**
+   * Claves de gratificación afectas a la bonificación extraordinaria Ley 30334
+   * que esta estrategia emite en `conceptosRegimen()`. El orquestador suma los
+   * montos de TODAS estas claves para derivar la bonificación 30334 (C-4).
+   *
+   * GENERAL/REMYPE/Hogar declaran `[CLAVE_GRATIFICACION]`; construcción civil su
+   * grati propia; agrario (sistema separado) la suya; microempresa `[]` (no paga
+   * gratificación, por lo que no genera bonificación 30334).
+   */
+  clavesGratificacion(): string[];
+
   gratificacion(
     ctx: ContextoCalculo,
     params: ParametrosLegales,

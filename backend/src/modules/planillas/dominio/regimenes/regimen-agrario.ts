@@ -33,6 +33,7 @@ import { ParametrosLegales } from '../parametros/parametros-legales';
 import {
   calcularGratiAgraria,
   calcularCtsAgraria,
+  CLAVE_GRATI_AGRARIO,
 } from '../conceptos/beneficios-agrario-separado';
 import { calcularProrrateoAgrario } from '../conceptos/prorrateo-agrario';
 import { calcularVacaciones } from '../conceptos/vacaciones';
@@ -72,6 +73,25 @@ export class RegimenAgrario implements CalculadoraRegimen {
         ...this.saludEmpleador(ctx, params).conceptos,
       ],
     };
+  }
+
+  /**
+   * C-3: en modo PRORRATEO la estrategia emite `remuneracion_diaria_agraria`, que
+   * ya incorpora el sueldo base prorrateado. Aporta su propia base, por lo que el
+   * orquestador NO debe emitir el haber_mensual genérico. En sistema separado el
+   * haber genérico sí aplica.
+   */
+  aportaHaberBase(ctx: ContextoCalculo): boolean {
+    return ctx.usaProrrateoAgrario === true;
+  }
+
+  /**
+   * C-4: en sistema SEPARADO la grati agraria (`CLAVE_GRATI_AGRARIO`) está afecta
+   * a la bonificación 30334. En modo prorrateo no se emite grati separada, por lo
+   * que el orquestador sumará 0 sobre esta clave (correcto).
+   */
+  clavesGratificacion(): string[] {
+    return [CLAVE_GRATI_AGRARIO];
   }
 
   gratificacion(

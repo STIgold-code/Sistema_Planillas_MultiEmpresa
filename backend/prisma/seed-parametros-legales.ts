@@ -90,27 +90,24 @@ export async function seedParametrosLegales(
   let afectadas = 0;
 
   for (const p of PARAMETROS_ESCALARES) {
-    const existente = await prisma.parametroLegal.findFirst({
-      where: { clave: p.clave, vigencia_desde: VIGENCIA_DESDE },
-      select: { id: true },
-    });
-
-    if (existente) {
-      await prisma.parametroLegal.update({
-        where: { id: existente.id },
-        data: { valor: p.valor, descripcion: p.descripcion },
-      });
-    } else {
-      await prisma.parametroLegal.create({
-        data: {
+    // Idempotente por la clave compuesta UNIQUE(clave, vigencia_desde): un solo
+    // upsert atómico, sin carrera entre findFirst y create.
+    await prisma.parametroLegal.upsert({
+      where: {
+        clave_vigencia_desde: {
           clave: p.clave,
-          valor: p.valor,
-          descripcion: p.descripcion,
           vigencia_desde: VIGENCIA_DESDE,
-          vigencia_hasta: null,
         },
-      });
-    }
+      },
+      update: { valor: p.valor, descripcion: p.descripcion },
+      create: {
+        clave: p.clave,
+        valor: p.valor,
+        descripcion: p.descripcion,
+        vigencia_desde: VIGENCIA_DESDE,
+        vigencia_hasta: null,
+      },
+    });
     afectadas += 1;
   }
 

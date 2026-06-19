@@ -14,6 +14,8 @@ import {
   ahoraPeru,
   formatearFechaPeru,
 } from '../../common/utils/datetime.util';
+import { asegurarEmpleadoCertificado } from '../planillas/aplicacion/asegurar-empleado-certificado';
+import { RegimenNoCertificadoError } from '../planillas/aplicacion/guardia-certificacion';
 
 @Injectable()
 export class BoletasService {
@@ -195,7 +197,21 @@ export class BoletasService {
         include: {
           detalles: {
             include: {
-              empleado: true,
+              empleado: {
+                include: {
+                  empresa: { select: { regimen_laboral_default: true } },
+                  contratos: {
+                    where: {
+                      estado: {
+                        in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'],
+                      },
+                    },
+                    orderBy: { fecha_inicio: 'desc' },
+                    take: 1,
+                    select: { regimen_laboral: true },
+                  },
+                },
+              },
               boleta: true,
             },
           },
@@ -219,6 +235,27 @@ export class BoletasService {
         throw new BadRequestException(
           'Todas las boletas ya han sido generadas para esta planilla',
         );
+      }
+
+      // Guardia de certificación: la boleta es el documento legal. Antes de
+      // promover cualquier detalle a boleta, re-validar que el régimen laboral
+      // de cada empleado esté certificado para producción. Si alguno no lo está,
+      // abortar la transacción nombrándolo: no se crea NINGUNA boleta.
+      for (const detalle of detallesSinBoleta) {
+        try {
+          asegurarEmpleadoCertificado({
+            contratos: detalle.empleado.contratos,
+            empresa: detalle.empleado.empresa,
+          });
+        } catch (error) {
+          if (error instanceof RegimenNoCertificadoError) {
+            const nombre = `${detalle.empleado.nombres} ${detalle.empleado.apellido_paterno}`;
+            throw new BadRequestException(
+              `No se pueden generar boletas: el empleado ${nombre} pertenece a un régimen no certificado para producción. ${error.message}`,
+            );
+          }
+          throw error;
+        }
       }
 
       // Crear boletas en batch

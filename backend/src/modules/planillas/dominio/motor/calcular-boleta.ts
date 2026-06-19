@@ -35,7 +35,6 @@ import { calcularHorasExtras } from '../conceptos/horas-extras';
 import { calcularJornadaNocturna } from '../conceptos/jornada-nocturna';
 import { calcularSistemaPensionario } from '../conceptos/sistema-pensionario';
 import { calcularRentaQuinta } from '../conceptos/renta-quinta';
-import { CLAVE_GRATIFICACION } from '../conceptos/gratificacion';
 import { calcularBonificacionExtraordinaria } from '../conceptos/bonificacion-extraordinaria';
 
 const redondear2 = (v: number): number => {
@@ -72,9 +71,32 @@ export function calcularBoleta(
 
   // 1. Conceptos compartidos afectos (haber proporcional + HE + nocturna).
   const hayDiasTrabajados = resumenTareo.diasTrabajados > 0;
-  const haberMensual = hayDiasTrabajados
-    ? redondear2((sueldoBase / 30) * resumenTareo.diasTrabajados)
-    : 0;
+  const remuneracionComputable = hayDiasTrabajados ? sueldoBase : 0;
+  const devengados = resolverDevengados(entrada, remuneracionComputable);
+
+  // Contexto previo para decidir si la estrategia aporta su propia remuneración
+  // base. `remuneracionAfecta` se completa más abajo; `aportaHaberBase` solo lee
+  // régimen/usaProrrateoAgrario, así que el placeholder no afecta la decisión.
+  const ctxPrevio: ContextoCalculo = {
+    regimenLaboral: entrada.regimenLaboral,
+    remuneracionMensual: sueldoBase,
+    remuneracionAfecta: 0,
+    remuneracionComputable,
+    tieneHijos: entrada.tieneHijos,
+    periodo: entrada.periodo,
+    resumenTareo,
+    devengados,
+    usaProrrateoAgrario: entrada.usaProrrateoAgrario,
+  };
+
+  // C-3: si la estrategia aporta su propia remuneración base (agrario en modo
+  // prorrateo), el orquestador NO emite el haber_mensual genérico para no contar
+  // el sueldo base dos veces.
+  const aportaBase = calculadora.aportaHaberBase(ctxPrevio);
+  const haberMensual =
+    hayDiasTrabajados && !aportaBase
+      ? redondear2((sueldoBase / 30) * resumenTareo.diasTrabajados)
+      : 0;
 
   const conceptosCompartidos: ConceptoBoleta[] = [];
   if (haberMensual > 0) {
@@ -99,19 +121,11 @@ export function calcularBoleta(
 
   // Remuneración afecta (base de pensión, EsSalud y renta 5ta).
   const remuneracionAfecta = sumar(conceptosCompartidos);
-  const remuneracionComputable = hayDiasTrabajados ? sueldoBase : 0;
 
-  // 2. Contexto régimen-variable.
-  const devengados = resolverDevengados(entrada, remuneracionComputable);
+  // 2. Contexto régimen-variable (completa la remuneración afecta del previo).
   const ctx: ContextoCalculo = {
-    regimenLaboral: entrada.regimenLaboral,
-    remuneracionMensual: sueldoBase,
+    ...ctxPrevio,
     remuneracionAfecta,
-    remuneracionComputable,
-    tieneHijos: entrada.tieneHijos,
-    periodo: entrada.periodo,
-    resumenTareo,
-    devengados,
   };
 
   // 3. Conceptos régimen-específicos: la estrategia ensambla su boleta COMPLETA
@@ -120,8 +134,13 @@ export function calcularBoleta(
   const conceptosRegimen = calculadora.conceptosRegimen(ctx, params).conceptos;
 
   // 4. Bonificación extraordinaria (Ley 30334) derivada de la gratificación.
-  const montoGratificacion =
-    conceptosRegimen.find((c) => c.clave === CLAVE_GRATIFICACION)?.monto ?? 0;
+  //    C-4: la estrategia declara TODAS las claves de gratificación afectas a la
+  //    bonif 30334 que emite (general, construcción civil, agraria separada). El
+  //    orquestador suma sus montos sin conocer ningún régimen concreto (OCP).
+  const clavesGrati = new Set(calculadora.clavesGratificacion());
+  const montoGratificacion = conceptosRegimen
+    .filter((c) => clavesGrati.has(c.clave))
+    .reduce((acc, c) => acc + c.monto, 0);
   const bonificacion = calcularBonificacionExtraordinaria(
     montoGratificacion,
     params.essaludTasa(fecha),

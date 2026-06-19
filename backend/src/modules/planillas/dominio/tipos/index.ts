@@ -116,6 +116,12 @@ export interface EntradaCalculo {
    */
   acumuladoRenta?: number;
   retencionesPreviasRenta?: number;
+  /**
+   * Régimen AGRARIO: selecciona el sistema de prorrateo (Ley 31110) en el que
+   * grati/CTS se incorporan al jornal diario. Se propaga al `ContextoCalculo`.
+   * Omitido/false → sistema separado. Ignorado por el resto de régimenes.
+   */
+  usaProrrateoAgrario?: boolean;
 }
 
 /** Período of the planilla. `fecha` resolves date-versioned legal params. */

@@ -629,8 +629,8 @@ model ParametroLegal {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
+  @@unique([clave, vigencia_desde])
   @@index([clave])
-  @@index([clave, vigencia_desde])
   @@map("parametros_legales")
 }
 

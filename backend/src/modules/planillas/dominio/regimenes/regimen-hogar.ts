@@ -19,7 +19,10 @@
 import { CalculadoraRegimen } from './calculadora-regimen.interface';
 import { ContextoCalculo, RegimenLaboral, ResultadoConcepto } from '../tipos';
 import { ParametrosLegales } from '../parametros/parametros-legales';
-import { calcularGratificacion } from '../conceptos/gratificacion';
+import {
+  calcularGratificacion,
+  CLAVE_GRATIFICACION,
+} from '../conceptos/gratificacion';
 import { calcularCts } from '../conceptos/cts';
 import { calcularVacaciones } from '../conceptos/vacaciones';
 import { calcularAsignacionFamiliar } from '../conceptos/asignacion-familiar';
@@ -45,6 +48,14 @@ export class RegimenHogar implements CalculadoraRegimen {
         ...this.saludEmpleador(ctx, params).conceptos,
       ],
     };
+  }
+
+  aportaHaberBase(): boolean {
+    return false;
+  }
+
+  clavesGratificacion(): string[] {
+    return [CLAVE_GRATIFICACION];
   }
 
   gratificacion(ctx: ContextoCalculo): ResultadoConcepto {

@@ -31,9 +31,19 @@ export class PlanillaCargaService {
       });
       periodoTareoId = periodoTareo?.id || null;
     } else {
-      periodoTareo = await this.prisma.periodoTareo.findUnique({
-        where: { id: periodoTareoId },
+      // Multi-tenant: el período debe pertenecer a la misma empresa. Nunca usar
+      // un período ajeno (IDOR cross-tenant). Si el id apunta a otra empresa,
+      // findFirst devuelve null y abortamos por inconsistencia.
+      periodoTareo = await this.prisma.periodoTareo.findFirst({
+        where: { id: periodoTareoId, empresa_id: empresaId },
       });
+
+      if (!periodoTareo) {
+        throw new BadRequestException(
+          `El período de tareo ${periodoTareoId} no existe o no pertenece a la empresa. ` +
+            `No se puede calcular la planilla con un período ajeno.`,
+        );
+      }
     }
 
     if (periodoTareo && periodoTareo.estado !== 'CERRADO') {

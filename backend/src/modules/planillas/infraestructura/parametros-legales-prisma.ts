@@ -109,12 +109,20 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
   }
 
   private escalar(clave: ClaveEscalar, fecha: Date): number {
-    const filas = this.porClave.get(clave);
-    const vigente = (filas ?? []).find(
-      (f) =>
-        fecha >= f.vigencia_desde &&
-        (f.vigencia_hasta === null || fecha <= f.vigencia_hasta),
-    );
+    const filas = this.porClave.get(clave) ?? [];
+    // Resolución determinista ante vigencias solapadas: tomar la fila vigente
+    // para la fecha con `vigencia_desde` MÁS RECIENTE (no la primera por orden
+    // de inserción). Empate por la misma fecha es imposible: la BD impone
+    // UNIQUE(clave, vigencia_desde).
+    const vigente = filas
+      .filter(
+        (f) =>
+          fecha >= f.vigencia_desde &&
+          (f.vigencia_hasta === null || fecha <= f.vigencia_hasta),
+      )
+      .sort(
+        (a, b) => b.vigencia_desde.getTime() - a.vigencia_desde.getTime(),
+      )[0];
     if (!vigente) throw new ParametroLegalNoVigenteError(clave, fecha);
     return aNumero(vigente.valor);
   }

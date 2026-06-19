@@ -1849,7 +1849,7 @@ CREATE INDEX "contratos_estado_fecha_fin_idx" ON "contratos"("estado", "fecha_fi
 CREATE INDEX "parametros_legales_clave_idx" ON "parametros_legales"("clave");
 
 -- CreateIndex
-CREATE INDEX "parametros_legales_clave_vigencia_desde_idx" ON "parametros_legales"("clave", "vigencia_desde");
+CREATE UNIQUE INDEX "parametros_legales_clave_vigencia_desde_key" ON "parametros_legales"("clave", "vigencia_desde");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "carnets_sucamec_numero_carnet_key" ON "carnets_sucamec"("numero_carnet");

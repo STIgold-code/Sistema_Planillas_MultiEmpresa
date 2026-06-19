@@ -64,6 +64,29 @@ describe('ParametrosLegalesPrisma', () => {
     expect(adapter.rmv(new Date('2026-03-31'))).toBe(1130);
   });
 
+  it('ante vigencias solapadas, elige la fila con vigencia_desde MÁS RECIENTE (determinista)', () => {
+    // Dos filas 'rmv' abiertas (vigencia_hasta = null) que se solapan en 2026.
+    // El orden de inserción es la vieja primero; el adapter debe devolver la de
+    // 2026, no la primera por inserción.
+    const rows: FilaParametroLegal[] = [
+      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+      { clave: 'rmv', valor: 1300, vigencia_desde: fecha('2026-01-01'), vigencia_hasta: null },
+    ];
+    const adapter = new ParametrosLegalesPrisma(rows, fallback);
+    expect(adapter.rmv(new Date('2026-03-31'))).toBe(1300);
+    // Antes de la vigencia de 2026 sigue valiendo la de 2025.
+    expect(adapter.rmv(new Date('2025-06-30'))).toBe(1130);
+  });
+
+  it('el resultado no depende del orden de inserción de las filas', () => {
+    const rows: FilaParametroLegal[] = [
+      { clave: 'rmv', valor: 1300, vigencia_desde: fecha('2026-01-01'), vigencia_hasta: null },
+      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+    ];
+    const adapter = new ParametrosLegalesPrisma(rows, fallback);
+    expect(adapter.rmv(new Date('2026-03-31'))).toBe(1300);
+  });
+
   it('lanza ParametroLegalNoVigenteError si no hay fila vigente para la fecha', () => {
     const rows: FilaParametroLegal[] = [
       { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },

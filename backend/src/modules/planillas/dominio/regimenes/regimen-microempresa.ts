@@ -41,6 +41,15 @@ export class RegimenMicroempresa implements CalculadoraRegimen {
     };
   }
 
+  aportaHaberBase(): boolean {
+    return false;
+  }
+
+  clavesGratificacion(): string[] {
+    // La microempresa no paga gratificación → no genera bonificación 30334.
+    return [];
+  }
+
   gratificacion(): ResultadoConcepto {
     return SIN_CONCEPTOS;
   }
