@@ -33,9 +33,15 @@ Estado de tests: **350 passed, 7 skipped** (los 5 puntos legales no confirmados)
 
 - **PR #2 (mergeado):** API expone `regimen_laboral` (contrato override + empresa default) + test e2e que prueba que el régimen fluye API→motor y bloquea no-certificados.
 - **PR #3 (mergeado):** UI — selector de régimen en contrato/empresa, `RegimenBadge`, fuente única `lib/regimenes.ts`.
-- **PR #4 (abierto):** planilla guarda el régimen usado (snapshot) y lo muestra (columna + resumen multi-régimen); modal de bloqueo de certificación con buena UX.
+- **PR #4 (mergeado):** planilla guarda el régimen usado (snapshot) y lo muestra (columna + resumen multi-régimen); modal de bloqueo de certificación con buena UX.
+- **PR #5 (mergeado):** la boleta expone el régimen (leído del detalle 1:1) + limpieza de lint en exportación.
+- **PR #6 (mergeado):** hardening de seguridad (guards a nivel de clase en ContratosController).
 
-El circuito está cerrado de punta a punta: pantalla → API → motor → planilla.
+El circuito está cerrado de punta a punta: pantalla → API → motor → planilla → boleta.
+
+**Auditoría de seguridad (superficie nueva):** 0 críticos / 0 high / 0 medium. Multi-tenant sólido,
+sin IDOR, mass assignment bloqueado (whitelist), guardia de certificación sin caminos de bypass.
+Veredicto: segura para producción.
 
 ## Pendiente
 
