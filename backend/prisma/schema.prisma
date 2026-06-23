@@ -149,7 +149,6 @@ model Usuario {
   archivos_subidos                Archivo[]
   auditorias                      Auditoria[]
   boletas_generadas               Boleta[]                     @relation("BoletaGeneradaPor")
-  carnets_sucamec_registrados     CarnetSucamec[]
   contratos                       Contrato[]
   documentos_eliminados           EmpleadoDocumento[]          @relation("DocumentoEliminadoPor")
   documentos_subidos              EmpleadoDocumento[]          @relation("DocumentoSubidoPor")
@@ -432,7 +431,6 @@ model Empleado {
   created_at                     DateTime                       @default(now())
   updated_at                     DateTime                       @updatedAt
   boletas                        Boleta[]
-  carnets_sucamec                CarnetSucamec[]
   contratos                      Contrato[]
   vinculos_laborales             VinculoLaboral[]
   documentos_generados           DocumentoGenerado[]
@@ -539,7 +537,6 @@ model EmpleadoDocumento {
   eliminado_en               DateTime?
   eliminado_por_id           Int?
   motivo_eliminacion         String?                 @db.VarChar(500)
-  carnets_sucamec            CarnetSucamec[]
   documento_origen           EmpleadoDocumento?      @relation("VersionChain", fields: [documento_origen_id], references: [id], onDelete: Restrict)
   versiones                  EmpleadoDocumento[]     @relation("VersionChain")
   eliminado_por              Usuario?                @relation("DocumentoEliminadoPor", fields: [eliminado_por_id], references: [id])
@@ -632,31 +629,6 @@ model ParametroLegal {
   @@unique([clave, vigencia_desde])
   @@index([clave])
   @@map("parametros_legales")
-}
-
-model CarnetSucamec {
-  id                Int                 @id @default(autoincrement())
-  empleado_id       Int
-  numero_carnet     String              @unique @db.VarChar(20)
-  categoria         CategoriaSucamec    @default(BASICO)
-  fecha_emision     DateTime            @db.Date
-  fecha_vencimiento DateTime            @db.Date
-  estado            EstadoCarnetSucamec @default(VIGENTE)
-  observaciones     String?
-  usuario_id        Int?
-  created_at        DateTime            @default(now())
-  updated_at        DateTime            @updatedAt
-  documento_id      Int?
-  documento         EmpleadoDocumento?  @relation(fields: [documento_id], references: [id])
-  empleado          Empleado            @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
-  usuario           Usuario?            @relation(fields: [usuario_id], references: [id])
-
-  @@index([empleado_id])
-  @@index([documento_id])
-  @@index([estado])
-  @@index([fecha_vencimiento])
-  @@index([estado, fecha_vencimiento])
-  @@map("carnets_sucamec")
 }
 
 model PlantillaContrato {
@@ -2302,23 +2274,6 @@ enum TipoMovimientoVacacional {
   ADELANTO
   TRUNCAS
   AJUSTE
-}
-
-enum EstadoCarnetSucamec {
-  VIGENTE
-  VENCIDO
-  SUSPENDIDO
-  ANULADO
-}
-
-enum CategoriaSucamec {
-  BASICO
-  ESPECIALIZADO
-  RESGUARDO
-  PROTECCION
-  TRANSPORTE
-  TECNOLOGIA
-  CAPACITADOR
 }
 
 enum TipoArchivoPlantilla {

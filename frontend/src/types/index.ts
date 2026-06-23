@@ -6,7 +6,6 @@
 export * from './core';
 export * from './contratos';
 export * from './empleados';
-export * from './sucamec';
 export * from './tareo';
 export * from './justificaciones';
 export * from './asistencia';

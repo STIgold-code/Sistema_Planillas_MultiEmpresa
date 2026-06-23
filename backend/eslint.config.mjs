@@ -6,9 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    // sucamec está oculto por decisión de producto; su código queda intacto
-    // y fuera del lint hasta que el módulo se reactive.
-    ignores: ['eslint.config.mjs', 'src/modules/sucamec/**'],
+    ignores: ['eslint.config.mjs'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

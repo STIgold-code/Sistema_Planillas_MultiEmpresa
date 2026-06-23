@@ -153,14 +153,6 @@ export const PERMISOS = {
     LEER: 'reportes:leer',
     GENERAR: 'reportes:generar',
   },
-
-  // Módulo SUCAMEC
-  SUCAMEC: {
-    LEER: 'sucamec:leer',
-    CREAR: 'sucamec:crear',
-    EDITAR: 'sucamec:editar',
-    ELIMINAR: 'sucamec:eliminar',
-  },
 } as const;
 
 // Wildcard para superadmin
@@ -654,32 +646,6 @@ export const PERMISOS_POR_MODULO: PermisoGrupo[] = [
         codigo: PERMISOS.REPORTES.GENERAR,
         nombre: 'Generar',
         descripcion: 'Generar y descargar reportes',
-      },
-    ],
-  },
-  {
-    modulo: 'SUCAMEC',
-    descripcion: 'Gestión de carnets SUCAMEC para agentes de seguridad',
-    permisos: [
-      {
-        codigo: PERMISOS.SUCAMEC.LEER,
-        nombre: 'Leer',
-        descripcion: 'Ver carnets SUCAMEC y vencimientos',
-      },
-      {
-        codigo: PERMISOS.SUCAMEC.CREAR,
-        nombre: 'Crear',
-        descripcion: 'Registrar carnets y renovaciones',
-      },
-      {
-        codigo: PERMISOS.SUCAMEC.EDITAR,
-        nombre: 'Editar',
-        descripcion: 'Modificar carnets, suspender, anular',
-      },
-      {
-        codigo: PERMISOS.SUCAMEC.ELIMINAR,
-        nombre: 'Eliminar',
-        descripcion: 'Eliminar carnets no vigentes',
       },
     ],
   },

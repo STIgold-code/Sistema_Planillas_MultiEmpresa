@@ -28,7 +28,6 @@ export const CATEGORIA_ARCHIVO = {
   CESES: 'ceses',
   ANULACIONES: 'anulaciones',
   REPORTES: 'reportes',
-  SUCAMEC: 'sucamec',
   TEMP: 'temp',
 } as const;
 

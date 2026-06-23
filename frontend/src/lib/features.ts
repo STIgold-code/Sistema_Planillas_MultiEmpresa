@@ -8,12 +8,7 @@
  * Convención espejo del backend (FF_<FLAG>): NEXT_PUBLIC_FF_<FLAG>.
  */
 
-const estaActivo = (valor: string | undefined): boolean => valor === 'true';
+// Helper para futuros flags: const estaActivo = (v?: string) => v === 'true';
 
-export const features = {
-  /**
-   * Módulo SUCAMEC (control de seguridad privada). Oculto por decisión de
-   * producto; se reactiva con NEXT_PUBLIC_FF_SUCAMEC=true.
-   */
-  sucamec: estaActivo(process.env.NEXT_PUBLIC_FF_SUCAMEC),
-} as const;
+// Sin feature flags activos actualmente.
+export const features = {} as const;
