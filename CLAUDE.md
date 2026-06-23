@@ -72,11 +72,11 @@ npm run dev
 ## Feature Flags
 
 Convención `FF_<FLAG>` (backend, env) y `NEXT_PUBLIC_FF_<FLAG>` (frontend). Ausente = desactivado.
+**No hay feature flags activos actualmente** (`features` en `frontend/src/lib/features.ts` está vacío).
 
-- **`FF_SUCAMEC` / `NEXT_PUBLIC_FF_SUCAMEC`** (default `false`): módulo de control de seguridad privada,
-  heredado de la base RRHH y **oculto por decisión de producto**. El código permanece intacto; con el
-  flag en `false` no se registra el módulo backend ni se muestran menú/rutas en el frontend. Las tablas
-  de SUCAMEC saldrán del schema en la Fase 3 (migración inicial limpia); recuperables desde git si se piden.
+> SUCAMEC (control de seguridad privada heredado de RRHH) fue **eliminado por completo** del schema
+> y del código en el PR #12 (junio 2026). Ya no existe el flag `FF_SUCAMEC` ni el módulo. Recuperable
+> desde git si alguna vez se reactiva.
 
 ## Convenciones del equipo
 
@@ -88,15 +88,18 @@ Convención `FF_<FLAG>` (backend, env) y `NEXT_PUBLIC_FF_<FLAG>` (frontend). Aus
 
 ## Plan de fases
 
-0. **Bootstrap** (en curso): heredar base RRHH limpia, ocultar SUCAMEC, baseline que compila.
-1. **Dominio del motor** (el corazón): interfaz `CalculadoraRegimen`, conceptos puros, los 6 regímenes,
-   factory. Todo con tests (TDD).
-2. **Parámetros legales versionados**: tabla + seed + servicio que resuelve por fecha.
-3. **Schema + persistencia**: modelo Prisma normalizado, repos, migración inicial limpia (sin las 63
-   migraciones heredadas ni tablas de SUCAMEC).
-4. **Casos de uso + API**: `generar-planilla`, `recalcular-boleta`, controllers delgados.
-5. **Frontend**: gestión empresas/trabajadores (heredado), generación de planilla, boleta PDF.
-6. **Exportación**: PDF de boleta + Excel de planilla, configurable por empresa.
+**Las 6 fases técnicas están implementadas y con tests en verde.** El producto está en fase de
+cierre / hardening, no de construcción. Ver `ESTADO.md` para el detalle vigente.
 
-**Orden de ataque: dominio primero, UI último.** Formalizar con SDD (proposal → specs por régimen →
-design → tasks) antes de implementar el motor.
+0. ✅ **Bootstrap**: base RRHH limpia, repo propio, baseline que compila.
+1. ✅ **Dominio del motor**: interfaz `CalculadoraRegimen`, conceptos puros, los 6 regímenes, factory (TDD).
+2. ✅ **Parámetros legales versionados**: `ParametroLegal` + seed + servicio que resuelve por fecha.
+3. ✅ **Schema + persistencia**: modelo normalizado, migración limpia, SUCAMEC eliminado (PR #12).
+4. ✅ **Casos de uso + API**: cálculo de planilla, controllers delgados.
+5. ✅ **Frontend**: gestión, generación de planilla, boleta.
+6. ✅ **Exportación**: PDF de boleta + Excel de planilla.
+
+**Pendiente real (no es código):** validación de un contador para certificar Agrario y Construcción
+civil (5 puntos legales en `it.skip`), aplicar la migración de SUCAMEC por entorno, y Sentry de deploy.
+
+**Calidad:** 0 `any`, 0 errores de ESLint, CI bloqueante (`tsc` + sin-any + tests + lint) en cada PR.
