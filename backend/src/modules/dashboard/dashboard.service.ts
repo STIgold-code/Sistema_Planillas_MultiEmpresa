@@ -25,6 +25,7 @@ export class DashboardService {
       contratosVencidos,
       ausencias,
       solicitudesCesePendientes,
+      ultimaPlanilla,
     ] = await Promise.all([
       // Conteos de empleados por estado
       this.prisma.empleado.count({
@@ -53,10 +54,15 @@ export class DashboardService {
       }),
       // Ausencias del día y mes
       this.calcularAusencias(hoy, empresaId),
-      // TODO: Mostrar total de última planilla activa en lugar de proyección
       // Solicitudes de cese pendientes
       this.prisma.solicitudCese.count({
         where: { empresa_id: empresaId, estado: 'PENDIENTE' },
+      }),
+      // Última planilla generada (no borrador) para mostrar su total neto
+      this.prisma.planilla.findFirst({
+        where: { empresa_id: empresaId, estado: { not: 'BORRADOR' } },
+        orderBy: [{ anio: 'desc' }, { mes: 'desc' }],
+        select: { total_neto: true },
       }),
     ]);
 
@@ -68,7 +74,7 @@ export class DashboardService {
       contratosVencidos,
       ausenciasHoy: ausencias.ausenciasHoy,
       ausenciasMes: ausencias.ausenciasMes,
-      planillaMes: null, // TODO: Obtener de última planilla activa
+      planillaMes: ultimaPlanilla ? ultimaPlanilla.total_neto.toNumber() : null,
       solicitudesCesePendientes,
       mesActual: hoy.toLocaleString('es-PE', {
         month: 'long',
