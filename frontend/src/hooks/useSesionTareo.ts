@@ -334,6 +334,9 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
         intervalRef.current = null;
       }
     };
+    // tiempoRestante se lee solo para decidir si arrancar el intervalo (> 0). El conteo
+    // usa setTiempoRestante(prev => ...); incluirlo recrearia el intervalo cada segundo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sesion?.estado, sesion?.id, verificarPuedeIniciar]);
 
   // Sincronizar con servidor cada 5 minutos para corregir drift del timer
@@ -358,7 +361,7 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
     const heartbeatInterval = setInterval(async () => {
       try {
         await api.post(`/tareo/sesiones/${sesion.id}/heartbeat`);
-      } catch (err) {
+      } catch {
         // Sesión ya no existe o expiró, refrescar estado
         console.warn('Heartbeat falló, refrescando estado de sesión');
         obtenerEstado();

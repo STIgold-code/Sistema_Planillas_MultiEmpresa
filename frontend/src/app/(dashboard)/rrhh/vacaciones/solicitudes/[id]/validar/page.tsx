@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { formatDateSafe } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

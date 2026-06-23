@@ -32,7 +32,6 @@ import {
   Palmtree,
   ChevronLeft,
   ChevronRight,
-  Download,
   Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';

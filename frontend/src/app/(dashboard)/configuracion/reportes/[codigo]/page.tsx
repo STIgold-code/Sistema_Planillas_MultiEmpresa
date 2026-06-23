@@ -23,14 +23,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Loader2,
   ArrowLeft,
   Download,
@@ -41,7 +33,6 @@ import {
   DollarSign,
   Calendar,
   Palmtree,
-  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -434,20 +425,17 @@ function PreviewModal({
   onDownload,
 }: PreviewModalProps) {
   const [loading, setLoading] = useState(false);
-  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
 
   const fetchPreview = useCallback(async () => {
     setLoading(true);
     try {
       // Para el preview, usamos el endpoint de contar que también devuelve info
-      const response = await api.post<{ reporte: ReporteConfig; totalRegistros: number }>('/reportes/preview', {
+      await api.post<{ reporte: ReporteConfig; totalRegistros: number }>('/reportes/preview', {
         codigo_reporte: codigo,
         filtros,
       });
       // El preview de datos real se haría con un endpoint dedicado
       // Por ahora mostramos solo el contador
-      setPreviewData([]);
     } catch (error) {
       console.error('Error fetching preview:', error);
     } finally {

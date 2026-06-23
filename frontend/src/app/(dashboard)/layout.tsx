@@ -35,7 +35,7 @@ export default function DashboardLayout({
         if (isMounted) {
           setUsuario(userData);
         }
-      } catch (error) {
+      } catch {
         // Si falla, redirigir a login
         if (isMounted) {
           router.push('/login');

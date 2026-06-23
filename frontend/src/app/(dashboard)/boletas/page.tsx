@@ -37,7 +37,6 @@ import {
   FileText,
   Search,
   RefreshCw,
-  CheckCircle,
   Clock,
   Mail,
   Eye,
@@ -194,11 +193,15 @@ export default function BoletasPage() {
   useEffect(() => {
     fetchBoletas();
     fetchEstadisticas();
+    // Carga inicial al montar; los fetch se recrean en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     fetchBoletas(1);
     fetchEstadisticas();
+    // Refetch al cambiar filtros; los fetch se recrean en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anioFilter, mesFilter, estadoFilter]);
 
   const handleSearch = () => {

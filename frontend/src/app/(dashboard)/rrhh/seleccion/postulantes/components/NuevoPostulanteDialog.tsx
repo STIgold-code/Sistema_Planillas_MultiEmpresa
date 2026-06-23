@@ -43,7 +43,6 @@ interface NuevoPostulanteDialogProps {
 
 export function NuevoPostulanteDialog({
   open,
-  onOpenChange,
   form,
   onSubmit,
   saving,

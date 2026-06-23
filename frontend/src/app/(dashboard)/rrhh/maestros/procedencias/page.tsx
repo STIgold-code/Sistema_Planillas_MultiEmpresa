@@ -99,6 +99,8 @@ export default function ProcedenciasPage() {
 
   useEffect(() => {
     fetchProcedencias();
+    // Recarga al cambiar el filtro; fetchProcedencias no es dependencia para evitar refetch en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showInactive]);
 
   const openCreateDialog = () => {

@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Loader2, Upload, FileText, Check, X, Info, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller } from 'react-hook-form';
@@ -182,7 +182,7 @@ export default function NuevaPlantillaPage() {
       setPreviewUnreplaced(data.unreplacedVariables || []);
       setPreviewOpen(true);
       setPreviewSeen(true);
-    } catch (error) {
+    } catch {
       toast.error('Error al generar preview del documento');
     } finally {
       setLoadingPreview(false);
@@ -234,18 +234,6 @@ export default function NuevaPlantillaPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Verificar si una variable extraída está en las disponibles
-  const isKnownVariable = (variable: string): boolean => {
-    if (!variables) return false;
-    const allKnownVars = [
-      ...variables.empleado.map(v => v.key),
-      ...variables.contrato.map(v => v.key),
-      ...variables.empresa.map(v => v.key),
-      ...variables.sistema.map(v => v.key),
-    ];
-    return allKnownVars.includes(variable);
   };
 
   return (

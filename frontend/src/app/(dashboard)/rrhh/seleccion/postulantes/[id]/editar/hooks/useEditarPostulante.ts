@@ -93,6 +93,9 @@ export function useEditarPostulante() {
         form.setValue('distrito_id', '');
       }
     }
+    // form es estable y postulante solo actúa como guard; el efecto debe correr
+    // únicamente cuando cambian departamentoId o las provincias filtradas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [departamentoId, provinciasFiltradas]);
 
   useEffect(() => {
@@ -102,6 +105,9 @@ export function useEditarPostulante() {
         form.setValue('distrito_id', '');
       }
     }
+    // form es estable y postulante solo actúa como guard; el efecto debe correr
+    // únicamente cuando cambian provinciaId o los distritos filtrados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provinciaId, distritosFiltrados]);
 
   useEffect(() => {
@@ -160,6 +166,9 @@ export function useEditarPostulante() {
     };
 
     fetchData();
+    // form (React Hook Form) tiene referencia estable; la carga inicial solo
+    // debe depender de id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const onSubmit = async (data: EditarFormValues) => {

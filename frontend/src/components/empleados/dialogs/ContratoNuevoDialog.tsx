@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ContratoForm, Cliente, Sede, Cargo } from '../hooks/contratos.types';
+import { ContratoForm, Cliente, Sede } from '../hooks/contratos.types';
 import { PlantillaContrato } from '@/types';
 import { RegimenLaboralField } from './RegimenLaboralField';
 

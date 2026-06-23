@@ -308,6 +308,8 @@ export function FilePreviewModal({
               </div>
             ) : blobUrl ? (
               isImage(currentFile) ? (
+                // blobUrl es un blob URL de fetch autenticado, no optimizable por next/image
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={blobUrl}
                   alt={currentFile.archivo_nombre}

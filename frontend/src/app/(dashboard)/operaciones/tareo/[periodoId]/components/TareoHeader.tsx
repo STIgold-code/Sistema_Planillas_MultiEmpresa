@@ -42,7 +42,7 @@ export function TareoHeader({
   onImportar,
   onSincronizar,
 }: TareoHeaderProps) {
-  const { sesion, esAdmin, esCorrector, requiereSesion, tiempoRestante, tiempoFormateado } = sesionTareo;
+  const { sesion, esAdmin, requiereSesion, tiempoRestante, tiempoFormateado } = sesionTareo;
   const periodoActivo = data.periodo.estado !== 'CERRADO' && data.periodo.estado !== 'ANULADO';
 
   return (

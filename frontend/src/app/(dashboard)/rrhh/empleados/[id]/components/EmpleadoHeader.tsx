@@ -56,6 +56,9 @@ export function EmpleadoHeader({ empleado, fotoUrl, nombreCompleto }: EmpleadoHe
           <ArrowLeft className="h-4 w-4" />
         </Button>
         {fotoUrl ? (
+          // fotoUrl es un blob: URL generado por useAuthImage (imagen protegida por JWT).
+          // El optimizador de next/image no puede procesar blob URLs, por eso usamos <img>.
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fotoUrl}
             alt={nombreCompleto}

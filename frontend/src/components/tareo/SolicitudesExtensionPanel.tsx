@@ -40,7 +40,6 @@ import {
   Clock,
   User,
   Calendar,
-  MessageSquare,
   AlertCircle,
   RefreshCw,
 } from 'lucide-react';

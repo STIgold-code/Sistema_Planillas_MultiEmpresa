@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { X, ImageIcon, Loader2 } from 'lucide-react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { uploadFile } from '@/lib/api';
@@ -73,7 +72,7 @@ export function LogoUpload({
     } finally {
       setUploading(false);
     }
-  }, [onUpload]);
+  }, [onUpload, uploadPath]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();

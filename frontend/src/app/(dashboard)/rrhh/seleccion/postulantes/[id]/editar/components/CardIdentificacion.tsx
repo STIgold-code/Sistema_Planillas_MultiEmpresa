@@ -5,7 +5,6 @@ import { EditarFormValues } from '../hooks/useEditarPostulante';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,

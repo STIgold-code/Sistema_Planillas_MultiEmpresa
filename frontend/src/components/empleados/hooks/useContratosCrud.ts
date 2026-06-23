@@ -93,7 +93,7 @@ export function useContratosCrud({
       document.body.removeChild(a);
 
       toast.success('Documento generado y descargado');
-    } catch (error) {
+    } catch {
       toast.error('Error al generar documento. Puede generarlo manualmente.');
     }
   };

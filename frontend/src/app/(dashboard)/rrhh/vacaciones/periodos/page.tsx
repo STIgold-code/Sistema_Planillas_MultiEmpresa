@@ -40,7 +40,6 @@ import {
   Search,
   Loader2,
   MoreVertical,
-  Calendar,
   Plus,
   RefreshCw,
   AlertTriangle,
@@ -154,6 +153,8 @@ export default function PeriodosPage() {
 
   useEffect(() => {
     fetchPeriodos();
+    // Recarga al cambiar filtros/página; fetchPeriodos no es dependencia para evitar refetch en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, estado, areaId, soloVencimiento]);
 
   const handleSearch = (e: React.FormEvent) => {

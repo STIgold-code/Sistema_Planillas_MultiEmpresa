@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Planilla, EstadoPlanilla, PlanillaResumen } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,10 +47,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Calculator,
-  CheckCircle,
   DollarSign,
-  XCircle,
   Trash2,
   FileSpreadsheet,
   Users,
@@ -141,10 +136,14 @@ export default function PlanillasPage() {
   useEffect(() => {
     fetchPlanillas();
     fetchResumen();
+    // Carga inicial al montar; fetchPlanillas/fetchResumen se recrean en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     fetchPlanillas(1);
+    // Refetch al cambiar filtros; fetchPlanillas se recrea en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anioFilter, estadoFilter]);
 
   const handleCreate = async () => {

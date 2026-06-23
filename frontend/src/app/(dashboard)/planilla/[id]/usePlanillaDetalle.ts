@@ -79,6 +79,8 @@ export function usePlanillaDetalle() {
     if (id) {
       fetchPlanilla();
     }
+    // Refetch al cambiar de id; fetchPlanilla se recrea en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleCalcular = async () => {

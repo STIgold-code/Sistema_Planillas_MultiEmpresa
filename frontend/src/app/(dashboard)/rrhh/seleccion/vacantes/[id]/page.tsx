@@ -69,6 +69,9 @@ export default function VacanteDetallePage() {
 
   useEffect(() => {
     fetchData();
+    // Solo se recarga al cambiar id; fetchData se redefine en cada render
+    // y no debe incluirse para evitar recargas innecesarias.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleAction = async (action: string) => {

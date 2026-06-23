@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { TareoGrillaResponse, TareoGrillaEmpleado, TipoMarcacion } from '@/types';
+import { TareoGrillaResponse, TareoGrillaEmpleado } from '@/types';
 import type { CeldaModificada } from './useTareoDetalle';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -35,7 +34,6 @@ import {
   Search,
   Filter,
   User,
-  Calendar,
   Building2,
   MapPin,
   Check,
@@ -62,7 +60,6 @@ export default function TareoMobileView({
   data,
   cambiosPendientes,
   onSelectMarcacion,
-  onApplyRange,
   searchTerm,
   onSearchChange,
   filterAreaId,

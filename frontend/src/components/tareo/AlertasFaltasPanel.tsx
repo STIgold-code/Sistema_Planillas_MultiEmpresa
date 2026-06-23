@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,6 @@ interface AlertasFaltasPanelProps {
 }
 
 export function AlertasFaltasPanel({
-  periodoId,
   mes,
   anio,
   className,
@@ -188,9 +188,11 @@ export function AlertasFaltasPanel({
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center overflow-hidden">
                           {empleado.foto_url ? (
-                            <img
+                            <Image
                               src={empleado.foto_url}
                               alt={empleado.nombre_completo}
+                              width={40}
+                              height={40}
                               className="w-full h-full object-cover"
                             />
                           ) : (
