@@ -304,7 +304,7 @@ export function usePostulanteDetalle() {
     }
   };
 
-  const handlePreview = (url: string, _nombre: string) => {
+  const handlePreview = (url: string) => {
     const index = allPreviewFiles.findIndex(f => f.archivo_url === url);
     setPreviewIndex(index >= 0 ? index : 0);
   };

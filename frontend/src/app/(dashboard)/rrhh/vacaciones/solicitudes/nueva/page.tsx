@@ -115,7 +115,7 @@ export default function NuevaSolicitudPage() {
             if (response.periodos.length > 0) {
               setPeriodoId(response.periodos[0].id.toString());
             }
-          } catch (genError) {
+          } catch {
             toast.error('Error al generar períodos vacacionales');
           }
         }

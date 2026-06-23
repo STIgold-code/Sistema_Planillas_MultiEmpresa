@@ -87,6 +87,9 @@ export function useDocumentosTab(empleadoId: string) {
 
   useEffect(() => {
     fetchData();
+    // Solo se recarga al cambiar empleadoId; fetchData se redefine en cada render
+    // y no debe incluirse para evitar recargas innecesarias.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empleadoId]);
 
   const handleGenerate = async () => {

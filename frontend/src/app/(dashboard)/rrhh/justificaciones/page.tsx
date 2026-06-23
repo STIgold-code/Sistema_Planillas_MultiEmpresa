@@ -110,6 +110,8 @@ function getTipoInfo(tipo: TipoJustificacion) {
 function getFileIcon(tipo: string) {
   if (tipo.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
   if (tipo.includes('image') || tipo.includes('jpg') || tipo.includes('jpeg') || tipo.includes('png')) {
+    // Image es el icono de lucide-react, no un elemento <img>; la regla de alt-text no aplica.
+    // eslint-disable-next-line jsx-a11y/alt-text
     return <Image className="h-5 w-5 text-blue-500" />;
   }
   if (tipo.includes('doc')) return <FileText className="h-5 w-5 text-blue-700" />;
@@ -129,6 +131,7 @@ export default function JustificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
+  void areas;
 
   // Filtros
   const [busqueda, setBusqueda] = useState('');
@@ -137,6 +140,7 @@ export default function JustificacionesPage() {
   const [mes, setMes] = useState<string>('all');
   const [sedeId, setSedeId] = useState<string>('all');
   const [areaId, setAreaId] = useState<string>('all');
+  void setAreaId;
 
   // Paginación
   const [page, setPage] = useState(1);

@@ -65,7 +65,7 @@ export function useContratosDocumentos({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch {
       toast.error('Error al descargar el contrato');
     } finally {
       setDownloadingContratoId(null);

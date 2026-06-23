@@ -134,6 +134,8 @@ export default function RenovarContratoPage() {
     if (id) {
       fetchContrato();
     }
+    // Carga inicial al resolver el id; fetchContrato no es dependencia para evitar refetch en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const onSubmit = async (data: RenovarForm) => {

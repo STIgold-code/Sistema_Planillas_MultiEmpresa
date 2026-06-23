@@ -33,7 +33,7 @@ interface UseContratosDataParams {
   setForm: React.Dispatch<React.SetStateAction<ContratoForm>>;
 }
 
-export function useContratosData({ empleadoId, form, setForm }: UseContratosDataParams) {
+export function useContratosData({ empleadoId, setForm }: UseContratosDataParams) {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [plantillas, setPlantillas] = useState<PlantillaContrato[]>([]);
@@ -142,7 +142,7 @@ export function useContratosData({ empleadoId, form, setForm }: UseContratosData
     api.get<{ id: number; nombre: string; activo: boolean }[]>('/masters/tipos-cese')
       .then((data) => setTiposCese(data.filter((t) => t.activo)))
       .catch(() => { });
-  }, [fetchContratos, fetchPlantillas, fetchClientes, fetchSedes, fetchCargos]);
+  }, [fetchContratos, fetchPlantillas, fetchClientes, fetchSedes, fetchPlantillasBanco, fetchCargos]);
 
   const vinculosAgrupados = useMemo(() => {
     if (contratos.length === 0) return [];
@@ -225,6 +225,9 @@ export function useContratosData({ empleadoId, form, setForm }: UseContratosData
     }
 
     return resultado;
+    // expandedVinculos.size se lee solo para auto-expandir el vinculo activo una
+    // sola vez (guard size === 0). Incluirlo recalcularia el memo en cada toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contratos]);
 
   const toggleVinculo = (vinculoId: number) => {

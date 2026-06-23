@@ -288,7 +288,7 @@ export function useEmpleadoDetalle() {
     }
   };
 
-  const handleVerDocumento = (url: string, _nombre: string) => {
+  const handleVerDocumento = (url: string) => {
     const docs = [...docsSeleccion, ...docsRRHH];
     const index = docs.findIndex(d => d.archivo_url === url);
     setPreviewDocIndex(index >= 0 ? index : 0);

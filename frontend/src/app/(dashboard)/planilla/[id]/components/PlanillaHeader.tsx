@@ -36,9 +36,6 @@ interface PlanillaHeaderProps {
 export function PlanillaHeader({
   planilla,
   calculating,
-  approving,
-  paying,
-  canceling,
   downloadingBoletas,
   canCalculate,
   canApprove,

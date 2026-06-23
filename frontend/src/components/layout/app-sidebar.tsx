@@ -28,7 +28,6 @@ import {
   Calendar,
   DollarSign,
   Home,
-  Briefcase,
   CreditCard,
   UserCog,
   Shield,
@@ -287,7 +286,7 @@ export function AppSidebar({ usuario }: AppSidebarProps) {
           "/tareo/extensiones/pendientes/count",
         );
         setSolicitudesPendientes(response.count);
-      } catch (err) {
+      } catch {
         // Silenciosamente ignorar errores
       }
     };

@@ -119,7 +119,6 @@ export function EvaluacionesCard({
                         e => e.tipo_evaluacion_id === tipo.id,
                       );
                       const isExpanded = expandedEvalTipoId === tipo.id;
-                      const isSaving = savingEvalTipoId === tipo.id;
 
                       return (
                         <TableRow

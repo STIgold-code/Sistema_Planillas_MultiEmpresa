@@ -120,6 +120,9 @@ export function useBancoDocumentos() {
   useEffect(() => {
     fetchPlantillas();
     fetchVariables();
+    // Solo se recarga al cambiar showInactive; las funciones fetch se definen en cada render
+    // y no deben formar parte de las dependencias para evitar recargas innecesarias.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showInactive]);
 
   const openCreateDialog = () => {

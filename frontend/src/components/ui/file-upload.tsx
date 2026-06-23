@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, FileText, Image, File, Loader2, Eye } from 'lucide-react';
+import { Upload, X, FileText, Image as ImageIcon, File, Loader2, Eye } from 'lucide-react';
 import { Button } from './button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -40,7 +40,7 @@ function formatFileSize(bytes: number): string {
 function getFileIcon(tipo: string) {
   if (tipo.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
   if (tipo.includes('image') || tipo.includes('jpg') || tipo.includes('jpeg') || tipo.includes('png')) {
-    return <Image className="h-5 w-5 text-blue-500" />;
+    return <ImageIcon className="h-5 w-5 text-blue-500" />;
   }
   if (tipo.includes('doc')) return <FileText className="h-5 w-5 text-blue-700" />;
   return <File className="h-5 w-5 text-gray-500" />;

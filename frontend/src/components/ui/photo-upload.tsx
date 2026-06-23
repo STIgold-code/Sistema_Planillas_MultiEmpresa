@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, Loader2 } from 'lucide-react';
+import { Camera, X, Loader2 } from 'lucide-react';
 import { Button } from './button';
-import { api, getAccessToken } from '@/lib/api';
+import { getAccessToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuthImage } from '@/hooks/useAuthImage';
@@ -144,6 +144,8 @@ export function PhotoUpload({
           </div>
         ) : preview ? (
           <>
+            {/* preview es un blob/data URL local (FileReader/useAuthImage), no optimizable por next/image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={preview}
               alt="Foto del empleado"

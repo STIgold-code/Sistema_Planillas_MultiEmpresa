@@ -150,6 +150,9 @@ export function useConvertirPostulante() {
     };
 
     fetchData();
+    // form (React Hook Form) tiene referencia estable; se omite a propósito para
+    // que la carga inicial solo dependa de id y router.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
   const handleConsultarSbs = async () => {

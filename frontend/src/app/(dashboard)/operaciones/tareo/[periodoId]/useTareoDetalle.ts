@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import ExcelJS from 'exceljs';
 import { api, getAccessToken } from '@/lib/api';
 import { TareoGrillaResponse, TareoGrillaEmpleado, DiasConJustificacion, TareoJustificacion, TareoDetalle, TareoDetalleAudit } from '@/types';
 import { useSesionTareo } from '@/hooks/useSesionTareo';
@@ -436,7 +435,7 @@ export function useTareoDetalle() {
     try {
       const response = await api.get<{ detalle: TareoDetalle; historial: TareoDetalleAudit[] }>(`/tareo/detalle/${detalleId}/historial`);
       setHistorial(response.historial);
-    } catch (error: unknown) {
+    } catch {
       toast.error('Error al cargar historial');
       setHistorial([]);
     } finally {

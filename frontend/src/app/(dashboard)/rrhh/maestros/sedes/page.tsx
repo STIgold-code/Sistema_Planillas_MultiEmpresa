@@ -243,6 +243,7 @@ export default function SedesPage() {
       if (editingSede) {
         // Para editar, no enviamos contactos en el update principal
         const { contactos, ...sedePayload } = payload;
+        void contactos;
         await api.patch(`/sedes/${editingSede.id}`, sedePayload);
         toast.success('Sede actualizada correctamente');
       } else {

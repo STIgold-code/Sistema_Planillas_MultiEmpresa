@@ -236,6 +236,8 @@ export function PhotocheckDocument({
         <View style={styles.cardFront}>
           {/* Logo de empresa */}
           {empresaLogo ? (
+            // Image de @react-pdf/renderer (PDF), no soporta alt; no es un <img> del DOM
+            // eslint-disable-next-line jsx-a11y/alt-text
             <Image src={empresaLogo} style={styles.logoEmpresa} />
           ) : (
             <Text style={styles.empresaSiglas}>{empresaNombre.substring(0, 5).toUpperCase()}</Text>
@@ -247,6 +249,8 @@ export function PhotocheckDocument({
           {/* Foto del empleado */}
           <View style={styles.fotoContainer}>
             {fotoUrl ? (
+              // Image de @react-pdf/renderer (PDF), no soporta alt; no es un <img> del DOM
+              // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={fotoUrl} style={styles.foto} />
             ) : (
               <Text style={styles.fotoPlaceholder}>SIN{'\n'}FOTO</Text>

@@ -39,7 +39,7 @@ interface UseEmpleadoContratosParams {
 }
 
 export function useEmpleadoContratos({
-  empleadoId, sueldoBase, estadoEmpleado, fechaCese, clienteId, sedeId, cargoId, onEmpleadoUpdate,
+  empleadoId, sueldoBase, estadoEmpleado, clienteId, sedeId, cargoId, onEmpleadoUpdate,
 }: UseEmpleadoContratosParams) {
   // Shared form state — lifted here so sub-hooks can share it
   const [form, setForm] = useState<ContratoForm>(initialFormState);

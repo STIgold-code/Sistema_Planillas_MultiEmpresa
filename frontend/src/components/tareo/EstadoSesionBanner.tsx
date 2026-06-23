@@ -59,7 +59,6 @@ interface EstadoSesionBannerProps {
 export function EstadoSesionBanner({
   sesion,
   esAdmin,
-  esCorrector,
   requiereSesion,
   tiempoRestante,
   tiempoFormateado,

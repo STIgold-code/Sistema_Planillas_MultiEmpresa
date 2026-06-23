@@ -23,7 +23,6 @@ import type {
   RenovarForm,
   EmpleadoPendiente,
   ContratoPorVencer,
-  initialRenovarForm,
 } from '../useDashboard';
 
 interface Props {

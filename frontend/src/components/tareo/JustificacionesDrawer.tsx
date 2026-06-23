@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +59,6 @@ export function JustificacionesDrawer({
   onOpenChange,
   empleadoId,
   empleadoNombre,
-  tareoId,
   periodoInfo,
   onNuevaJustificacion,
   onEditarJustificacion,
@@ -76,14 +74,7 @@ export function JustificacionesDrawer({
   const [previewFiles, setPreviewFiles] = useState<{ archivo_url: string; archivo_nombre: string; archivo_tipo?: string }[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
 
-  // Cargar justificaciones cuando se abre el drawer
-  useEffect(() => {
-    if (open && empleadoId) {
-      loadJustificaciones();
-    }
-  }, [open, empleadoId]);
-
-  const loadJustificaciones = async () => {
+  const loadJustificaciones = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.get<TareoJustificacion[]>(
@@ -96,7 +87,14 @@ export function JustificacionesDrawer({
     } finally {
       setLoading(false);
     }
-  };
+  }, [empleadoId, periodoInfo.anio]);
+
+  // Cargar justificaciones cuando se abre el drawer
+  useEffect(() => {
+    if (open && empleadoId) {
+      loadJustificaciones();
+    }
+  }, [open, empleadoId, loadJustificaciones]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
