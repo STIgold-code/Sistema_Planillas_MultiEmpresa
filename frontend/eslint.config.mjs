@@ -25,8 +25,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // sucamec está oculto por decisión de producto; código intacto, fuera del lint.
-    "**/*ucamec*",
   ]),
 ]);
 

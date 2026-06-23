@@ -23,7 +23,6 @@ import { TareoModule } from './modules/tareo/tareo.module';
 import { UbigeoModule } from './modules/ubigeo/ubigeo.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { ContratosModule } from './modules/contratos/contratos.module';
-import { SucamecModule } from './modules/sucamec/sucamec.module';
 import { PlantillasContratoModule } from './modules/plantillas-contrato/plantillas-contrato.module';
 import { SedesModule } from './modules/sedes/sedes.module';
 import { PlanillasModule } from './modules/planillas/planillas.module';
@@ -97,10 +96,6 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
     UbigeoModule,
     UploadsModule,
     ContratosModule,
-    // Módulo SUCAMEC oculto por decisión de producto (control de seguridad privada,
-    // rubro heredado de la base RRHH). El código permanece intacto y se reactiva
-    // poniendo FF_SUCAMEC=true en el entorno. Sin el flag, no se registran sus endpoints.
-    ...(process.env.FF_SUCAMEC === 'true' ? [SucamecModule] : []),
     PlantillasContratoModule,
     SedesModule,
     PlanillasModule,

@@ -4,8 +4,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilePreviewModal } from '@/components/ui/file-preview-modal';
 import { EmpleadoContratos } from '@/components/empleados/EmpleadoContratos';
 import { EmpleadoCeses } from '@/components/empleados/EmpleadoCeses';
-import EmpleadoSucamec from '@/components/empleados/EmpleadoSucamec';
-import { features } from '@/lib/features';
 import { TabsContent } from '@/components/ui/tabs';
 import {
   Briefcase,
@@ -14,7 +12,6 @@ import {
   History,
   Loader2,
   ScrollText,
-  Shield,
   User,
   UserX,
   Users,
@@ -80,12 +77,6 @@ export default function EmpleadoDetailPage() {
               <ScrollText className="h-3.5 w-3.5" />
               Contratos
             </TabsTrigger>
-            {features.sucamec && (
-              <TabsTrigger value="sucamec" className="flex-none gap-1 text-xs px-2 py-1.5">
-                <Shield className="h-3.5 w-3.5" />
-                SUCAMEC
-              </TabsTrigger>
-            )}
             <TabsTrigger value="ceses" className="flex-none gap-1 text-xs px-2 py-1.5">
               <UserX className="h-3.5 w-3.5" />
               Ceses
@@ -155,16 +146,6 @@ export default function EmpleadoDetailPage() {
             onEmpleadoUpdate={state.fetchEmpleado}
           />
         </TabsContent>
-
-        {features.sucamec && (
-          <TabsContent value="sucamec">
-            <EmpleadoSucamec
-              empleadoId={empleado.id}
-              estadoEmpleado={empleado.estado}
-              onUpdate={state.fetchEmpleado}
-            />
-          </TabsContent>
-        )}
 
         <TabsContent value="ceses">
           <EmpleadoCeses empleadoId={empleado.id} />

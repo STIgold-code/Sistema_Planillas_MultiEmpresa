@@ -31,7 +31,6 @@ import {
   CreditCard,
   UserCog,
   Shield,
-  IdCard,
   LayoutGrid,
   LogOut,
   ChevronUp,
@@ -58,7 +57,6 @@ import { cn } from "@/lib/utils";
 import { Usuario } from "@/types";
 import { hasPermission, logout } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { features } from "@/lib/features";
 
 interface AppSidebarProps {
   usuario: Usuario | null;
@@ -104,17 +102,6 @@ const menuItems = [
         icono: ArrowLeftRight,
         permiso: "empleados:leer",
       },
-      // Sucamec oculto por feature flag (NEXT_PUBLIC_FF_SUCAMEC). Ver src/lib/features.ts
-      ...(features.sucamec
-        ? [
-            {
-              titulo: "Sucamec",
-              url: "/rrhh/sucamec",
-              icono: IdCard,
-              permiso: "sucamec:leer",
-            },
-          ]
-        : []),
       {
         titulo: "Vacaciones",
         url: "/rrhh/vacaciones",
