@@ -12,6 +12,18 @@ régimen nuevo no requiera modificar código existente (estrategia + factory).
 
 Ver `CLAUDE.md` y `CONTEXTO-Sistema-Planillas-MultiEmpresa.md` para el detalle de las decisiones.
 
+## Estado
+
+Las 6 fases técnicas están implementadas (motor de dominio, parámetros legales versionados,
+persistencia, API, frontend y exportación) y el circuito está cerrado de punta a punta:
+pantalla → API → motor → planilla → boleta. Ver `ESTADO.md` para el detalle vigente.
+
+Calidad: 0 usos de `any`, 0 errores de ESLint, `tsc --noEmit` limpio y suite de tests en verde.
+Cada PR pasa por CI (`tsc` + ausencia de `any` + tests + lint, bloqueante).
+
+> Pendiente para producción: validación de un contador para certificar los regímenes Agrario y
+> Construcción civil (5 puntos legales aún sin firmar).
+
 ## Stack
 
 | Capa | Tecnología |
@@ -35,6 +47,8 @@ frontend/   Aplicación Next.js (App Router)
 cd backend
 npm install
 npx prisma generate
+npx prisma migrate deploy   # aplica las migraciones a la BD
+npm test                    # suite de tests del dominio y la app
 npm run start:dev
 
 # Frontend
