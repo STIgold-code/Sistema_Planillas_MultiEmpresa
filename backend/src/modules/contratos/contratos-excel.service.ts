@@ -49,7 +49,7 @@ export class ContratosExcelService {
     private contratosExcelExportService: ContratosExcelExportService,
   ) {}
 
-  private parseExcelDate(value: any): Date | null {
+  private parseExcelDate(value: unknown): Date | null {
     if (!value) return null;
 
     if (value instanceof Date) {
@@ -404,8 +404,9 @@ export class ContratosExcelService {
           });
           creados++;
         }
-      } catch (error) {
-        errores.push(`DNI ${contrato.dni}: ${error.message}`);
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        errores.push(`DNI ${contrato.dni}: ${mensaje}`);
       }
     }
 

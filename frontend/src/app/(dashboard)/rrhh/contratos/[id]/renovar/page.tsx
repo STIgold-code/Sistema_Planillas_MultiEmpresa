@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,8 +146,8 @@ export default function RenovarContratoPage() {
       });
       toast.success('Contrato renovado correctamente');
       router.push('/rrhh/contratos');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al renovar el contrato');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al renovar el contrato'));
     } finally {
       setSaving(false);
     }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
 import { differenceInDays, differenceInMonths } from 'date-fns';
@@ -51,8 +52,8 @@ export function useContratosData({ empleadoId, form, setForm }: UseContratosData
         `/contratos?empleado_id=${empleadoId}&limit=100`
       );
       setContratos(response.data || []);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar contratos');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar contratos'));
     } finally {
       setLoading(false);
     }

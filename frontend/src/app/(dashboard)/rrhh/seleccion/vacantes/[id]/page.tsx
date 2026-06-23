@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe } from '@/lib/utils';
 import { Vacante, Postulante, EstadoPostulante } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -82,8 +83,8 @@ export default function VacanteDetallePage() {
       };
       toast.success(`Vacante ${mensajes[action] || action} correctamente`);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar la vacante');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar la vacante'));
     } finally {
       setActionLoading(false);
       setConfirmDialog({ open: false, action: '' });

@@ -9,7 +9,7 @@ import {
   UpdateJustificacionDto,
   AddArchivoDto,
 } from './dto';
-import { Prisma, EstadoPeriodoTareo } from '@prisma/client';
+import { Prisma, EstadoPeriodoTareo, TipoJustificacion } from '@prisma/client';
 import { TareoJustificacionesMutationsService } from './tareo-justificaciones-mutations.service';
 
 @Injectable()
@@ -99,7 +99,7 @@ export class TareoJustificacionesService {
     }
 
     if (filters.tipo) {
-      where.tipo = filters.tipo as any;
+      where.tipo = filters.tipo as TipoJustificacion;
     }
 
     const [justificaciones, total] = await Promise.all([

@@ -103,13 +103,13 @@ export default function AuditoriaDashboardPage() {
         );
 
         // Obtener total de registros del último mes
-        const totalResponse = await api.get<{ data: any[]; meta: { total: number } }>(
+        const totalResponse = await api.get<{ data: unknown[]; meta: { total: number } }>(
           `/auditoria?limit=1&fecha_desde=${fechaDesde}`
         );
 
         // Obtener registros de hoy
         const hoy = format(new Date(), 'yyyy-MM-dd');
-        const hoyResponse = await api.get<{ data: any[]; meta: { total: number } }>(
+        const hoyResponse = await api.get<{ data: unknown[]; meta: { total: number } }>(
           `/auditoria?limit=1&fecha_desde=${hoy}`
         );
 

@@ -27,6 +27,28 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface EmpleadoAlerta {
+  nombres: string;
+  apellido_paterno: string;
+  sueldo_base?: number;
+}
+interface PeriodoVencimientoAlerta {
+  id: number;
+  empleado_id: number;
+  empleado: EmpleadoAlerta;
+  dias_pendientes: number;
+  fecha_limite_goce: string;
+}
+interface SolicitudReciente {
+  id: number;
+  empleado_id: number;
+  empleado: EmpleadoAlerta;
+  dias_solicitados: number;
+  fecha_inicio_solicitada: string;
+  fecha_fin_solicitada: string;
+  estado: string;
+}
+
 interface DashboardData {
   resumen: {
     solicitudes_pendientes_jefe: number;
@@ -36,10 +58,10 @@ interface DashboardData {
     triple_vacacional_pendiente: number;
   };
   alertas: {
-    periodos_por_vencer: any[];
-    triple_vacacional: any[];
+    periodos_por_vencer: PeriodoVencimientoAlerta[];
+    triple_vacacional: PeriodoVencimientoAlerta[];
   };
-  solicitudes_recientes: any[];
+  solicitudes_recientes: SolicitudReciente[];
 }
 
 const estadoBadgeVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -189,7 +211,7 @@ export default function VacacionesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {data?.alertas.periodos_por_vencer.slice(0, 5).map((periodo: any) => (
+              {data?.alertas.periodos_por_vencer.slice(0, 5).map((periodo) => (
                 <div
                   key={periodo.id}
                   className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg"
@@ -231,7 +253,7 @@ export default function VacacionesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {data?.alertas.triple_vacacional.map((periodo: any) => (
+              {data?.alertas.triple_vacacional.map((periodo) => (
                 <div
                   key={periodo.id}
                   className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950 rounded-lg"
@@ -287,7 +309,7 @@ export default function VacacionesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.solicitudes_recientes.map((solicitud: any) => (
+                data?.solicitudes_recientes.map((solicitud) => (
                   <TableRow
                     key={solicitud.id}
                     className="cursor-pointer hover:bg-muted/50"

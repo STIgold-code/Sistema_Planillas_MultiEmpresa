@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api, getAccessToken } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
 import { toDateString, parseDateLocal } from '@/lib/utils';
@@ -52,7 +53,7 @@ export function useContratosCrud({
   const contratoVigente = contratos.find((c) => c.estado === 'ACTIVO');
   const ultimoContratoVencido = contratos.find((c) => c.estado === 'PENDIENTE');
 
-  const generarDocumentoParaContrato = async (contratoData: any, plantillaId: string) => {
+  const generarDocumentoParaContrato = async (contratoData: Record<string, unknown>, plantillaId: string) => {
     try {
       const token = getAccessToken();
       const response = await fetch(
@@ -171,8 +172,8 @@ export function useContratosCrud({
       }
 
       fetchContratos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear contrato');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear contrato'));
     } finally {
       setSaving(false);
     }
@@ -307,8 +308,8 @@ export function useContratosCrud({
       }
 
       fetchContratos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al renovar contrato');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al renovar contrato'));
     } finally {
       setSaving(false);
     }
@@ -374,8 +375,8 @@ export function useContratosCrud({
 
       fetchContratos();
       onEmpleadoUpdate?.();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al procesar reingreso');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al procesar reingreso'));
     } finally {
       setSaving(false);
     }
@@ -430,8 +431,8 @@ export function useContratosCrud({
       }
 
       fetchContratos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al renovar contrato');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al renovar contrato'));
     } finally {
       setSaving(false);
     }
@@ -464,8 +465,8 @@ export function useContratosCrud({
       setShowSolicitarCeseModal(false);
       setCeseForm({ tipo_cese_id: '', motivo: '', fecha_efectiva: '' });
       setCeseFiles([]);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear solicitud de cese');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear solicitud de cese'));
     } finally {
       setSaving(false);
     }

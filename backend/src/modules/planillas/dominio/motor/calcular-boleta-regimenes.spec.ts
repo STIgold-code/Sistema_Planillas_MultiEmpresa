@@ -69,10 +69,7 @@ describe('calcular-boleta — orquestación por régimen (C-3, C-4)', () => {
     jest
       .spyOn(agrario, 'conceptosRegimen')
       .mockImplementation((ctx, p) =>
-        agrario.remuneracionDiaria(
-          { ...ctx, usaProrrateoAgrario: true },
-          p,
-        ),
+        agrario.remuneracionDiaria({ ...ctx, usaProrrateoAgrario: true }, p),
       );
 
     const boleta = calcularBoleta(entrada, agrario, params);

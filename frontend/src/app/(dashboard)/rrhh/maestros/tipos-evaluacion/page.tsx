@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
@@ -47,6 +47,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Power } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface TipoEvaluacion {
@@ -82,7 +83,11 @@ export default function TiposEvaluacionPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   const form = useForm<TipoEvaluacionFormValues>({
-    resolver: zodResolver(tipoEvaluacionSchema) as any,
+    // El schema usa z.coerce + .default(), por lo que el tipo de entrada del
+    // resolver difiere del de salida; se fija al tipo de salida del formulario.
+    resolver: zodResolver(
+      tipoEvaluacionSchema,
+    ) as Resolver<TipoEvaluacionFormValues>,
     defaultValues: {
       codigo: '',
       nombre: '',
@@ -156,8 +161,8 @@ export default function TiposEvaluacionPage() {
       }
       setDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el tipo de evaluacion');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el tipo de evaluacion'));
     } finally {
       setSaving(false);
     }
@@ -171,8 +176,8 @@ export default function TiposEvaluacionPage() {
       toast.success('Tipo de evaluacion eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el tipo de evaluacion');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el tipo de evaluacion'));
     }
   };
 
@@ -181,8 +186,8 @@ export default function TiposEvaluacionPage() {
       await api.patch(`/masters/tipos-evaluacion/${tipo.id}/toggle`, {});
       toast.success(tipo.activo ? 'Tipo desactivado' : 'Tipo activado');
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar el estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar el estado'));
     }
   };
 

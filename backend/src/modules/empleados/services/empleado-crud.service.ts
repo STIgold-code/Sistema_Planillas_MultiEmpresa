@@ -78,7 +78,7 @@ export class EmpleadoCrudService {
 
     // Filtro de búsqueda por ID, nombre o documento
     if (buscar) {
-      const orConditions: any[] = [
+      const orConditions: Prisma.EmpleadoWhereInput[] = [
         { numero_documento: { contains: buscar, mode: 'insensitive' } },
         { nombres: { contains: buscar, mode: 'insensitive' } },
         { apellido_paterno: { contains: buscar, mode: 'insensitive' } },
@@ -114,7 +114,7 @@ export class EmpleadoCrudService {
       const inicioMes = new Date(anio, mes - 1, 1);
       const finMes = new Date(anio, mes, 0, 23, 59, 59, 999);
 
-      const movimientoFilter: any = {
+      const movimientoFilter: Prisma.EmpleadoMovimientoWhereInput = {
         fecha_movimiento: { gte: inicioMes, lte: finMes },
       };
 
@@ -491,11 +491,13 @@ export class EmpleadoCrudService {
       });
 
       return empleado;
-    } catch (error) {
+    } catch (error: unknown) {
       // Capturar error de unique constraint de la BD (defensa en profundidad)
       if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002' &&
-        error.meta?.target?.includes('numero_documento')
+        Array.isArray(error.meta?.target) &&
+        error.meta.target.includes('numero_documento')
       ) {
         throw new ConflictException(
           `${BUSINESS_ERROR_MESSAGES.DNI_DUPLICADO_EMPRESA}. El documento ya existe en el sistema.`,
@@ -583,7 +585,9 @@ export class EmpleadoCrudService {
 
     // Excluir campos string de ubicación que no son columnas Prisma
     const { departamento, provincia, distrito, ...restDto } = dto;
-    const updateData: any = { ...restDto };
+    const updateData: Prisma.EmpleadoUncheckedUpdateInput = {
+      ...restDto,
+    } as unknown as Prisma.EmpleadoUncheckedUpdateInput;
 
     // SEGURIDAD (mass assignment + IDOR): validar propiedad de la foto.
     if (dto.foto_url !== undefined && dto.foto_url !== null) {

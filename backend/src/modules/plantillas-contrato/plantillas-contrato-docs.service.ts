@@ -10,11 +10,53 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { convert } from 'libreoffice-convert';
 import { promisify } from 'util';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { UPLOADS_DIR } from '../uploads/uploads.config';
 import { extractVariablesFromWordFile } from './plantillas-contrato-word-utils';
 import { CreatePlantillaContratoDto } from './dto';
+
+/**
+ * Empleado con las relaciones cargadas para la generación de documentos
+ * (cargo, área, sede y la cadena geográfica distrito → provincia → departamento).
+ */
+export type EmpleadoParaDocumento = Prisma.EmpleadoGetPayload<{
+  include: {
+    cargo: true;
+    area: true;
+    sede: true;
+    distrito: {
+      include: {
+        provincia: {
+          include: { departamento: true };
+        };
+      };
+    };
+  };
+}>;
+
+/**
+ * Empresa tal como se obtiene de Prisma para la generación de documentos.
+ * Puede ser null si no se encuentra.
+ */
+export type EmpresaParaDocumento = Prisma.EmpresaGetPayload<object> | null;
+
+/**
+ * Datos de contrato usados para rellenar la plantilla. Todos los campos son
+ * opcionales porque pueden provenir del cuerpo de la petición o resolverse
+ * desde el contrato activo del empleado.
+ */
+export interface ContratoDataPlantilla {
+  fecha_inicio?: Date | string | null;
+  fecha_fin?: Date | string | null;
+  fecha_firma?: Date | string | null;
+  remuneracion?: number | null;
+  empresa_cliente?: string | null;
+  lugar_trabajo?: string | null;
+  tipo_contrato?: string | null;
+  modalidad?: string | null;
+}
 import {
   formatearFechaPeru,
   formatearFechaLargaPeru,
@@ -125,7 +167,7 @@ export class PlantillasContratoDocsService {
     try {
       const pdfBuffer = await convertAsync(docxBuffer, 'pdf', undefined);
       return pdfBuffer;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error en conversión PDF con LibreOffice:', error);
       throw new BadRequestException(
         'Error al generar el PDF. Verifique que LibreOffice esté instalado en el servidor.',
@@ -138,7 +180,7 @@ export class PlantillasContratoDocsService {
     plantillaId: number,
     empresaId: number,
     empleadoId: number,
-    contratoData?: any,
+    contratoData?: ContratoDataPlantilla,
     formato: 'docx' | 'pdf' = 'pdf',
   ): Promise<{ buffer: Buffer; filename: string; mimetype: string }> {
     // Obtener plantilla
@@ -182,7 +224,7 @@ export class PlantillasContratoDocsService {
       content = await this.uploadsService.getFileBuffer(
         plantilla.archivo_base_url,
       );
-    } catch (error) {
+    } catch {
       throw new NotFoundException('No se pudo leer el archivo de la plantilla');
     }
 
@@ -194,7 +236,7 @@ export class PlantillasContratoDocsService {
     });
 
     // Si no se pasaron datos de contrato, buscar el contrato activo del empleado
-    let contratoFinal = contratoData;
+    let contratoFinal: ContratoDataPlantilla | undefined = contratoData;
     if (!contratoFinal) {
       const contratoActivo = await this.prisma.contrato.findFirst({
         where: {
@@ -284,7 +326,11 @@ export class PlantillasContratoDocsService {
   }
 
   // Preparar datos para docxtemplater (formato plano con puntos)
-  private prepareDocumentData(empleado: any, empresa: any, contrato: any) {
+  private prepareDocumentData(
+    empleado: EmpleadoParaDocumento,
+    empresa: EmpresaParaDocumento,
+    contrato: ContratoDataPlantilla | undefined,
+  ) {
     // Usar zona horaria Peru para todas las fechas
     const hoyPeru = ahoraPeru();
 
@@ -368,9 +414,12 @@ export class PlantillasContratoDocsService {
   }
 
   // Formatear moneda
-  private formatCurrency(value: number | null | undefined): string {
+  private formatCurrency(
+    value: number | Prisma.Decimal | null | undefined,
+  ): string {
     if (!value) return '0.00';
-    return value.toLocaleString('es-PE', {
+    const numero = typeof value === 'number' ? value : Number(value);
+    return numero.toLocaleString('es-PE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
@@ -478,7 +527,7 @@ export class PlantillasContratoDocsService {
     if (plantilla.archivo_base_url) {
       try {
         await this.uploadsService.deleteFileHybrid(plantilla.archivo_base_url);
-      } catch (error) {
+      } catch (error: unknown) {
         // Ignorar error si no se pudo borrar el viejo
         console.error('No se pudo eliminar archivo anterior:', error);
       }

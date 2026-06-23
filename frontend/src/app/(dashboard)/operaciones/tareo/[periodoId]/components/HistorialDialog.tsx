@@ -10,11 +10,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { History, Loader2 } from 'lucide-react';
+import type { TareoDetalleAudit } from '@/types';
 
 interface HistorialDialogProps {
   open: boolean;
   loading: boolean;
-  historial: any[];
+  historial: TareoDetalleAudit[];
   onClose: () => void;
 }
 

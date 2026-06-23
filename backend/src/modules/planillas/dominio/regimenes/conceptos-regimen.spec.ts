@@ -86,7 +86,9 @@ const resumen = (overrides: Partial<ResumenTareo> = {}): ResumenTareo => ({
   ...overrides,
 });
 
-const ctxBase = (overrides: Partial<ContextoCalculo> = {}): ContextoCalculo => ({
+const ctxBase = (
+  overrides: Partial<ContextoCalculo> = {},
+): ContextoCalculo => ({
   regimenLaboral: RegimenLaboral.GENERAL,
   remuneracionMensual: 3000,
   remuneracionAfecta: 3000,
@@ -104,9 +106,8 @@ const ctxBase = (overrides: Partial<ContextoCalculo> = {}): ContextoCalculo => (
   ...overrides,
 });
 
-const claves = (
-  conceptos: { clave: string }[],
-): string[] => conceptos.map((c) => c.clave);
+const claves = (conceptos: { clave: string }[]): string[] =>
+  conceptos.map((c) => c.clave);
 
 describe('conceptosRegimen() — contrato de composición W1', () => {
   it('GENERAL: incluye gratificación y EsSalud (mes de grati), sin conceptos propios extra', () => {
@@ -130,7 +131,9 @@ describe('conceptosRegimen() — contrato de composición W1', () => {
         diasVacaciones: 0,
       },
     });
-    const cs = claves(new RegimenGeneral().conceptosRegimen(ctx, params).conceptos);
+    const cs = claves(
+      new RegimenGeneral().conceptosRegimen(ctx, params).conceptos,
+    );
     expect(cs).toContain(CLAVE_CTS);
     expect(cs).toContain(CLAVE_ESSALUD);
   });
@@ -157,7 +160,9 @@ describe('conceptosRegimen() — contrato de composición W1', () => {
       tamanoEmpresa: TamanoEmpresa.GRANDE,
       remuneracionComputable: 1500,
     });
-    const cs = claves(new RegimenAgrario().conceptosRegimen(ctx, params).conceptos);
+    const cs = claves(
+      new RegimenAgrario().conceptosRegimen(ctx, params).conceptos,
+    );
     expect(cs).toContain(CLAVE_GRATI_AGRARIO);
     expect(cs).toContain(CLAVE_CTS_AGRARIO);
     expect(cs).not.toContain(CLAVE_PRORRATEO_AGRARIO);
@@ -170,7 +175,9 @@ describe('conceptosRegimen() — contrato de composición W1', () => {
       remuneracionComputable: 1500,
       resumenTareo: resumen({ diasTrabajados: 30 }),
     });
-    const cs = claves(new RegimenAgrario().conceptosRegimen(ctx, params).conceptos);
+    const cs = claves(
+      new RegimenAgrario().conceptosRegimen(ctx, params).conceptos,
+    );
     expect(cs).toContain(CLAVE_PRORRATEO_AGRARIO);
     expect(cs).not.toContain(CLAVE_GRATI_AGRARIO);
     expect(cs).not.toContain(CLAVE_CTS_AGRARIO);

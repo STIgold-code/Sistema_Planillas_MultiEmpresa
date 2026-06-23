@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
-import { EstadoSolicitudVacaciones, EstadoEmpleado } from '@prisma/client';
+import {
+  EstadoSolicitudVacaciones,
+  EstadoEmpleado,
+  Prisma,
+} from '@prisma/client';
 import { ahoraPeru, sumarDiasPeru } from '../../common/utils/datetime.util';
 
 @Injectable()
@@ -172,7 +176,7 @@ export class VacacionesTasksService {
    * Obtiene empleados actualmente de vacaciones
    */
   async getEmpleadosEnVacaciones(empresaId?: number) {
-    const where: any = {
+    const where: Prisma.SolicitudVacacionesWhereInput = {
       estado: EstadoSolicitudVacaciones.EN_GOCE,
     };
 
@@ -209,7 +213,7 @@ export class VacacionesTasksService {
     const hoy = ahoraPeru().toJSDate();
     const fechaLimite = sumarDiasPeru(hoy, dias);
 
-    const where: any = {
+    const where: Prisma.SolicitudVacacionesWhereInput = {
       estado: EstadoSolicitudVacaciones.EN_GOCE,
       OR: [
         {

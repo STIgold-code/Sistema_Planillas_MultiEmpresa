@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateSolicitudCeseDto,
@@ -145,7 +146,7 @@ export class SolicitudesCeseService {
       limit = 20,
     } = filters;
 
-    const where: any = { empresa_id: empresaId };
+    const where: Prisma.SolicitudCeseWhereInput = { empresa_id: empresaId };
 
     if (estado) where.estado = estado;
     if (tipo_cese_id) where.tipo_cese_id = tipo_cese_id;

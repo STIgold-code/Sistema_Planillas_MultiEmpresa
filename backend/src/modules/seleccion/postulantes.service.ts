@@ -231,9 +231,11 @@ export class PostulantesService {
         estatura: dto.estatura,
         peso: dto.peso,
         categoria_licencia: dto.categoria_licencia,
-        estudios: (dto.estudios as any) || [],
-        experiencias: (dto.experiencias as any) || [],
-        capacitaciones: (dto.capacitaciones as any) || [],
+        estudios: (dto.estudios as unknown as Prisma.InputJsonValue[]) || [],
+        experiencias:
+          (dto.experiencias as unknown as Prisma.InputJsonValue[]) || [],
+        capacitaciones:
+          (dto.capacitaciones as unknown as Prisma.InputJsonValue[]) || [],
         pretension_salarial: dto.pretension_salarial,
         procedencia_id: dto.procedencia_id,
         vacante_id: dto.vacante_id,
@@ -277,9 +279,13 @@ export class PostulantesService {
         fecha_nacimiento: fecha_nacimiento
           ? parsearFechaISOenPeru(fecha_nacimiento)
           : undefined,
-        estudios: estudios as any,
-        experiencias: experiencias as any,
-        capacitaciones: capacitaciones as any,
+        estudios: estudios as unknown as Prisma.InputJsonValue | undefined,
+        experiencias: experiencias as unknown as
+          | Prisma.InputJsonValue
+          | undefined,
+        capacitaciones: capacitaciones as unknown as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       include: {
         vacante: { select: { id: true, codigo: true, titulo: true } },
@@ -774,10 +780,9 @@ export class PostulantesService {
     for (const archivo of archivos) {
       try {
         await this.uploadsService.deleteFileHybrid(archivo);
-      } catch (error) {
-        this.logger.error(
-          `Error eliminando archivo ${archivo}: ${error.message}`,
-        );
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error eliminando archivo ${archivo}: ${mensaje}`);
       }
     }
 

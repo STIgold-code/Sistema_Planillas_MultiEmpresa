@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
@@ -45,7 +46,7 @@ export class ClientesService {
   ) {
     const { buscar, activo, page = 1, limit = 50 } = options || {};
 
-    const where: any = {
+    const where: Prisma.ClienteWhereInput = {
       empresa_id: empresaId,
     };
 

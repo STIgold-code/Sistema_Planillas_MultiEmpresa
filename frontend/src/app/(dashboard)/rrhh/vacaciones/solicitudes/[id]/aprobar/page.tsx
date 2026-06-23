@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface Solicitud {
   id: number;
@@ -146,8 +147,8 @@ export default function AprobarSolicitudPage() {
       };
       toast.success(mensajes[accion]);
       router.push(`/rrhh/vacaciones/solicitudes/${id}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al procesar la solicitud');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al procesar la solicitud'));
     } finally {
       setSaving(false);
     }

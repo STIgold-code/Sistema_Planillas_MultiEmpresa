@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { Prisma, PlantillaDocumento } from '@prisma/client';
 import { GenerarDocumentoDto } from './dto';
 import { existsSync, readFileSync, unlinkSync } from 'fs';
 import {
@@ -73,6 +74,42 @@ const VARIABLES_CONOCIDAS = new Set([
   'mes_actual',
   'dia_actual',
 ]);
+
+// Include compartido para las relaciones del empleado usadas en la generacion
+// de documentos (datos personales, laborales, bancarios y de empresa).
+const EMPLEADO_GENERACION_INCLUDE = {
+  area: true,
+  cargo: true,
+  sede: { include: { cliente: true } },
+  distrito: {
+    include: { provincia: { include: { departamento: true } } },
+  },
+  regimen_pensionario: true,
+  banco_haberes: true,
+  banco_cts: true,
+  empresa: true,
+} satisfies Prisma.EmpleadoInclude;
+
+/**
+ * Empleado con las relaciones base necesarias para reemplazar variables.
+ */
+type EmpleadoParaVariables = Prisma.EmpleadoGetPayload<{
+  include: typeof EMPLEADO_GENERACION_INCLUDE;
+}>;
+
+/**
+ * Empleado con las relaciones base mas el contrato vigente (usado al generar
+ * un documento individual con datos contractuales).
+ */
+type EmpleadoConContrato = EmpleadoParaVariables & {
+  contratos?: Prisma.ContratoGetPayload<object>[];
+};
+
+/**
+ * Mapa de variables resuelto a partir de un empleado, listo para inyectar en
+ * la plantilla. Las claves planas son strings; las anidadas son objetos string.
+ */
+type MapaVariables = Record<string, string | Record<string, string>>;
 
 @Injectable()
 export class BancoDocumentosGeneracionService {
@@ -227,8 +264,9 @@ export class BancoDocumentosGeneracionService {
       }
 
       return Array.from(variables);
-    } catch (error) {
-      this.logger.error(`Error al extraer variables de Word: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error al extraer variables de Word: ${mensaje}`);
       throw new BadRequestException(
         'Error al leer el archivo Word. Verifique que no esté corrupto.',
       );
@@ -238,7 +276,7 @@ export class BancoDocumentosGeneracionService {
   private async extractVariablesFromExcel(buffer: Buffer): Promise<string[]> {
     try {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(buffer as any);
+      await workbook.xlsx.load(buffer);
 
       const variables = new Set<string>();
       // Regex para capturar texto dentro de {{ }}
@@ -274,10 +312,9 @@ export class BancoDocumentosGeneracionService {
       });
 
       return Array.from(variables);
-    } catch (error) {
-      this.logger.error(
-        `Error al extraer variables de Excel: ${error.message}`,
-      );
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error al extraer variables de Excel: ${mensaje}`);
       throw new BadRequestException(
         'Error al leer el archivo Excel. Verifique que no esté corrupto.',
       );
@@ -411,9 +448,9 @@ export class BancoDocumentosGeneracionService {
    * Genera un archivo físico (Word o Excel) a partir de una plantilla
    */
   private async generarArchivoFisico(
-    plantilla: any,
-    empleado: any,
-    variables: any,
+    plantilla: PlantillaDocumento,
+    empleado: EmpleadoConContrato,
+    variables: MapaVariables,
   ): Promise<{ buffer: Buffer; filename: string; mimeType: string }> {
     if (!plantilla.archivo_base_url) {
       throw new BadRequestException(
@@ -475,16 +512,17 @@ export class BancoDocumentosGeneracionService {
 
         doc.render(variables);
         outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
-      } catch (error) {
-        this.logger.error(`Error generando Word: ${error.message}`, error);
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error generando Word: ${mensaje}`, error);
         throw new InternalServerErrorException(
-          `Error generando documento Word: ${error.message}`,
+          `Error generando documento Word: ${mensaje}`,
         );
       }
     } else if (plantilla.tipo_archivo === 'EXCEL') {
       try {
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(templateBuffer as any);
+        await workbook.xlsx.load(templateBuffer);
 
         workbook.eachSheet((worksheet) => {
           worksheet.eachRow((row) => {
@@ -492,8 +530,9 @@ export class BancoDocumentosGeneracionService {
               if (typeof cell.value === 'string') {
                 let text = cell.value;
                 // Reemplazar variables en la celda
-                text = text.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-                  return variables.hasOwnProperty(key) ? variables[key] : match;
+                text = text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
+                  const valor = variables[key];
+                  return typeof valor === 'string' ? valor : match;
                 });
                 cell.value = text;
               }
@@ -502,10 +541,11 @@ export class BancoDocumentosGeneracionService {
         });
 
         outputBuffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
-      } catch (error) {
-        this.logger.error(`Error generando Excel: ${error.message}`, error);
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error generando Excel: ${mensaje}`, error);
         throw new InternalServerErrorException(
-          `Error generando documento Excel: ${error.message}`,
+          `Error generando documento Excel: ${mensaje}`,
         );
       }
     }
@@ -526,7 +566,7 @@ export class BancoDocumentosGeneracionService {
   /**
    * Obtiene el mapa completo de variables para un empleado
    */
-  private obtenerMapaVariables(empleado: any): any {
+  private obtenerMapaVariables(empleado: EmpleadoConContrato): MapaVariables {
     const fechaActualPeru = ahoraPeru();
     const dia = fechaActualPeru.day;
     const mes = fechaActualPeru.month;
@@ -690,7 +730,10 @@ export class BancoDocumentosGeneracionService {
     }
   }
 
-  private reemplazarVariables(contenido: string, empleado: any): string {
+  private reemplazarVariables(
+    contenido: string,
+    empleado: EmpleadoParaVariables,
+  ): string {
     // Usar zona horaria Peru para todas las fechas
     const fechaActualPeru = ahoraPeru();
     const dia = fechaActualPeru.day;
@@ -788,7 +831,10 @@ export class BancoDocumentosGeneracionService {
   }
 
   // Exposed for use by BancoDocumentosService (generarDocumentosMasivo)
-  reemplazarVariablesPublico(contenido: string, empleado: any): string {
+  reemplazarVariablesPublico(
+    contenido: string,
+    empleado: EmpleadoParaVariables,
+  ): string {
     return this.reemplazarVariables(contenido, empleado);
   }
 }

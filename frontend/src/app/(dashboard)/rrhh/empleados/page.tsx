@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { cn, toDateString } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Empleado, Area, Sede } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -171,8 +172,8 @@ export default function EmpleadosPage() {
       const response = await api.get<EmpleadosResponse>(`/empleados?${params.toString()}`);
       setEmpleados(response.data);
       setMeta(response.meta);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar empleados');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar empleados'));
     } finally {
       setLoading(false);
     }

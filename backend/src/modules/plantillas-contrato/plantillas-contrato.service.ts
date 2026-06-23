@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
-import { PlantillasContratoDocsService } from './plantillas-contrato-docs.service';
+import {
+  PlantillasContratoDocsService,
+  ContratoDataPlantilla,
+  EmpleadoParaDocumento,
+  EmpresaParaDocumento,
+} from './plantillas-contrato-docs.service';
 import { extractVariablesFromWordFile as extractVariablesFromWordFileHelper } from './plantillas-contrato-word-utils';
 import {
   CreatePlantillaContratoDto,
@@ -321,7 +326,7 @@ export class PlantillasContratoService {
     if (plantilla.archivo_base_url) {
       try {
         await this.uploadsService.deleteFileHybrid(plantilla.archivo_base_url);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error eliminando archivo de plantilla:', error);
         // Continuamos con la eliminación del registro aunque falle el archivo
       }
@@ -432,9 +437,9 @@ export class PlantillasContratoService {
   // Reemplazar variables con datos reales
   reemplazarVariables(
     contenido: string,
-    empleado: any,
-    empresa: any,
-    contrato: any,
+    empleado: EmpleadoParaDocumento,
+    empresa: NonNullable<EmpresaParaDocumento>,
+    contrato: ContratoDataPlantilla | null,
   ): string {
     let resultado = contenido;
 
@@ -952,7 +957,7 @@ export class PlantillasContratoService {
     plantillaId: number,
     empresaId: number,
     empleadoId: number,
-    contratoData?: any,
+    contratoData?: ContratoDataPlantilla,
     formato: 'docx' | 'pdf' = 'pdf',
   ): Promise<{ buffer: Buffer; filename: string; mimetype: string }> {
     return this.plantillasContratoDocsService.generateContractDocument(

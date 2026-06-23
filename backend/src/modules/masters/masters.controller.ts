@@ -27,6 +27,7 @@ import {
   UpdateTipoCeseDto,
 } from './dto';
 import { RequirePermissions, CurrentUser } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('masters')
 export class MastersController {
@@ -43,13 +44,19 @@ export class MastersController {
 
   @Get('areas/:id')
   @RequirePermissions('maestros:leer')
-  findOneArea(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOneArea(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.findOneArea(id, user.empresa_id);
   }
 
   @Post('areas')
   @RequirePermissions('maestros:crear')
-  createArea(@Body() dto: CreateAreaDto, @CurrentUser() user: any) {
+  createArea(
+    @Body() dto: CreateAreaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createArea(dto, user.empresa_id);
   }
 
@@ -58,14 +65,17 @@ export class MastersController {
   updateArea(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAreaDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateArea(id, dto, user.empresa_id);
   }
 
   @Delete('areas/:id')
   @RequirePermissions('maestros:eliminar')
-  removeArea(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  removeArea(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.removeArea(id, user.empresa_id);
   }
 
@@ -82,14 +92,17 @@ export class MastersController {
   @RequirePermissions('maestros:leer')
   findOneCargo(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.findOneCargo(id, user.empresa_id);
   }
 
   @Post('cargos')
   @RequirePermissions('maestros:crear')
-  createCargo(@Body() dto: CreateCargoDto, @CurrentUser() user: any) {
+  createCargo(
+    @Body() dto: CreateCargoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createCargo(dto, user.empresa_id);
   }
 
@@ -98,14 +111,17 @@ export class MastersController {
   updateCargo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCargoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateCargo(id, dto, user.empresa_id);
   }
 
   @Delete('cargos/:id')
   @RequirePermissions('maestros:eliminar')
-  removeCargo(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  removeCargo(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.removeCargo(id, user.empresa_id);
   }
 
@@ -147,7 +163,7 @@ export class MastersController {
   @Get('procedencias')
   @RequirePermissions('maestros:leer')
   findAllProcedencias(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('incluir_inactivos') includeInactive?: string,
   ) {
     return this.mastersService.findAllProcedencias(
@@ -160,7 +176,7 @@ export class MastersController {
   @RequirePermissions('maestros:leer')
   findOneProcedencia(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.findOneProcedencia(id, user.empresa_id);
   }
@@ -169,7 +185,7 @@ export class MastersController {
   @RequirePermissions('maestros:crear')
   createProcedencia(
     @Body() dto: CreateProcedenciaDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.createProcedencia(dto, user.empresa_id);
   }
@@ -179,7 +195,7 @@ export class MastersController {
   updateProcedencia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProcedenciaDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateProcedencia(id, user.empresa_id, dto);
   }
@@ -188,7 +204,7 @@ export class MastersController {
   @RequirePermissions('maestros:eliminar')
   removeProcedencia(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.removeProcedencia(id, user.empresa_id);
   }
@@ -197,7 +213,7 @@ export class MastersController {
   @RequirePermissions('maestros:editar')
   toggleProcedencia(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.toggleProcedencia(id, user.empresa_id);
   }
@@ -235,7 +251,7 @@ export class MastersController {
   // ==================== TIPOS DE DOCUMENTO DE EMPLEADO ====================
   @Get('tipos-documento-empleado')
   @RequirePermissions('maestros:leer')
-  findAllTiposDocumentoEmpleado(@CurrentUser() user: any) {
+  findAllTiposDocumentoEmpleado(@CurrentUser() user: AuthenticatedUser) {
     // Siempre usar empresa del usuario logueado para evitar IDOR
     return this.mastersService.findAllTiposDocumentoEmpleado(user.empresa_id);
   }
@@ -244,7 +260,7 @@ export class MastersController {
   @RequirePermissions('maestros:leer')
   findOneTipoDocumentoEmpleado(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.findOneTipoDocumentoEmpleado(
       id,
@@ -256,7 +272,7 @@ export class MastersController {
   @RequirePermissions('maestros:crear')
   createTipoDocumentoEmpleado(
     @Body() dto: CreateTipoDocumentoEmpleadoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.createTipoDocumentoEmpleado(
       dto,
@@ -269,7 +285,7 @@ export class MastersController {
   updateTipoDocumentoEmpleado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTipoDocumentoEmpleadoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateTipoDocumentoEmpleado(
       id,
@@ -282,7 +298,7 @@ export class MastersController {
   @RequirePermissions('maestros:eliminar')
   removeTipoDocumentoEmpleado(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.removeTipoDocumentoEmpleado(id, user.empresa_id);
   }
@@ -300,7 +316,7 @@ export class MastersController {
   @Get('tipos-evaluacion')
   @RequirePermissions('maestros:leer')
   findAllTiposEvaluacion(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('incluir_inactivos') includeInactive?: string,
   ) {
     return this.mastersService.findAllTiposEvaluacion(
@@ -313,7 +329,7 @@ export class MastersController {
   @RequirePermissions('maestros:leer')
   findOneTipoEvaluacion(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.findOneTipoEvaluacion(id, user.empresa_id);
   }
@@ -322,7 +338,7 @@ export class MastersController {
   @RequirePermissions('maestros:crear')
   createTipoEvaluacion(
     @Body() dto: CreateTipoEvaluacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.createTipoEvaluacion(dto, user.empresa_id);
   }
@@ -332,7 +348,7 @@ export class MastersController {
   updateTipoEvaluacion(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTipoEvaluacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateTipoEvaluacion(id, user.empresa_id, dto);
   }
@@ -341,7 +357,7 @@ export class MastersController {
   @RequirePermissions('maestros:eliminar')
   removeTipoEvaluacion(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.removeTipoEvaluacion(id, user.empresa_id);
   }
@@ -350,7 +366,7 @@ export class MastersController {
   @RequirePermissions('maestros:editar')
   toggleTipoEvaluacion(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.toggleTipoEvaluacion(id, user.empresa_id);
   }
@@ -368,14 +384,17 @@ export class MastersController {
   @RequirePermissions('maestros:leer')
   findOneTipoCese(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.findOneTipoCese(id, user.empresa_id);
   }
 
   @Post('tipos-cese')
   @RequirePermissions('maestros:crear')
-  createTipoCese(@Body() dto: CreateTipoCeseDto, @CurrentUser() user: any) {
+  createTipoCese(
+    @Body() dto: CreateTipoCeseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createTipoCese(dto, user.empresa_id);
   }
 
@@ -384,7 +403,7 @@ export class MastersController {
   updateTipoCese(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTipoCeseDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.updateTipoCese(id, dto, user.empresa_id);
   }
@@ -393,7 +412,7 @@ export class MastersController {
   @RequirePermissions('maestros:eliminar')
   removeTipoCese(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mastersService.removeTipoCese(id, user.empresa_id);
   }

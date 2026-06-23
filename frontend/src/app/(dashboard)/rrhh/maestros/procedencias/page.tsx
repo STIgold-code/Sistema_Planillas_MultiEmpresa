@@ -47,6 +47,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Power } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface Procedencia {
@@ -76,7 +77,7 @@ export default function ProcedenciasPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   const form = useForm<ProcedenciaFormValues>({
-    resolver: zodResolver(procedenciaSchema) as any,
+    resolver: zodResolver(procedenciaSchema),
     defaultValues: {
       nombre: '',
       descripcion: '',
@@ -140,8 +141,8 @@ export default function ProcedenciasPage() {
       }
       setDialogOpen(false);
       fetchProcedencias();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar la procedencia');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar la procedencia'));
     } finally {
       setSaving(false);
     }
@@ -155,8 +156,8 @@ export default function ProcedenciasPage() {
       toast.success('Procedencia eliminada correctamente');
       setDeleteDialogOpen(false);
       fetchProcedencias();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar la procedencia');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar la procedencia'));
     }
   };
 
@@ -165,8 +166,8 @@ export default function ProcedenciasPage() {
       await api.patch(`/masters/procedencias/${procedencia.id}/toggle`, {});
       toast.success(procedencia.activo ? 'Procedencia desactivada' : 'Procedencia activada');
       fetchProcedencias();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar el estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar el estado'));
     }
   };
 

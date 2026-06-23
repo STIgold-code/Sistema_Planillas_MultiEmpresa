@@ -4,9 +4,15 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { CreatePlantillaContratoDto } from './dto';
+import {
+  ContratoDataPlantilla,
+  EmpleadoParaDocumento,
+  EmpresaParaDocumento,
+} from './plantillas-contrato-docs.service';
 import * as fs from 'fs';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -225,9 +231,9 @@ export class PlantillasContratoGeneracionService {
     empleadoId?: number,
     reemplazarVariablesFn?: (
       contenido: string,
-      empleado: any,
-      empresa: any,
-      contrato: any,
+      empleado: EmpleadoParaDocumento,
+      empresa: NonNullable<EmpresaParaDocumento>,
+      contrato: ContratoDataPlantilla | null,
     ) => string,
   ) {
     const plantilla = await this.prisma.plantillaContrato.findFirst({
@@ -286,7 +292,7 @@ export class PlantillasContratoGeneracionService {
     try {
       const pdfBuffer = await convertAsync(docxBuffer, 'pdf', undefined);
       return pdfBuffer;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error en conversión PDF con LibreOffice:', error);
       throw new BadRequestException(
         'Error al generar el PDF. Verifique que LibreOffice esté instalado en el servidor.',
@@ -295,16 +301,21 @@ export class PlantillasContratoGeneracionService {
   }
 
   // Formatear moneda
-  formatCurrency(value: number | null | undefined): string {
+  formatCurrency(value: number | Prisma.Decimal | null | undefined): string {
     if (!value) return '0.00';
-    return value.toLocaleString('es-PE', {
+    const numero = typeof value === 'number' ? value : Number(value);
+    return numero.toLocaleString('es-PE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   }
 
   // Preparar datos para docxtemplater (formato plano con puntos)
-  prepareDocumentData(empleado: any, empresa: any, contrato: any) {
+  prepareDocumentData(
+    empleado: EmpleadoParaDocumento,
+    empresa: EmpresaParaDocumento,
+    contrato: ContratoDataPlantilla | undefined,
+  ) {
     // Usar zona horaria Peru para todas las fechas
     const hoyPeru = ahoraPeru();
 
@@ -457,7 +468,7 @@ export class PlantillasContratoGeneracionService {
     plantillaId: number,
     empresaId: number,
     empleadoId: number,
-    contratoData?: any,
+    contratoData?: ContratoDataPlantilla,
     formato: 'docx' | 'pdf' = 'pdf',
   ): Promise<{ buffer: Buffer; filename: string; mimetype: string }> {
     // Obtener plantilla
@@ -507,7 +518,7 @@ export class PlantillasContratoGeneracionService {
       content = await this.uploadsService.getFileBuffer(
         plantilla.archivo_base_url,
       );
-    } catch (error) {
+    } catch {
       throw new NotFoundException('No se pudo leer el archivo de la plantilla');
     }
 
@@ -519,7 +530,7 @@ export class PlantillasContratoGeneracionService {
     });
 
     // Si no se pasaron datos de contrato, buscar el contrato activo del empleado
-    let contratoFinal = contratoData;
+    let contratoFinal: ContratoDataPlantilla | undefined = contratoData;
     if (!contratoFinal) {
       const contratoActivo = await this.prisma.contrato.findFirst({
         where: {

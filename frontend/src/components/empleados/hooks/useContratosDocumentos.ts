@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getAccessToken } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
 import { PlantillaDocumento } from './contratos.types';
@@ -74,7 +75,7 @@ export function useContratosDocumentos({
   const handleGenerarUnificado = async () => {
     let plantillaId = '';
     let endpoint = '';
-    let body: any = {};
+    let body: Record<string, unknown> = {};
 
     if (activeTab === 'banco') {
       if (!selectedPlantillaBanco) {
@@ -159,9 +160,9 @@ export function useContratosDocumentos({
       setShowGenerarBancoModal(false);
       setSelectedPlantillaBanco('');
       setSelectedPlantilla('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error(error.message || 'Error al generar documento');
+      toast.error(getApiErrorMessage(error, 'Error al generar documento'));
     } finally {
       setGenerating(false);
     }

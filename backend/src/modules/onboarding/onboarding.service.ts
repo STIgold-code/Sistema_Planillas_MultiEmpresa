@@ -15,7 +15,7 @@ import {
   OmitirTareaDto,
   FilterProcesoOnboardingDto,
 } from './dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, EstadoProcesoOnboarding } from '@prisma/client';
 import { ahoraPeru, leerFechaPrisma } from '../../common/utils/datetime.util';
 import { UploadsService } from '../uploads/uploads.service';
 
@@ -306,7 +306,7 @@ export class OnboardingService {
       empresa_id: empresaId,
     };
 
-    if (estado) where.estado = estado as any;
+    if (estado) where.estado = estado as EstadoProcesoOnboarding;
     if (empleado_id) where.empleado_id = empleado_id;
 
     const [data, total] = await Promise.all([

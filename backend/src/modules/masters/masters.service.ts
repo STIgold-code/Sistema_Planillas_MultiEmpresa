@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateAreaDto,
@@ -36,7 +37,7 @@ export class MastersService {
   }
 
   async findOneArea(id: number, empresaId?: number) {
-    const where: any = { id };
+    const where: Prisma.AreaWhereInput = { id };
     if (empresaId) where.empresa_id = empresaId;
 
     const area = await this.prisma.area.findFirst({
@@ -101,7 +102,7 @@ export class MastersService {
   }
 
   async findOneCargo(id: number, empresaId?: number) {
-    const where: any = { id };
+    const where: Prisma.CargoWhereInput = { id };
     if (empresaId) where.empresa_id = empresaId;
 
     const cargo = await this.prisma.cargo.findFirst({
@@ -326,7 +327,7 @@ export class MastersService {
   }
 
   async findOneTipoDocumentoEmpleado(id: number, empresaId?: number) {
-    const where: any = { id };
+    const where: Prisma.TipoDocumentoEmpleadoWhereInput = { id };
     if (empresaId) where.empresa_id = empresaId;
 
     const tipo = await this.prisma.tipoDocumentoEmpleado.findFirst({
@@ -569,7 +570,7 @@ export class MastersService {
   }
 
   async findOneTipoCese(id: number, empresaId?: number) {
-    const where: any = { id };
+    const where: Prisma.TipoCeseMaestroWhereInput = { id };
     if (empresaId) where.empresa_id = empresaId;
 
     const tipo = await this.prisma.tipoCeseMaestro.findFirst({

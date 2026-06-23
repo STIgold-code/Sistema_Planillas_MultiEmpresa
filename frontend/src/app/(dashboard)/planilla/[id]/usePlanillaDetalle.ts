@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, getAccessToken } from '@/lib/api';
 import { Planilla, PlanillaDetalle } from '@/types';
+import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
 import { EditForm, ConfirmAction } from './types';
 import { exportarPlanillaExcel } from './planilla-export';
@@ -108,8 +109,8 @@ export function usePlanillaDetalle() {
       await api.post(`/planillas/${id}/aprobar`, {});
       toast.success('Planilla aprobada correctamente');
       fetchPlanilla();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al aprobar la planilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al aprobar la planilla'));
     } finally {
       setApproving(false);
       setConfirmAction(null);
@@ -122,8 +123,8 @@ export function usePlanillaDetalle() {
       await api.post(`/planillas/${id}/pagar`, {});
       toast.success('Planilla marcada como pagada');
       fetchPlanilla();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al marcar como pagada');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al marcar como pagada'));
     } finally {
       setPaying(false);
       setConfirmAction(null);
@@ -136,8 +137,8 @@ export function usePlanillaDetalle() {
       await api.post(`/planillas/${id}/anular`, {});
       toast.success('Planilla anulada');
       fetchPlanilla();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al anular la planilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al anular la planilla'));
     } finally {
       setCanceling(false);
       setConfirmAction(null);
@@ -154,7 +155,7 @@ export function usePlanillaDetalle() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({})) as { message?: string };
         throw new Error(errorData.message || 'Error al descargar boletas');
       }
 
@@ -177,9 +178,9 @@ export function usePlanillaDetalle() {
       document.body.removeChild(a);
 
       toast.success(`PDF descargado con ${boletasCount || 'todas las'} boletas`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error downloading boletas:', error);
-      toast.error(error.message || 'Error al descargar las boletas');
+      toast.error(getApiErrorMessage(error, 'Error al descargar las boletas'));
     } finally {
       setDownloadingBoletas(false);
     }
@@ -223,8 +224,8 @@ export function usePlanillaDetalle() {
       toast.success('Detalle actualizado');
       setEditingDetalle(null);
       fetchPlanilla();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar'));
     } finally {
       setSaving(false);
     }

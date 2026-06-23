@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { Empresa } from '@/types';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface UpdateEmpresaData {
   ruc?: string;
@@ -33,8 +34,8 @@ export function useEmpresa() {
       const data = await api.get<Empresa>('/companies/me');
       setEmpresa(data);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar datos de la empresa');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Error al cargar datos de la empresa'));
     } finally {
       setLoading(false);
     }
@@ -55,8 +56,8 @@ export function useEmpresa() {
       setEmpresa(updated);
       setError(null);
       return updated;
-    } catch (err: any) {
-      const errorMsg = err.message || 'Error al actualizar la empresa';
+    } catch (err: unknown) {
+      const errorMsg = getApiErrorMessage(err, 'Error al actualizar la empresa');
       setError(errorMsg);
       throw err;
     } finally {

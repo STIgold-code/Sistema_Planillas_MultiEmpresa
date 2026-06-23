@@ -14,7 +14,7 @@ export interface RegistrarCambioEstadoParams {
   usuarioId: number;
   usuarioEmail?: string;
   motivo?: string;
-  datosAdicionales?: Record<string, any>;
+  datosAdicionales?: Record<string, unknown>;
 }
 
 /**
@@ -24,8 +24,8 @@ export interface RegistrarCambioCampoParams {
   tablaAfectada: string;
   registroId: number;
   campo: string;
-  valorAnterior: any;
-  valorNuevo: any;
+  valorAnterior: unknown;
+  valorNuevo: unknown;
   usuarioId: number;
   usuarioEmail?: string;
 }
@@ -55,8 +55,8 @@ export interface RegistrarAuditoriaAsyncParams {
   usuarioId: number;
   usuarioEmail?: string;
   empresaId?: number;
-  datosAnteriores?: Record<string, any>;
-  datosNuevos?: Record<string, any>;
+  datosAnteriores?: Record<string, unknown>;
+  datosNuevos?: Record<string, unknown>;
   descripcion?: string;
 }
 
@@ -81,14 +81,17 @@ export class AuditoriaService {
             accion: params.accion,
             tabla_afectada: params.tablaAfectada,
             registro_id: params.registroId,
-            datos_anteriores: params.datosAnteriores || null,
+            datos_anteriores:
+              (params.datosAnteriores as Prisma.InputJsonValue) || null,
             datos_nuevos: params.datosNuevos
-              ? {
+              ? ({
                   ...params.datosNuevos,
                   _descripcion: params.descripcion,
-                }
+                } as Prisma.InputJsonValue)
               : params.descripcion
-                ? { _descripcion: params.descripcion }
+                ? ({
+                    _descripcion: params.descripcion,
+                  } as Prisma.InputJsonValue)
                 : null,
           },
         });
@@ -97,9 +100,11 @@ export class AuditoriaService {
           `Auditoría registrada: ${params.accion} en ${params.tablaAfectada}[${params.registroId}]`,
         );
       } catch (error) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
         this.logger.error(
-          `Error registrando auditoría async: ${error.message}`,
-          error.stack,
+          `Error registrando auditoría async: ${mensaje}`,
+          stack,
         );
       }
     });
@@ -135,7 +140,7 @@ export class AuditoriaService {
             estado: estadoNuevo,
             motivo: motivo || null,
             ...datosAdicionales,
-          },
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -145,9 +150,11 @@ export class AuditoriaService {
 
       return auditoria;
     } catch (error) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Error registrando cambio de estado: ${error.message}`,
-        error.stack,
+        `Error registrando cambio de estado: ${mensaje}`,
+        stack,
       );
       return null;
     }
@@ -181,10 +188,10 @@ export class AuditoriaService {
           registro_id: registroId,
           datos_anteriores: {
             [campo]: valorAnterior,
-          },
+          } as Prisma.InputJsonValue,
           datos_nuevos: {
             [campo]: valorNuevo,
-          },
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -194,10 +201,9 @@ export class AuditoriaService {
 
       return auditoria;
     } catch (error) {
-      this.logger.error(
-        `Error registrando cambio de campo: ${error.message}`,
-        error.stack,
-      );
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error registrando cambio de campo: ${mensaje}`, stack);
       return null;
     }
   }
@@ -208,7 +214,11 @@ export class AuditoriaService {
   async registrarCambiosCampos(
     tablaAfectada: string,
     registroId: number,
-    cambios: Array<{ campo: string; valorAnterior: any; valorNuevo: any }>,
+    cambios: Array<{
+      campo: string;
+      valorAnterior: unknown;
+      valorNuevo: unknown;
+    }>,
     usuarioId: number,
     usuarioEmail?: string,
   ) {
@@ -220,8 +230,8 @@ export class AuditoriaService {
       return null;
     }
 
-    const datosAnteriores: Record<string, any> = {};
-    const datosNuevos: Record<string, any> = {};
+    const datosAnteriores: Record<string, unknown> = {};
+    const datosNuevos: Record<string, unknown> = {};
 
     cambiosReales.forEach((c) => {
       datosAnteriores[c.campo] = c.valorAnterior;
@@ -236,8 +246,8 @@ export class AuditoriaService {
           accion: 'UPDATE',
           tabla_afectada: tablaAfectada,
           registro_id: registroId,
-          datos_anteriores: datosAnteriores,
-          datos_nuevos: datosNuevos,
+          datos_anteriores: datosAnteriores as Prisma.InputJsonValue,
+          datos_nuevos: datosNuevos as Prisma.InputJsonValue,
         },
       });
 
@@ -247,9 +257,11 @@ export class AuditoriaService {
 
       return auditoria;
     } catch (error) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Error registrando cambios múltiples: ${error.message}`,
-        error.stack,
+        `Error registrando cambios múltiples: ${mensaje}`,
+        stack,
       );
       return null;
     }
@@ -264,7 +276,7 @@ export class AuditoriaService {
     registroId: number | null,
     usuarioId: number,
     usuarioEmail?: string,
-    datos?: Record<string, any>,
+    datos?: Record<string, unknown>,
   ) {
     try {
       const auditoria = await this.prisma.auditoria.create({
@@ -274,16 +286,15 @@ export class AuditoriaService {
           accion: accion,
           tabla_afectada: tablaAfectada,
           registro_id: registroId,
-          datos_nuevos: datos || null,
+          datos_nuevos: (datos as Prisma.InputJsonValue) || null,
         },
       });
 
       return auditoria;
     } catch (error) {
-      this.logger.error(
-        `Error registrando acción: ${error.message}`,
-        error.stack,
-      );
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error registrando acción: ${mensaje}`, stack);
       return null;
     }
   }
@@ -502,10 +513,10 @@ export class AuditoriaService {
     headerRow.height = 24;
 
     registros.forEach((reg) => {
-      const formatJson = (data: any) => {
-        if (!data) return '';
+      const formatJson = (data: Prisma.JsonValue) => {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return '';
         try {
-          const { _descripcion, ...rest } = data;
+          const { _descripcion: _omitido, ...rest } = data;
           return Object.keys(rest).length > 0
             ? JSON.stringify(rest, null, 0)
             : '';

@@ -47,8 +47,8 @@ interface AuditoriaRecord {
   accion: string;
   tabla_afectada: string;
   registro_id: number | null;
-  datos_anteriores: Record<string, any> | null;
-  datos_nuevos: Record<string, any> | null;
+  datos_anteriores: Record<string, unknown> | null;
+  datos_nuevos: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -451,9 +451,9 @@ export default function AuditoriaPage() {
               </div>
 
               {/* Descripción si existe */}
-              {selectedRecord.datos_nuevos?._descripcion && (
+              {Boolean(selectedRecord.datos_nuevos?._descripcion) && (
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm">{selectedRecord.datos_nuevos._descripcion}</p>
+                  <p className="text-sm">{String(selectedRecord.datos_nuevos?._descripcion)}</p>
                 </div>
               )}
 

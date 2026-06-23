@@ -100,7 +100,7 @@ export function AlertasFaltasPanel({
       if (response.total > 0) {
         setOpen(true);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching alertas:', error);
     } finally {
       setLoading(false);

@@ -15,6 +15,7 @@ import { CreateCompanyDto, UpdateCompanyDto } from './dto';
 import { RequirePermissions, CurrentUser } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('companies')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -22,13 +23,13 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Get('me')
-  getMyCompany(@CurrentUser() user: any) {
+  getMyCompany(@CurrentUser() user: AuthenticatedUser) {
     return this.companiesService.findOne(user.empresa_id);
   }
 
   @Get()
   @RequirePermissions('empresas:leer')
-  findAll(@CurrentUser() user: any) {
+  findAll(@CurrentUser() user: AuthenticatedUser) {
     // Solo usuarios con permiso wildcard pueden ver todas las empresas
     if (user.rol?.permisos?.includes('*')) {
       return this.companiesService.findAll();
@@ -39,7 +40,10 @@ export class CompaniesController {
 
   @Get(':id')
   @RequirePermissions('empresas:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // Validar que solo acceda a su propia empresa (o tiene permiso *)
     if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
       throw new ForbiddenException('No puede acceder a otra empresa');
@@ -58,7 +62,7 @@ export class CompaniesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCompanyDto: UpdateCompanyDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     // Validar que solo modifique su propia empresa (o tiene permiso *)
     if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
@@ -69,7 +73,10 @@ export class CompaniesController {
 
   @Delete(':id')
   @RequirePermissions('empresas:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // Validar que solo elimine su propia empresa (o tiene permiso *)
     if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
       throw new ForbiddenException('No puede eliminar otra empresa');

@@ -86,9 +86,13 @@ export class VacacionesSolicitudesService {
     }
 
     if (area_id) {
+      const empleadoFiltroExistente =
+        where.empleado && 'is' in where.empleado
+          ? where.empleado.is
+          : undefined;
       where.empleado = {
         is: {
-          ...(where.empleado as any)?.is,
+          ...empleadoFiltroExistente,
           area_id,
         },
       };

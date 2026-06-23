@@ -15,10 +15,32 @@ import {
 } from '../../common/constants/business-rules';
 import { OnboardingService } from '../onboarding/onboarding.service';
 import { ConvertirEmpleadoDto } from './dto';
+import { Prisma } from '@prisma/client';
 import {
   parsearFechaISOenPeru,
   leerFechaPrisma,
 } from '../../common/utils/datetime.util';
+
+/**
+ * Postulante tal como lo retorna PostulantesService.findOne: incluye la vacante
+ * con sus campos de área/cargo/sede para resolver los valores por defecto en la
+ * conversión a empleado.
+ */
+type PostulanteConVacante = Prisma.PostulanteGetPayload<{
+  include: {
+    vacante: {
+      select: {
+        id: true;
+        codigo: true;
+        titulo: true;
+        area_id: true;
+        cargo_id: true;
+        sede_id: true;
+        requisitos: true;
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class PostulanteConversionService {
@@ -34,7 +56,7 @@ export class PostulanteConversionService {
     empresaId: number,
     usuarioId: number,
     dto: ConvertirEmpleadoDto,
-    postulante: any,
+    postulante: PostulanteConVacante,
   ) {
     // Validación: Edad mínima (18 años)
     if (postulante.fecha_nacimiento) {
@@ -196,9 +218,9 @@ export class PostulanteConversionService {
           peso: postulante.peso,
           categoria_licencia: postulante.categoria_licencia,
           // Datos del CV
-          estudios: postulante.estudios,
-          experiencias: postulante.experiencias,
-          capacitaciones: postulante.capacitaciones,
+          estudios: postulante.estudios as Prisma.InputJsonValue,
+          experiencias: postulante.experiencias as Prisma.InputJsonValue,
+          capacitaciones: postulante.capacitaciones as Prisma.InputJsonValue,
           fecha_ingreso: parsearFechaISOenPeru(dto.fecha_ingreso),
           area_id: areaId,
           cargo_id: cargoId,

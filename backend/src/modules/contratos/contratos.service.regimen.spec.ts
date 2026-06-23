@@ -6,35 +6,39 @@ import { UploadsService } from '../uploads/uploads.service';
 import { ContratoLifecycleService } from './contrato-lifecycle.service';
 import { CreateContratoDto } from './dto';
 
+// Cliente de transacción simulado: el tipo se deriva del literal por inferencia,
+// evitando `any` sin forzar la firma completa de Prisma.TransactionClient.
+const crearTxMock = () => ({
+  empleado: {
+    findFirst: jest
+      .fn()
+      .mockResolvedValue({ id: 5, estado: 'ACTIVO', empresa_id: 1 }),
+    update: jest.fn(),
+  },
+  contrato: {
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation(({ data }) => ({
+      id: 10,
+      ...data,
+      empleado: { fecha_cese: null },
+    })),
+    update: jest.fn().mockImplementation(({ data }) => ({ id: 10, ...data })),
+  },
+  vinculoLaboral: {
+    findFirst: jest.fn().mockResolvedValue({ id: 7 }),
+    create: jest.fn().mockResolvedValue({ id: 7 }),
+  },
+});
+
 describe('ContratosService - persistencia de regimen_laboral', () => {
   let service: ContratosService;
-  let tx: any;
+  let tx: ReturnType<typeof crearTxMock>;
 
   const empresaId = 1;
   const usuarioId = 99;
 
   beforeEach(async () => {
-    tx = {
-      empleado: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValue({ id: 5, estado: 'ACTIVO', empresa_id: empresaId }),
-        update: jest.fn(),
-      },
-      contrato: {
-        findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation(({ data }) => ({
-          id: 10,
-          ...data,
-          empleado: { fecha_cese: null },
-        })),
-        update: jest.fn().mockImplementation(({ data }) => ({ id: 10, ...data })),
-      },
-      vinculoLaboral: {
-        findFirst: jest.fn().mockResolvedValue({ id: 7 }),
-        create: jest.fn().mockResolvedValue({ id: 7 }),
-      },
-    };
+    tx = crearTxMock();
 
     const prismaMock = {
       $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),

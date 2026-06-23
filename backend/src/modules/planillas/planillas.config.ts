@@ -217,7 +217,7 @@ export function round2(value: number): number {
 /**
  * Convierte un valor a número de forma segura
  */
-export function safeNumber(value: any): number {
+export function safeNumber(value: unknown): number {
   const num = Number(value);
   return isNaN(num) ? 0 : num;
 }

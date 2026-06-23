@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { uploadFile } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface LogoUploadProps {
   currentLogoUrl?: string | null;
@@ -63,12 +64,11 @@ export function LogoUpload({
     reader.readAsDataURL(file);
 
     try {
-      const result = await uploadFile(uploadPath, file) as any;
+      const result = await uploadFile(uploadPath, file) as { url?: string; file?: { url?: string } };
       const url = result.url || result.file?.url;
       if (url) onUpload(url);
-    } catch (err) {
-      const error = err as { message?: string };
-      setError(error.message || 'Error al subir el logo');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Error al subir el logo'));
       setPreview(null);
     } finally {
       setUploading(false);

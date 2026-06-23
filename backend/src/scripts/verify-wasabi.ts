@@ -42,12 +42,15 @@ async function listWasabiFiles() {
         console.log('   -------------------------');
       });
     }
-  } catch (error: any) {
-    console.error('❌ Error conectando a Wasabi:', error.message);
-    if (error.name === 'InvalidAccessKeyId') {
+  } catch (error: unknown) {
+    // Forma opaca: extraemos mensaje y nombre con narrowing seguro
+    const message = error instanceof Error ? error.message : String(error);
+    const name = error instanceof Error ? error.name : '';
+    console.error('❌ Error conectando a Wasabi:', message);
+    if (name === 'InvalidAccessKeyId') {
       console.error('⚠️ Verifica tus credenciales (Access Key).');
     }
-    if (error.name === 'SignatureDoesNotMatch') {
+    if (name === 'SignatureDoesNotMatch') {
       console.error('⚠️ Verifica tu Secret Key.');
     }
   }

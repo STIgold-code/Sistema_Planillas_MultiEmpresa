@@ -24,6 +24,8 @@ import { CurrentUser, RequirePermissions } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { multerOptions } from '../uploads/uploads.config';
+import { AuthenticatedUser } from '../../common/types/auth.types';
+import { ContratoParaImportar } from './contratos-excel.service';
 import {
   fechaHoyPeru,
   parsearFechaISOenPeru,
@@ -39,25 +41,31 @@ export class ContratosController {
 
   @Get()
   @RequirePermissions('contratos:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterContratoDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterContratoDto,
+  ) {
     return this.contratosService.findAll(user.empresa_id, filters);
   }
 
   @Get('resumen')
   @RequirePermissions('contratos:leer')
-  getResumen(@CurrentUser() user: any) {
+  getResumen(@CurrentUser() user: AuthenticatedUser) {
     return this.contratosService.getResumen(user.empresa_id);
   }
 
   @Get('tipos')
   @RequirePermissions('contratos:leer')
-  getTiposContrato(@CurrentUser() user: any) {
+  getTiposContrato(@CurrentUser() user: AuthenticatedUser) {
     return this.contratosService.getTiposContrato(user.empresa_id);
   }
 
   @Get('exportar/excel')
   @RequirePermissions('contratos:leer')
-  async exportarExcel(@CurrentUser() user: any, @Res() res: Response) {
+  async exportarExcel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
     const workbook = await this.contratosExcelService.exportarContratos(
       user.empresa_id,
     );
@@ -77,13 +85,19 @@ export class ContratosController {
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('contratos:crear')
-  create(@Body() dto: CreateContratoDto, @CurrentUser() user: any) {
+  create(
+    @Body() dto: CreateContratoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.create(user.empresa_id, dto, user.id);
   }
 
@@ -92,20 +106,26 @@ export class ContratosController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateContratoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.contratosService.update(id, user.empresa_id, dto);
   }
 
   @Delete(':id')
   @RequirePermissions('contratos:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.remove(id, user.empresa_id);
   }
 
   @Post('reingreso')
   @RequirePermissions('contratos:crear')
-  reingreso(@Body() dto: CreateContratoDto, @CurrentUser() user: any) {
+  reingreso(
+    @Body() dto: CreateContratoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.reingreso(user.empresa_id, dto, user.id);
   }
 
@@ -114,7 +134,7 @@ export class ContratosController {
   renovar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateContratoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.contratosService.renovar(id, user.empresa_id, dto, user.id);
   }
@@ -124,7 +144,7 @@ export class ContratosController {
   terminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { motivo?: string },
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.contratosService.terminar(id, user.empresa_id, body.motivo);
   }
@@ -136,7 +156,7 @@ export class ContratosController {
   @UseInterceptors(FileInterceptor('file'))
   async previewImport(
     @UploadedFile() file: Express.Multer.File,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('No se ha proporcionado ningún archivo');
@@ -162,8 +182,20 @@ export class ContratosController {
   @Post('importar/aplicar')
   @RequirePermissions('contratos:crear')
   async aplicarImport(
-    @Body() body: { contratos: any[] },
-    @CurrentUser() user: any,
+    @Body()
+    body: {
+      contratos: Array<
+        Omit<
+          ContratoParaImportar,
+          'fecha_inicio' | 'fecha_fin' | 'fecha_cese'
+        > & {
+          fecha_inicio: string;
+          fecha_fin: string;
+          fecha_cese?: string | null;
+        }
+      >;
+    },
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!body.contratos || !Array.isArray(body.contratos)) {
       throw new BadRequestException(
@@ -172,10 +204,11 @@ export class ContratosController {
     }
 
     // Convertir strings de fecha a Date usando timezone Peru
-    const contratos = body.contratos.map((c) => ({
+    const contratos: ContratoParaImportar[] = body.contratos.map((c) => ({
       ...c,
       fecha_inicio: parsearFechaISOenPeru(c.fecha_inicio),
       fecha_fin: parsearFechaISOenPeru(c.fecha_fin),
+      fecha_cese: c.fecha_cese ? parsearFechaISOenPeru(c.fecha_cese) : null,
     }));
 
     return this.contratosExcelService.aplicarImportacion(
@@ -196,7 +229,7 @@ export class ContratosController {
   subirContratoFirmado(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('No se ha proporcionado ningún archivo');
@@ -216,7 +249,7 @@ export class ContratosController {
   @RequirePermissions('contratos:leer')
   async descargarContrato(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     const { buffer, filename, mimetype } =
@@ -235,7 +268,7 @@ export class ContratosController {
   @RequirePermissions('contratos:editar')
   eliminarArchivoContrato(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.contratosService.eliminarArchivoContrato(id, user.empresa_id);
   }

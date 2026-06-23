@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface Empleado {
   id: number;
@@ -102,10 +103,10 @@ export default function NuevaSolicitudPage() {
         if (response.periodos.length > 0) {
           setPeriodoId(response.periodos[0].id.toString());
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching saldo:', error);
         // Si no hay períodos, intentar generarlos
-        if (error.status === 404) {
+        if (error && typeof error === 'object' && 'status' in error && (error as { status: number }).status === 404) {
           try {
             await api.post(`/vacaciones/periodos/generar/${empleadoId}`, {});
             // Reintentar obtener saldo
@@ -176,8 +177,8 @@ export default function NuevaSolicitudPage() {
       });
       toast.success('Solicitud registrada correctamente');
       router.push('/rrhh/vacaciones/solicitudes');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al registrar la solicitud');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al registrar la solicitud'));
     } finally {
       setSaving(false);
     }

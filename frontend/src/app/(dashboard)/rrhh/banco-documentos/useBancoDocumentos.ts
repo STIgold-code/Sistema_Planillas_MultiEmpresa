@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export interface VariableInfo {
   key: string;
@@ -78,7 +79,7 @@ export function useBancoDocumentos() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PlantillaFormValues>({
-    resolver: zodResolver(plantillaSchema) as any,
+    resolver: zodResolver(plantillaSchema) as Resolver<PlantillaFormValues>,
     defaultValues: {
       codigo: '',
       nombre: '',
@@ -188,8 +189,8 @@ export function useBancoDocumentos() {
       }
       setDialogOpen(false);
       fetchPlantillas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar la plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar la plantilla'));
     } finally {
       setSaving(false);
     }
@@ -202,8 +203,8 @@ export function useBancoDocumentos() {
       toast.success('Plantilla eliminada correctamente');
       setDeleteDialogOpen(false);
       fetchPlantillas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar la plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar la plantilla'));
     }
   };
 
@@ -212,8 +213,8 @@ export function useBancoDocumentos() {
       await api.patch(`/banco-documentos/plantillas/${plantilla.id}/toggle`, {});
       toast.success(plantilla.activo ? 'Plantilla desactivada' : 'Plantilla activada');
       fetchPlantillas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar estado'));
     }
   };
 
@@ -252,9 +253,9 @@ export function useBancoDocumentos() {
         } else {
           toast.success(`Se detectaron ${response.variables.length} variables`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error extracting variables:', error);
-        toast.error('Error al analizar el archivo: ' + (error.message || 'Error desconocido'));
+        toast.error('Error al analizar el archivo: ' + getApiErrorMessage(error, 'Error desconocido'));
       } finally {
         setIsExtracting(false);
       }

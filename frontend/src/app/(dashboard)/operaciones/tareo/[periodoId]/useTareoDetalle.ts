@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ExcelJS from 'exceljs';
 import { api, getAccessToken } from '@/lib/api';
-import { TareoGrillaResponse, TareoGrillaEmpleado, DiasConJustificacion, TareoJustificacion } from '@/types';
+import { TareoGrillaResponse, TareoGrillaEmpleado, DiasConJustificacion, TareoJustificacion, TareoDetalle, TareoDetalleAudit } from '@/types';
 import { useSesionTareo } from '@/hooks/useSesionTareo';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { descargarErroresImportacionExcel } from './tareo-import-errores';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ export function useTareoDetalle() {
     open: false,
     detalleId: null,
   });
-  const [historial, setHistorial] = useState<any[]>([]);
+  const [historial, setHistorial] = useState<TareoDetalleAudit[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   // ── Import/Export ───────────────────────────────────────────────────────────
@@ -176,9 +177,9 @@ export function useTareoDetalle() {
         `/tareo/periodos/${periodoId}/grilla?${searchParams.toString()}`
       );
       setData(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching grilla:', error);
-      toast.error(error.message || 'Error al cargar la grilla');
+      toast.error(getApiErrorMessage(error, 'Error al cargar la grilla'));
     } finally {
       setLoading(false);
     }
@@ -420,8 +421,8 @@ export function useTareoDetalle() {
       toast.success(`${cambiosPendientes.size} cambios guardados`);
       setCambiosPendientes(new Map());
       fetchData(currentPage, searchTerm, filterAreaId, filterSedeId);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar cambios');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar cambios'));
     } finally {
       setSaving(false);
     }
@@ -433,9 +434,9 @@ export function useTareoDetalle() {
     setHistorialDialog({ open: true, detalleId });
     setLoadingHistorial(true);
     try {
-      const response = await api.get<{ detalle: any; historial: any[] }>(`/tareo/detalle/${detalleId}/historial`);
+      const response = await api.get<{ detalle: TareoDetalle; historial: TareoDetalleAudit[] }>(`/tareo/detalle/${detalleId}/historial`);
       setHistorial(response.historial);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Error al cargar historial');
       setHistorial([]);
     } finally {
@@ -462,8 +463,8 @@ export function useTareoDetalle() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('Excel exportado correctamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al exportar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al exportar'));
     }
   };
 
@@ -487,14 +488,14 @@ export function useTareoDetalle() {
       );
 
       if (!response.ok) {
-        const error = await response.json();
+        const error: { message?: string } = await response.json();
         throw new Error(error.message || 'Error al procesar archivo');
       }
 
-      const preview = await response.json();
+      const preview: ImportPreview = await response.json();
       setImportPreview(preview);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al procesar archivo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al procesar archivo'));
       setImportFile(null);
     } finally {
       setImportLoading(false);
@@ -522,8 +523,8 @@ export function useTareoDetalle() {
       setImportFile(null);
       setImportPreview(null);
       fetchData(currentPage, searchTerm, filterAreaId, filterSedeId);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al aplicar cambios');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al aplicar cambios'));
     } finally {
       setApplying(false);
     }
@@ -557,8 +558,8 @@ export function useTareoDetalle() {
       } else {
         toast.info(response.message);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Error al sincronizar empleados');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al sincronizar empleados'));
     } finally {
       setSincronizando(false);
     }

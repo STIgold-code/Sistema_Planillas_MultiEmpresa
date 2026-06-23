@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Search, Building2, Phone, Mail, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface Cliente {
@@ -197,8 +198,8 @@ export default function ClientesPage() {
       }
       setDialogOpen(false);
       fetchClientes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el cliente');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el cliente'));
     } finally {
       setSaving(false);
     }
@@ -212,8 +213,8 @@ export default function ClientesPage() {
       toast.success('Cliente eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchClientes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el cliente');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el cliente'));
     }
   };
 
@@ -222,8 +223,8 @@ export default function ClientesPage() {
       await api.patch(`/clientes/${cliente.id}/toggle-activo`, {});
       toast.success(`Cliente ${cliente.activo ? 'desactivado' : 'activado'} correctamente`);
       fetchClientes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar estado'));
     }
   };
 

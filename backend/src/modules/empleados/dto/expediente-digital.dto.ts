@@ -68,7 +68,7 @@ export interface DocumentoExpediente {
     plantilla?: string; // Para documentos generados
     periodo?: string; // Para boletas (ej: "Enero 2024")
     firmado?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

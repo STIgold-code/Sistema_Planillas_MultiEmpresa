@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Area, Cargo, Banco, Sede, SbsConsultaResult, Empleado } from '@/types';
 import { toast } from 'sonner';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -172,7 +173,7 @@ export function useEmpleadoNuevo() {
   const [distritos, setDistritos] = useState<Distrito[]>([]);
 
   const form = useForm<EmpleadoFormValues>({
-    resolver: zodResolver(empleadoSchema) as any,
+    resolver: zodResolver(empleadoSchema) as Resolver<EmpleadoFormValues>,
     defaultValues: {
       foto_url: '',
       tipo_documento: 'DNI',
@@ -338,8 +339,8 @@ export function useEmpleadoNuevo() {
       if (result.cuspp) {
         form.setValue('cuspp', result.cuspp);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Error al consultar SBS');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al consultar SBS'));
     } finally {
       setConsultandoSbs(false);
     }
@@ -373,8 +374,8 @@ export function useEmpleadoNuevo() {
       setCreatedEmpleado(empleadoCompleto);
       setSuccessDialogOpen(true);
       toast.success('Empleado creado correctamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear empleado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear empleado'));
     } finally {
       setLoading(false);
     }

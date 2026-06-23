@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface Banco {
@@ -120,8 +121,8 @@ export default function BancosPage() {
       }
       setDialogOpen(false);
       fetchBancos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el banco');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el banco'));
     } finally {
       setSaving(false);
     }
@@ -135,8 +136,8 @@ export default function BancosPage() {
       toast.success('Banco eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchBancos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el banco');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el banco'));
     }
   };
 

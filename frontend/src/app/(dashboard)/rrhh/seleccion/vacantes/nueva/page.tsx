@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -141,8 +142,8 @@ export default function NuevaVacantePage() {
       await api.post('/vacantes', payload);
       toast.success('Vacante creada correctamente');
       router.push('/rrhh/seleccion/vacantes');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear la vacante');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear la vacante'));
     } finally {
       setLoading(false);
     }

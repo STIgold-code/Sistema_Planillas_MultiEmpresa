@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('clientes')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -25,7 +26,10 @@ export class ClientesController {
 
   @Post()
   @RequirePermissions('maestros:crear')
-  create(@CurrentUser() user: any, @Body() dto: CreateClienteDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateClienteDto,
+  ) {
     return this.clientesService.create(user.empresa_id, dto);
   }
 
@@ -65,7 +69,7 @@ export class ClientesController {
   @RequirePermissions('maestros:editar')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateClienteDto,
   ) {
     return this.clientesService.update(id, user.empresa_id, dto);
@@ -75,14 +79,17 @@ export class ClientesController {
   @RequirePermissions('maestros:editar')
   toggleActivo(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.clientesService.toggleActivo(id, user.empresa_id);
   }
 
   @Delete(':id')
   @RequirePermissions('maestros:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.clientesService.remove(id, user.empresa_id);
   }
 }

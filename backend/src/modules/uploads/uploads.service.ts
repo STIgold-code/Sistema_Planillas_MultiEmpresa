@@ -311,8 +311,9 @@ export class UploadsService {
         }
       }
       return true;
-    } catch (error) {
-      this.logger.error(`Error eliminando archivo: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error eliminando archivo: ${mensaje}`);
       return false;
     }
   }
@@ -402,13 +403,17 @@ export class UploadsService {
 
       // AWS SDK v3: convertir a Node.js stream compatible
       let nodeStream: NodeJS.ReadableStream;
+      const bodyDesconocido = body as unknown as {
+        pipe?: unknown;
+        getReader?: () => ReadableStreamDefaultReader<Uint8Array>;
+      };
 
-      if (typeof (body as any).pipe === 'function') {
+      if (typeof bodyDesconocido.pipe === 'function') {
         // Ya es un Node.js stream
         nodeStream = body as NodeJS.ReadableStream;
-      } else if (typeof (body as any).getReader === 'function') {
+      } else if (typeof bodyDesconocido.getReader === 'function') {
         // Es un Web ReadableStream, convertir a Node.js Readable
-        const reader = (body as any).getReader();
+        const reader = bodyDesconocido.getReader();
         nodeStream = new Readable({
           async read() {
             try {
@@ -434,8 +439,9 @@ export class UploadsService {
         contentType: response.ContentType || 'application/octet-stream',
         contentLength: response.ContentLength || 0,
       };
-    } catch (error) {
-      this.logger.error(`Error obteniendo archivo de Wasabi: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error obteniendo archivo de Wasabi: ${mensaje}`);
       return null;
     }
   }
@@ -464,23 +470,30 @@ export class UploadsService {
         }
 
         // Método compatible con AWS SDK v3 en todos los entornos
-        if (typeof (body as any).transformToByteArray === 'function') {
+        const bodyDesconocido = body as unknown as {
+          transformToByteArray?: () => Promise<Uint8Array>;
+          on?: unknown;
+          getReader?: () => ReadableStreamDefaultReader<Uint8Array>;
+        };
+        if (typeof bodyDesconocido.transformToByteArray === 'function') {
           // Método moderno de AWS SDK v3
-          const byteArray = await (body as any).transformToByteArray();
+          const byteArray = await bodyDesconocido.transformToByteArray();
           return Buffer.from(byteArray);
-        } else if (typeof (body as any).on === 'function') {
+        } else if (typeof bodyDesconocido.on === 'function') {
           // Fallback para Node.js streams tradicionales
-          const streamToBuffer = (stream: any): Promise<Buffer> =>
+          const streamToBuffer = (
+            stream: NodeJS.ReadableStream,
+          ): Promise<Buffer> =>
             new Promise((resolveBuffer, reject) => {
-              const chunks: any[] = [];
-              stream.on('data', (chunk: any) => chunks.push(chunk));
+              const chunks: Buffer[] = [];
+              stream.on('data', (chunk: Buffer) => chunks.push(chunk));
               stream.on('error', reject);
               stream.on('end', () => resolveBuffer(Buffer.concat(chunks)));
             });
-          return streamToBuffer(body);
-        } else if (typeof (body as any).getReader === 'function') {
+          return streamToBuffer(body as unknown as NodeJS.ReadableStream);
+        } else if (typeof bodyDesconocido.getReader === 'function') {
           // Fallback para Web ReadableStream
-          const reader = (body as any).getReader();
+          const reader = bodyDesconocido.getReader();
           const chunks: Uint8Array[] = [];
           let done = false;
           while (!done) {
@@ -504,10 +517,9 @@ export class UploadsService {
         } else {
           throw new Error('Unsupported response body type from S3');
         }
-      } catch (error) {
-        this.logger.error(
-          `Error obteniendo buffer de Wasabi: ${error.message}`,
-        );
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error obteniendo buffer de Wasabi: ${mensaje}`);
         throw new NotFoundException(
           'No se pudo obtener el archivo de la plantilla',
         );
@@ -609,8 +621,9 @@ export class UploadsService {
 
         finalPath = key;
         finalUrl = this.getFileUrl(key);
-      } catch (error) {
-        this.logger.error(`Error moviendo archivo a Wasabi: ${error.message}`);
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error moviendo archivo a Wasabi: ${mensaje}`);
       }
     } else if (isMemoryStorage) {
       // Si no hay Wasabi y el archivo está solo en memoria, persistirlo a disco
@@ -696,7 +709,7 @@ export class UploadsService {
         success: true,
         message: 'Archivo eliminado correctamente',
       };
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Error al eliminar el archivo');
     }
   }
@@ -717,11 +730,12 @@ export class UploadsService {
           success: true,
           message: 'Archivo eliminado correctamente',
         };
-      } catch (error) {
-        this.logger.error(`Error deleting file from Wasabi: ${error.message}`);
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error deleting file from Wasabi: ${mensaje}`);
         return {
           success: false,
-          message: `Error al eliminar archivo: ${error.message}`,
+          message: `Error al eliminar archivo: ${mensaje}`,
         };
       }
     }
@@ -741,11 +755,10 @@ export class UploadsService {
       // SEGURIDAD: Validar path traversal
       const fullPath = this.validateAndResolvePath(relativePath);
       return existsSync(fullPath);
-    } catch (error) {
+    } catch (error: unknown) {
       // Si la validacion falla (path traversal), retornar false
-      this.logger.warn(
-        `[SECURITY] fileExists validation failed: ${error.message}`,
-      );
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`[SECURITY] fileExists validation failed: ${mensaje}`);
       return false;
     }
   }
@@ -784,11 +797,10 @@ export class UploadsService {
         size: stats.size,
         extension: extname(relativePath),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       // Si la validacion falla, retornar no existe
-      this.logger.warn(
-        `[SECURITY] getFileInfo validation failed: ${error.message}`,
-      );
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`[SECURITY] getFileInfo validation failed: ${mensaje}`);
       return { exists: false };
     }
   }

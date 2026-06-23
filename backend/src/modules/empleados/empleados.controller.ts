@@ -30,6 +30,7 @@ import {
 } from './dto';
 import { SbsConsultaService } from './services/sbs-consulta.service';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { MAX_FILE_SIZE } from '../uploads/uploads.config';
 import { fechaHoyPeru } from '../../common/utils/datetime.util';
 
@@ -42,14 +43,17 @@ export class EmpleadosController {
 
   @Get()
   @RequirePermissions('empleados:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterEmpleadoDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterEmpleadoDto,
+  ) {
     return this.empleadosService.findAll(user.empresa_id, filters);
   }
 
   @Get('exportar')
   @RequirePermissions('empleados:leer')
   async exportar(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filters: FilterEmpleadoDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
@@ -77,7 +81,7 @@ export class EmpleadosController {
    */
   @Get('documentacion/dashboard')
   @RequirePermissions('empleados:leer')
-  getDashboardDocumentacion(@CurrentUser() user: any) {
+  getDashboardDocumentacion(@CurrentUser() user: AuthenticatedUser) {
     return this.empleadosService.getDashboardDocumentacion(user.empresa_id);
   }
 
@@ -87,7 +91,7 @@ export class EmpleadosController {
   @Get('documentacion/vencimientos')
   @RequirePermissions('empleados:leer')
   getDocumentosVencimiento(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('dias') dias?: string,
   ) {
     const diasAnticipacion = dias ? parseInt(dias, 10) : 30;
@@ -102,7 +106,7 @@ export class EmpleadosController {
    */
   @Post('documentacion/recalcular')
   @RequirePermissions('empleados:editar')
-  recalcularEstadoDocumentacion(@CurrentUser() user: any) {
+  recalcularEstadoDocumentacion(@CurrentUser() user: AuthenticatedUser) {
     return this.empleadosService.recalcularEstadoDocumentacionTodos(
       user.empresa_id,
     );
@@ -128,13 +132,19 @@ export class EmpleadosController {
 
   @Get(':id')
   @RequirePermissions('empleados:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.empleadosService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('empleados:crear_directo')
-  create(@Body() dto: CreateEmpleadoDto, @CurrentUser() user: any) {
+  create(
+    @Body() dto: CreateEmpleadoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // NOTA: Este endpoint requiere permiso especial 'empleados:crear_directo'
     // La forma estándar de crear empleados es mediante el proceso de selección:
     // POST /postulantes/:id/convertir (requiere 'seleccion:editar')
@@ -146,14 +156,17 @@ export class EmpleadosController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEmpleadoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.update(id, user.empresa_id, dto);
   }
 
   @Delete(':id')
   @RequirePermissions('empleados:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.empleadosService.remove(id, user.empresa_id);
   }
 
@@ -163,7 +176,7 @@ export class EmpleadosController {
   addFamiliar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddFamiliarDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.addFamiliar(id, user.empresa_id, dto);
   }
@@ -173,7 +186,7 @@ export class EmpleadosController {
   removeFamiliar(
     @Param('id', ParseIntPipe) id: number,
     @Param('familiarId', ParseIntPipe) familiarId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.removeFamiliar(
       familiarId,
@@ -187,7 +200,7 @@ export class EmpleadosController {
   @RequirePermissions('empleados:leer')
   getDocumentos(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.getDocumentos(id, user.empresa_id);
   }
@@ -218,7 +231,7 @@ export class EmpleadosController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: AddDocumentoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Se requiere un archivo');
@@ -259,7 +272,7 @@ export class EmpleadosController {
     @Param('documentoId', ParseIntPipe) documentoId: number,
     @UploadedFile() file: Express.Multer.File,
     @Body('motivo') motivo: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Se requiere un archivo');
@@ -284,7 +297,7 @@ export class EmpleadosController {
   getHistorialDocumento(
     @Param('id', ParseIntPipe) id: number,
     @Param('documentoId', ParseIntPipe) documentoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.getHistorialDocumento(
       documentoId,
@@ -299,7 +312,7 @@ export class EmpleadosController {
     @Param('id', ParseIntPipe) id: number,
     @Param('documentoId', ParseIntPipe) documentoId: number,
     @Body('motivo') motivo: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.removeDocumento(
       documentoId,
@@ -316,7 +329,7 @@ export class EmpleadosController {
   registrarMovimiento(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarMovimientoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.registrarMovimiento(
       id,
@@ -332,7 +345,7 @@ export class EmpleadosController {
   registrarPhotocheckLog(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: { motivo?: string; observaciones?: string },
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
   ) {
     const ipAddress =
@@ -351,7 +364,7 @@ export class EmpleadosController {
   @RequirePermissions('empleados:leer')
   getPhotocheckLogs(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.getPhotocheckLogs(id, user.empresa_id);
   }
@@ -363,7 +376,7 @@ export class EmpleadosController {
   @RequirePermissions('empleados:editar')
   actualizarEstadoDocumentacion(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.actualizarEstadoDocumentacion(
       id,
@@ -381,7 +394,7 @@ export class EmpleadosController {
   @RequirePermissions('empleados:leer')
   getExpedienteDigital(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('categoria') categoria?: string,
     @Query('origen') origen?: string,
     @Query('anio') anio?: string,
@@ -402,7 +415,7 @@ export class EmpleadosController {
   @RequirePermissions('empleados:leer')
   getDocumentosParaDescarga(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.empleadosService.getDocumentosParaDescarga(id, user.empresa_id);
   }

@@ -43,6 +43,7 @@ import {
   Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { getAccessToken } from '@/lib/api';
 
 const TIPOS_CONTRATO: Record<string, string> = {
@@ -84,8 +85,8 @@ export default function VerPlantillaPage() {
       try {
         const response = await api.get<PlantillaContrato>(`/plantillas-contrato/${plantillaId}`);
         setPlantilla(response);
-      } catch (error: any) {
-        toast.error(error.message || 'Error al cargar la plantilla');
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, 'Error al cargar la plantilla'));
         router.push('/rrhh/plantillas-contrato');
       } finally {
         setLoading(false);
@@ -111,8 +112,8 @@ export default function VerPlantillaPage() {
       toast.success('Plantilla duplicada. Ahora puedes editar el contenido y subir un nuevo archivo Word.');
       setDuplicarDialog(false);
       router.push(`/rrhh/plantillas-contrato/${nuevaPlantilla.id}/editar`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al duplicar plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al duplicar plantilla'));
     } finally {
       setDuplicando(false);
     }
@@ -123,8 +124,8 @@ export default function VerPlantillaPage() {
       await api.delete(`/plantillas-contrato/${plantillaId}`);
       toast.success('Plantilla eliminada correctamente');
       router.push('/rrhh/plantillas-contrato');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar plantilla'));
     }
   };
 
@@ -137,8 +138,8 @@ export default function VerPlantillaPage() {
         `/empleados?buscar=${encodeURIComponent(searchEmpleado)}&limit=10`
       );
       setEmpleados(response.data);
-    } catch (error: any) {
-      toast.error('Error al buscar empleados');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al buscar empleados'));
     } finally {
       setSearchingEmpleados(false);
     }
@@ -195,8 +196,8 @@ export default function VerPlantillaPage() {
       setSelectedEmpleado(null);
       setEmpleados([]);
       setSearchEmpleado('');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al generar contrato');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al generar contrato'));
     } finally {
       setGenerating(false);
     }
