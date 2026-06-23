@@ -1,6 +1,38 @@
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
+import { Boleta, PlanillaDetalle } from '@prisma/client';
 import { LOGO_ERMIR_PATH } from '../../common/utils/assets.util';
+
+/**
+ * Datos del empleado requeridos para dibujar la boleta.
+ * Las relaciones (cargo, regimen_pensionario, banco_haberes) llegan según el
+ * `include` de cada consulta, por eso se modelan como parciales opcionales.
+ */
+export interface EmpleadoBoletaPdf {
+  apellido_paterno: string;
+  apellido_materno: string | null;
+  nombres: string;
+  numero_documento: string | null;
+  fecha_ingreso: Date | null;
+  estado: string | null;
+  // El número de cuenta de haberes aún no existe como campo del modelo Empleado;
+  // se mantiene opcional para no romper el contrato cuando la consulta no lo provee.
+  numero_cuenta_haberes?: string | null;
+  cargo?: { nombre: string } | null;
+  regimen_pensionario?: { nombre: string | null; tipo: string | null } | null;
+  banco_haberes?: { nombre: string } | null;
+}
+
+/**
+ * Datos de la empresa requeridos para dibujar la boleta.
+ */
+export interface EmpresaBoletaPdf {
+  razon_social: string;
+  ruc: string;
+  direccion: string | null;
+  logo_url: string | null;
+  firma_representante_url: string | null;
+}
 
 /**
  * Dibuja una boleta individual en formato A4 horizontal - FORMATO ERMIR v2
@@ -10,10 +42,10 @@ export function dibujarBoletaA4(
   doc: PDFKit.PDFDocument,
   startX: number,
   startY: number,
-  boleta: any,
-  detalle: any,
-  empleado: any,
-  empresa: any,
+  boleta: Boleta,
+  detalle: PlanillaDetalle,
+  empleado: EmpleadoBoletaPdf,
+  empresa: EmpresaBoletaPdf,
   anchoTotal: number,
   altoTotal: number,
   tipoCopia: 'EMPLEADOR' | 'EMPLEADO',

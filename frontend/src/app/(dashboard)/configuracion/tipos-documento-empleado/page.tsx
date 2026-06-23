@@ -55,6 +55,7 @@ import {
 import { Plus, Pencil, Trash2, Loader2, FileText, Calendar, CalendarClock, CalendarOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { TipoDocumentoEmpleado, TipoVigenciaDocumento } from '@/types';
+import { getApiErrorMessage } from '@/lib/errors';
 
 const TIPO_VIGENCIA_OPTIONS: { value: TipoVigenciaDocumento; label: string; description: string }[] = [
   { value: 'SIN_FECHAS', label: 'Sin fechas', description: 'No requiere fechas (CV, foto)' },
@@ -182,8 +183,8 @@ export default function TiposDocumentoEmpleadoPage() {
       }
       setDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el tipo de documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el tipo de documento'));
     } finally {
       setSaving(false);
     }
@@ -197,8 +198,8 @@ export default function TiposDocumentoEmpleadoPage() {
       toast.success('Tipo de documento eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el tipo de documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el tipo de documento'));
     }
   };
 

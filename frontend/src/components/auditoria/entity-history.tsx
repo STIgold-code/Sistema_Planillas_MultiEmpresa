@@ -23,8 +23,8 @@ interface AuditoriaRecord {
     email: string;
   } | null;
   accion: string;
-  datos_anteriores: Record<string, any> | null;
-  datos_nuevos: Record<string, any> | null;
+  datos_anteriores: Record<string, unknown> | null;
+  datos_nuevos: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -140,8 +140,8 @@ export function EntityHistory({
                           <Badge variant="secondary" className={`${config.color} border-0 text-xs`}>
                             {config.label}
                           </Badge>
-                          {record.datos_nuevos?._descripcion && (
-                            <p className="text-sm">{record.datos_nuevos._descripcion}</p>
+                          {Boolean(record.datos_nuevos?._descripcion) && (
+                            <p className="text-sm">{String(record.datos_nuevos?._descripcion)}</p>
                           )}
                         </div>
                         <div className="text-right text-xs text-muted-foreground shrink-0">

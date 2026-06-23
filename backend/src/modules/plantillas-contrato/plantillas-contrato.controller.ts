@@ -23,6 +23,8 @@ import {
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
 import { multerOptions } from '../uploads/uploads.config';
+import { AuthenticatedUser } from '../../common/types/auth.types';
+import { ContratoDataPlantilla } from './plantillas-contrato-docs.service';
 
 @Controller('plantillas-contrato')
 export class PlantillasContratoController {
@@ -31,7 +33,7 @@ export class PlantillasContratoController {
   @Get()
   @RequirePermissions('contratos:leer')
   findAll(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filters: FilterPlantillaContratoDto,
   ) {
     return this.plantillasService.findAll(user.empresa_id, filters);
@@ -45,13 +47,13 @@ export class PlantillasContratoController {
 
   @Get('tipos')
   @RequirePermissions('contratos:leer')
-  getTiposContrato(@CurrentUser() user: any) {
+  getTiposContrato(@CurrentUser() user: AuthenticatedUser) {
     return this.plantillasService.getTiposContrato(user.empresa_id);
   }
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.plantillasService.findOne(id, user.empresa_id);
   }
 
@@ -59,7 +61,7 @@ export class PlantillasContratoController {
   @RequirePermissions('contratos:leer')
   async descargarWord(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     const plantilla = await this.plantillasService.findOne(id, user.empresa_id);
@@ -89,7 +91,7 @@ export class PlantillasContratoController {
   preview(
     @Param('id', ParseIntPipe) id: number,
     @Query('empleado_id') empleadoId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const empId = empleadoId ? parseInt(empleadoId, 10) : undefined;
     return this.plantillasService.preview(id, user.empresa_id, empId);
@@ -97,7 +99,7 @@ export class PlantillasContratoController {
 
   @Post()
   @RequirePermissions('contratos:crear')
-  create(@Body() dto: CreatePlantillaContratoDto, @CurrentUser() user: any) {
+  create(@Body() dto: CreatePlantillaContratoDto, @CurrentUser() user: AuthenticatedUser) {
     return this.plantillasService.create(user.empresa_id, dto);
   }
 
@@ -106,7 +108,7 @@ export class PlantillasContratoController {
   duplicar(
     @Param('id', ParseIntPipe) id: number,
     @Body('nombre') nuevoNombre: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.plantillasService.duplicar(id, user.empresa_id, nuevoNombre);
   }
@@ -116,14 +118,14 @@ export class PlantillasContratoController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePlantillaContratoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.plantillasService.update(id, user.empresa_id, dto);
   }
 
   @Delete(':id')
   @RequirePermissions('contratos:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.plantillasService.remove(id, user.empresa_id);
   }
 
@@ -142,7 +144,7 @@ export class PlantillasContratoController {
     @Body('tipo_contrato') tipo_contrato: string,
     @Body('es_predeterminada') es_predeterminada: string,
     @Body('force_invalid_variables') forceInvalidVariables: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Debe subir un archivo Word (.docx)');
@@ -204,7 +206,7 @@ export class PlantillasContratoController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
     @Body('force_invalid_variables') forceInvalidVariables: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Debe subir un archivo Word (.docx)');
@@ -301,9 +303,9 @@ export class PlantillasContratoController {
   async generateContract(
     @Param('id', ParseIntPipe) id: number,
     @Body('empleado_id', ParseIntPipe) empleadoId: number,
-    @Body('contrato') contratoData: any,
+    @Body('contrato') contratoData: ContratoDataPlantilla,
     @Body('formato') formato: 'docx' | 'pdf',
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     // Por defecto PDF si no se especifica, por seguridad

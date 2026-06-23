@@ -2,10 +2,125 @@
 
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe } from '@/lib/utils';
 import ExcelJS from 'exceljs';
 import { meses } from './types';
 import { COLORES, BORDER_TABLE, BORDER_HEADER } from './planilla-export-constants';
+
+interface CabeceraExportacion {
+  anio: number;
+  mes: number;
+  estado: string;
+  fecha_proceso: string;
+  total_bruto: number;
+  total_neto: number;
+  total_descuentos: number;
+}
+interface DetalleExportacion {
+  documento: string;
+  nombres_apellidos: string;
+  situacion: string;
+  cargo: string;
+  cliente: string;
+  sede: string;
+  banco: string;
+  cuenta: string;
+  cci: string;
+  cuspp: string;
+  fecha_ingreso: string;
+  fecha_cese: string;
+  sistema_pensionario: string;
+  nombre_sistema_pensionario: string;
+  total_dias: number;
+  dias_trabajados: number;
+  dias_vacaciones: number;
+  turno_dia: number;
+  turno_noche: number;
+  horas_8: number;
+  cant_feriados: number;
+  suspension: number;
+  faltas: number;
+  licencia_con_goce: number;
+  licencia_sin_goce: number;
+  descanso_medico: number;
+  subsidio_incapacidad: number;
+  subsidio_maternidad: number;
+  rem_basica: number;
+  haber_mensual: number;
+  sueldo_nocturno: number;
+  he_25: number;
+  he_25_monto: number;
+  he_35: number;
+  he_35_monto: number;
+  feriado_trabajado: number;
+  bonif_nocturna: number;
+  asig_familiar_monto: number;
+  asig_cliente_monto: number;
+  movilidad_monto: number;
+  refrigerio_monto: number;
+  bono_movilidad: number;
+  bono_refrigerio: number;
+  bono_productividad: number;
+  bono_productividad_monto: number;
+  bono_desempeno: number;
+  bono_desempeno_monto: number;
+  bono_armado: number;
+  bono_armado_monto: number;
+  bono_referido: number;
+  compen_vacacional: number;
+  remun_vacacional: number;
+  vac: number;
+  grat: number;
+  gratificacion_monto: number;
+  cts: number;
+  cts_monto: number;
+  descanso_medico_monto: number;
+  subsidio_incapacidad_monto: number;
+  subsidio_maternidad_monto: number;
+  licencia_goce_monto: number;
+  reintegro_dias_trab: number;
+  reintegro_inafecto: number;
+  venta_vacaciones: number;
+  afp_aporte: number;
+  afp_prima: number;
+  afp_comision: number;
+  snp_onp: number;
+  adelanto_quincena: number;
+  adelanto_vacacional: number;
+  adelanto_cts: number;
+  adelanto_gratificacion: number;
+  otros_adelantos: number;
+  otros_descuentos: number;
+  prestamo: number;
+  retencion_judicial: number;
+  renta_5ta: number;
+  faltas_monto: number;
+  tardanzas_monto: number;
+  permisos_monto: number;
+  dcts_sobregiro: number;
+  dcts_reintegro: number;
+  rem_afecta: number;
+  rem_computable_afp: number;
+  bonif_extraordinaria: number;
+  neto_pagar: number;
+  total_sueldo: number;
+  total_ingresos: number;
+  total_ingresos_afectos: number;
+  total_ingresos_no_afectos: number;
+  total_descuentos: number;
+  total_descuentos_ley: number;
+  total_descuentos_otros: number;
+  essalud: number;
+  sctr_salud_empleador: number;
+  sctr_pension_empleador: number;
+  vida_ley_empleador: number;
+  total_aportes_empleador: number;
+}
+interface PlanillaExportacion {
+  cabecera: CabeceraExportacion;
+  detalles: DetalleExportacion[];
+}
 
 /**
  * Exporta la planilla en Excel multi-hoja (Resumen Ejecutivo, Detalle, etc.).
@@ -15,7 +130,7 @@ import { COLORES, BORDER_TABLE, BORDER_HEADER } from './planilla-export-constant
  */
 export async function exportarPlanillaExcel(id: number): Promise<void> {
     try {
-      const data = await api.get(`/planillas/${id}/exportar`) as any;
+      const data = await api.get<PlanillaExportacion>(`/planillas/${id}/exportar`);
       const cab = data.cabecera;
       const detalles = data.detalles;
 
@@ -52,13 +167,13 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       const porCliente = new Map<string, { empleados: number; neto: number }>();
       const porSede = new Map<string, { empleados: number; neto: number }>();
       const porPension = new Map<string, { empleados: number; aporte: number }>();
-      const cesadosMes: any[] = [];
-      const nuevosMes: any[] = [];
-      const conRetencionJudicial: any[] = [];
-      const conSubsidios: any[] = [];
-      const conFaltas: any[] = [];
+      const cesadosMes: DetalleExportacion[] = [];
+      const nuevosMes: DetalleExportacion[] = [];
+      const conRetencionJudicial: DetalleExportacion[] = [];
+      const conSubsidios: DetalleExportacion[] = [];
+      const conFaltas: DetalleExportacion[] = [];
 
-      detalles.forEach((d: any) => {
+      detalles.forEach((d) => {
         const neto = Number(d.neto_pagar) || 0;
         const cliente = d.cliente || 'Sin Cliente';
         const sede = d.sede || 'Sin Sede';
@@ -448,7 +563,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
         94, 95,
       ]);
 
-      detalles.forEach((d: any, idx: number) => {
+      detalles.forEach((d, idx) => {
         const rowNum = idx + 8;
         const rowData = [
           idx + 1, d.situacion, d.documento, d.nombres_apellidos, d.cliente, d.sede, d.cargo,
@@ -611,7 +726,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       bancosHeaderRow.height = 22;
 
       let totalAbono = 0;
-      detalles.forEach((d: any, i: number) => {
+      detalles.forEach((d, i) => {
         const row = wsBancos.getRow(i + 2);
         const neto = Number(d.neto_pagar) || 0;
         totalAbono += neto;
@@ -659,7 +774,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       afpHeaderRow.height = 22;
 
       let totalAFP = 0;
-      detalles.forEach((d: any, i: number) => {
+      detalles.forEach((d, i) => {
         const row = wsAFP.getRow(i + 2);
         const aporte = Number(d.afp_aporte) || 0;
         const prima = Number(d.afp_prima) || 0;
@@ -742,7 +857,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
           cell.border = BORDER_HEADER;
         });
         alertRow++;
-        cesadosMes.forEach((d: any, i: number) => {
+        cesadosMes.forEach((d, i) => {
           [i + 1, d.documento, d.nombres_apellidos, d.sede, formatDateSafe(d.fecha_cese)].forEach((v, j) => {
             const col = String.fromCharCode(66 + j);
             const cell = wsAlertas.getCell(`${col}${alertRow}`);
@@ -775,7 +890,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
           cell.border = BORDER_HEADER;
         });
         alertRow++;
-        nuevosMes.forEach((d: any, i: number) => {
+        nuevosMes.forEach((d, i) => {
           [i + 1, d.documento, d.nombres_apellidos, d.sede, formatDateSafe(d.fecha_ingreso)].forEach((v, j) => {
             const col = String.fromCharCode(66 + j);
             const cell = wsAlertas.getCell(`${col}${alertRow}`);
@@ -808,7 +923,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
           cell.border = BORDER_HEADER;
         });
         alertRow++;
-        conRetencionJudicial.forEach((d: any, i: number) => {
+        conRetencionJudicial.forEach((d, i) => {
           [i + 1, d.documento, d.nombres_apellidos, Number(d.retencion_judicial) || 0].forEach((v, j) => {
             const col = String.fromCharCode(66 + j);
             const cell = wsAlertas.getCell(`${col}${alertRow}`);
@@ -841,7 +956,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
           cell.border = BORDER_HEADER;
         });
         alertRow++;
-        conFaltas.forEach((d: any, i: number) => {
+        conFaltas.forEach((d, i) => {
           [i + 1, d.documento, d.nombres_apellidos, d.faltas, Number(d.faltas_monto) || 0].forEach((v, j) => {
             const col = String.fromCharCode(66 + j);
             const cell = wsAlertas.getCell(`${col}${alertRow}`);
@@ -883,7 +998,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       let totalDescuentosOtros = 0;
       let totalAportesEmp = 0;
 
-      detalles.forEach((d: any) => {
+      detalles.forEach((d) => {
         totalIngresosAfectos += Number(d.total_ingresos_afectos) || 0;
         totalIngresosNoAfectos += Number(d.total_ingresos_no_afectos) || 0;
         totalDescuentosLey += Number(d.total_descuentos_ley) || 0;
@@ -971,8 +1086,8 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       URL.revokeObjectURL(url);
 
       toast.success('Excel exportado correctamente');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al exportar:', error);
-      toast.error(error.message || 'Error al exportar');
+      toast.error(getApiErrorMessage(error, 'Error al exportar'));
     }
 }

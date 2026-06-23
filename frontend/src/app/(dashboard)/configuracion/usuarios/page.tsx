@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface Rol {
   id: number;
@@ -63,6 +64,20 @@ interface Usuario {
   activo: boolean;
   rol_id: number;
   rol: Rol;
+}
+
+interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+interface UsuarioPayload {
+  email: string;
+  nombre_completo: string;
+  rol_id: number;
+  password?: string;
 }
 
 const createUserSchema = z.object({
@@ -104,7 +119,7 @@ export default function UsuariosPage() {
   const fetchData = async () => {
     try {
       const [usuariosRes, rolesRes] = await Promise.all([
-        api.get<{ data: Usuario[]; meta: any }>('/users'),
+        api.get<{ data: Usuario[]; meta: PaginationMeta }>('/users'),
         api.get<Rol[]>('/roles'),
       ]);
       // El endpoint /users devuelve respuesta paginada { data: [], meta: {} }
@@ -148,7 +163,7 @@ export default function UsuariosPage() {
   const onSubmit = async (data: CreateUserFormValues | UpdateUserFormValues) => {
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: UsuarioPayload = {
         email: data.email,
         nombre_completo: data.nombre_completo,
         rol_id: parseInt(data.rol_id),
@@ -168,8 +183,8 @@ export default function UsuariosPage() {
       }
       setDialogOpen(false);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el usuario');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el usuario'));
     } finally {
       setSaving(false);
     }
@@ -183,8 +198,8 @@ export default function UsuariosPage() {
       toast.success('Usuario eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el usuario');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el usuario'));
     }
   };
 

@@ -56,6 +56,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Plus, Pencil, Trash2, Loader2, Shield, ChevronDown, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface Rol {
   id: number;
@@ -202,8 +203,8 @@ export default function RolesPage() {
       }
       setDialogOpen(false);
       fetchRoles();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el rol');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el rol'));
     } finally {
       setSaving(false);
     }
@@ -217,8 +218,8 @@ export default function RolesPage() {
       toast.success('Rol eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchRoles();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el rol');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el rol'));
     }
   };
 

@@ -29,6 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Loader2, Upload, FileText, Check, X, Info, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -228,8 +229,8 @@ export default function NuevaPlantillaPage() {
 
       toast.success('Plantilla creada correctamente');
       router.push('/rrhh/plantillas-contrato');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear la plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear la plantilla'));
     } finally {
       setLoading(false);
     }

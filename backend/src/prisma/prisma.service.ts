@@ -126,27 +126,32 @@ export class PrismaService
       const context = RequestContextService.getContext();
 
       // Capturar datos anteriores para UPDATE y DELETE
-      let datosAnteriores: Record<string, any> | null = null;
+      let datosAnteriores: Record<string, unknown> | null = null;
       let registroId: number | null = null;
 
       if ((action === 'update' || action === 'delete') && params.args?.where) {
         try {
-          const modelDelegate = (this as any)[
-            model.charAt(0).toLowerCase() + model.slice(1)
-          ];
+          const delegates = this as unknown as Record<
+            string,
+            { findUnique?: (args: { where: unknown }) => Promise<unknown> }
+          >;
+          const modelDelegate =
+            delegates[model.charAt(0).toLowerCase() + model.slice(1)];
           if (modelDelegate?.findUnique) {
             const registro = await modelDelegate.findUnique({
               where: params.args.where,
             });
-            if (registro) {
+            if (registro && typeof registro === 'object') {
               datosAnteriores = this.sanitizarDatos(registro);
-              registroId = registro.id ?? null;
+              registroId =
+                (registro as { id?: number | null }).id ?? null;
             }
           }
         } catch (error) {
           // Si falla la captura de datos anteriores, continuar sin ellos
+          const mensaje = error instanceof Error ? error.message : String(error);
           this.logger.debug(
-            `No se pudieron capturar datos anteriores: ${error.message}`,
+            `No se pudieron capturar datos anteriores: ${mensaje}`,
           );
         }
       }
@@ -164,8 +169,9 @@ export class PrismaService
           registroId,
           datosNuevos: params.args?.data,
           context,
-        }).catch((error) => {
-          this.logger.error(`Error registrando auditoría: ${error.message}`);
+        }).catch((error: unknown) => {
+          const mensaje = error instanceof Error ? error.message : String(error);
+          this.logger.error(`Error registrando auditoría: ${mensaje}`);
         });
       });
 
@@ -179,10 +185,10 @@ export class PrismaService
   private async registrarAuditoria(params: {
     action: string;
     tabla: string;
-    resultado: any;
-    datosAnteriores: Record<string, any> | null;
+    resultado: unknown;
+    datosAnteriores: Record<string, unknown> | null;
     registroId: number | null;
-    datosNuevos: Record<string, any> | undefined;
+    datosNuevos: Record<string, unknown> | undefined;
     context: ReturnType<typeof RequestContextService.getContext>;
   }) {
     const {
@@ -218,9 +224,10 @@ export class PrismaService
     let finalRegistroId = registroId;
     if (!finalRegistroId && resultado) {
       if (Array.isArray(resultado)) {
-        finalRegistroId = resultado[0]?.id ?? null;
-      } else {
-        finalRegistroId = resultado.id ?? null;
+        finalRegistroId =
+          (resultado[0] as { id?: number | null } | undefined)?.id ?? null;
+      } else if (typeof resultado === 'object') {
+        finalRegistroId = (resultado as { id?: number | null }).id ?? null;
       }
     }
 
@@ -232,7 +239,7 @@ export class PrismaService
         : null;
 
     // Agregar metadatos del request
-    const metadatos: Record<string, any> = {};
+    const metadatos: Record<string, unknown> = {};
     if (context?.ipAddress) metadatos._ip = context.ipAddress;
     if (context?.method) metadatos._method = context.method;
     if (context?.path) metadatos._path = context.path;
@@ -268,8 +275,9 @@ export class PrismaService
           NOW()
         )
       `;
-    } catch (error) {
-      this.logger.error(`Error insertando auditoría: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error insertando auditoría: ${mensaje}`);
     }
   }
 
@@ -280,9 +288,9 @@ export class PrismaService
    * - Limita profundidad de objetos anidados
    */
   private sanitizarDatos(
-    datos: any,
+    datos: unknown,
     profundidad = 0,
-  ): Record<string, any> | null {
+  ): Record<string, unknown> | null {
     if (!datos || typeof datos !== 'object') {
       return null;
     }
@@ -304,7 +312,7 @@ export class PrismaService
       'apiKey',
     ]);
 
-    const resultado: Record<string, any> = {};
+    const resultado: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(datos)) {
       // Omitir campos sensibles

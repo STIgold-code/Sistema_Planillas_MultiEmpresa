@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { hasPermission } from "@/lib/auth";
 import { useUser } from "@/contexts/user-context";
 import { toDateString } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/errors";
 import type { SolicitudAnulacionPendiente } from "@/types/solicitudes-anulacion";
 import type {
   SolicitudDescuento,
@@ -424,8 +425,8 @@ export function useDashboard() {
       );
       toast.success("Anulación aprobada correctamente");
       await fetchDashboardData();
-    } catch (err: any) {
-      toast.error(err?.message || "Error al aprobar la anulación");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al aprobar la anulación"));
     } finally {
       setProcesandoAnulacion(false);
       setAprobarAnulacionId(null);
@@ -444,8 +445,8 @@ export function useDashboard() {
       );
       toast.success("Anulación rechazada");
       await fetchDashboardData();
-    } catch (err: any) {
-      toast.error(err?.message || "Error al rechazar la anulación");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al rechazar la anulación"));
     } finally {
       setProcesandoAnulacion(false);
       setRechazarAnulacionId(null);
@@ -627,8 +628,8 @@ export function useDashboard() {
       setContratoARenovar(null);
       setRenovarForm(initialRenovarForm);
       await fetchDashboardData();
-    } catch (err: any) {
-      toast.error(err.message || "Error al renovar contrato");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al renovar contrato"));
     } finally {
       setRenovando(false);
     }
@@ -677,8 +678,8 @@ export function useDashboard() {
       setCeseForm({ tipo_cese_id: "", motivo: "", fecha_efectiva: "" });
       setCeseFiles([]);
       await fetchDashboardData();
-    } catch (err: any) {
-      toast.error(err.message || "Error al crear solicitud de cese");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al crear solicitud de cese"));
     } finally {
       setSolicitandoCese(false);
     }

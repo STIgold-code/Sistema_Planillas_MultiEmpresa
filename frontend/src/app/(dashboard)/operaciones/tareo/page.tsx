@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Calendar, Eye, Loader2, Play, Lock, Unlock, MoreVertical, Users, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface PeriodosResponse {
   data: PeriodoTareo[];
@@ -104,8 +105,8 @@ export default function TareoPage() {
       toast.success('Periodo creado correctamente');
       setDialogOpen(false);
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear el periodo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear el periodo'));
     } finally {
       setSaving(false);
     }
@@ -116,8 +117,8 @@ export default function TareoPage() {
       const result = await api.post<{ message: string; empleados: number }>(`/tareo/periodos/${id}/generar`, {});
       toast.success(result.message);
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al generar tareos');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al generar tareos'));
     }
   };
 
@@ -126,8 +127,8 @@ export default function TareoPage() {
       await api.post(`/tareo/periodos/${id}/cerrar`, {});
       toast.success('Periodo cerrado correctamente');
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cerrar el periodo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cerrar el periodo'));
     }
   };
 
@@ -136,8 +137,8 @@ export default function TareoPage() {
       await api.post(`/tareo/periodos/${id}/reabrir`, {});
       toast.success('Periodo reabierto correctamente');
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al reabrir el periodo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al reabrir el periodo'));
     }
   };
 
@@ -149,8 +150,8 @@ export default function TareoPage() {
       toast.success(result.mensaje);
       setPeriodoAEliminar(null);
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el periodo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el periodo'));
     } finally {
       setEliminando(false);
     }

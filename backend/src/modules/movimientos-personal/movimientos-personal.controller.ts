@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { MovimientosPersonalService } from './movimientos-personal.service';
 import { FilterMovimientosDto } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { fechaHoyPeru } from '../../common/utils/datetime.util';
 
 @Controller('movimientos-personal')
@@ -13,20 +14,26 @@ export class MovimientosPersonalController {
 
   @Get()
   @RequirePermissions('empleados:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterMovimientosDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterMovimientosDto,
+  ) {
     return this.movimientosPersonalService.findAll(user.empresa_id, filters);
   }
 
   @Get('resumen')
   @RequirePermissions('empleados:leer')
-  getResumen(@CurrentUser() user: any, @Query() filters: FilterMovimientosDto) {
+  getResumen(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterMovimientosDto,
+  ) {
     return this.movimientosPersonalService.getResumen(user.empresa_id, filters);
   }
 
   @Get('exportar')
   @RequirePermissions('empleados:leer')
   async exportar(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filters: FilterMovimientosDto,
     @Res() res: Response,
   ) {

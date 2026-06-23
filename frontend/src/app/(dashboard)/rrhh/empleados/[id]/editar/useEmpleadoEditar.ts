@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useForm, type FieldErrors } from 'react-hook-form';
+import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Area, Cargo, Banco, Empleado, Sede, SbsConsultaResult } from '@/types';
 import { toast } from 'sonner';
 
@@ -185,7 +186,7 @@ export function useEmpleadoEditar() {
   const [consultandoSbs, setConsultandoSbs] = useState(false);
 
   const form = useForm<EmpleadoFormValues>({
-    resolver: zodResolver(empleadoSchema) as any,
+    resolver: zodResolver(empleadoSchema) as Resolver<EmpleadoFormValues>,
     defaultValues: {
       tipo_documento: 'DNI',
       numero_documento: '',
@@ -323,8 +324,8 @@ export function useEmpleadoEditar() {
           categoria_licencia: empleadoRes.categoria_licencia || '',
           foto_url: empleadoRes.foto_url || null,
         });
-      } catch (error: any) {
-        toast.error(error.message || 'Error al cargar datos');
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, 'Error al cargar datos'));
         router.push('/rrhh/empleados');
       } finally {
         setLoadingData(false);
@@ -383,11 +384,11 @@ export function useEmpleadoEditar() {
 
   const onFormError = useCallback(
     (errors: FieldErrors<EmpleadoFormValues>) => {
-      const firstErrorField = Object.keys(errors)[0];
+      const firstErrorField = Object.keys(errors)[0] as keyof EmpleadoFormValues | undefined;
       if (firstErrorField) {
         const tab = fieldToTab[firstErrorField];
         if (tab) setActiveTab(tab);
-        const errorMessage = (errors as any)[firstErrorField]?.message;
+        const errorMessage = errors[firstErrorField]?.message;
         toast.error(
           errorMessage
             ? `${firstErrorField}: ${errorMessage}`
@@ -440,8 +441,8 @@ export function useEmpleadoEditar() {
       if (result.cuspp) {
         form.setValue('cuspp', result.cuspp);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Error al consultar SBS');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al consultar SBS'));
     } finally {
       setConsultandoSbs(false);
     }
@@ -477,8 +478,8 @@ export function useEmpleadoEditar() {
       await api.patch(`/empleados/${empleadoId}`, payload);
       toast.success('Empleado actualizado correctamente');
       router.push(`/rrhh/empleados/${empleadoId}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar empleado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar empleado'));
     } finally {
       setLoading(false);
       setShowCeseConfirm(false);

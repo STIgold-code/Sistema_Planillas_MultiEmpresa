@@ -21,11 +21,19 @@ import {
   FilterSolicitudAnulacionDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { ALLOWED_MIME_TYPES } from '../uploads/uploads.config';
 
 // Mismos limites que solicitudes de cese
 const ANULACION_ARCHIVO_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 const ANULACION_ARCHIVOS_MAX_COUNT = 10;
+
+// Forma cruda del body multipart/form-data: los campos numericos llegan
+// como cadenas y se parsean manualmente antes de construir el DTO.
+interface CrearSolicitudAnulacionFormData {
+  contrato_id: string;
+  motivo: string;
+}
 
 @Controller('solicitudes-anulacion')
 export class SolicitudesAnulacionController {
@@ -53,9 +61,9 @@ export class SolicitudesAnulacionController {
     }),
   )
   async create(
-    @Body() dto: any,
+    @Body() dto: CrearSolicitudAnulacionFormData,
     @UploadedFiles() files: Express.Multer.File[] | undefined,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException(
@@ -94,7 +102,7 @@ export class SolicitudesAnulacionController {
   @Get()
   @RequirePermissions('contratos:leer')
   findAll(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filters: FilterSolicitudAnulacionDto,
   ) {
     return this.solicitudesAnulacionService.findAll(user.empresa_id, filters);
@@ -102,7 +110,7 @@ export class SolicitudesAnulacionController {
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.solicitudesAnulacionService.findOne(id, user.empresa_id);
   }
 
@@ -111,7 +119,7 @@ export class SolicitudesAnulacionController {
   aprobar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ResolverSolicitudAnulacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.solicitudesAnulacionService.aprobar(
       id,
@@ -126,7 +134,7 @@ export class SolicitudesAnulacionController {
   rechazar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ResolverSolicitudAnulacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.solicitudesAnulacionService.rechazar(
       id,

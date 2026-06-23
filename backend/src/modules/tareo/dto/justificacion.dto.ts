@@ -21,7 +21,7 @@ import { PartialType } from '@nestjs/mapped-types';
 @ValidatorConstraint({ name: 'diaFinMayorIgualInicio', async: false })
 class DiaFinMayorIgualInicioConstraint implements ValidatorConstraintInterface {
   validate(diaFin: number, args: ValidationArguments) {
-    const obj = args.object as any;
+    const obj = args.object as { dia_inicio: number };
     return diaFin >= obj.dia_inicio;
   }
 

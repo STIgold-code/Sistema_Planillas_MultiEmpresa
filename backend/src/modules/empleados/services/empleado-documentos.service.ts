@@ -12,6 +12,8 @@ import {
   DIAS_POR_VENCER_DOCUMENTO,
 } from '../../../common/constants/business-rules';
 import { UploadsService } from '../../uploads/uploads.service';
+import { AuthenticatedUser } from '../../../common/types/auth.types';
+import { AddDocumentoDto } from '../dto';
 import { Prisma, EstadoDocumentacion } from '@prisma/client';
 import {
   ahoraPeru,
@@ -110,7 +112,7 @@ export class EmpleadoDocumentosService {
     empleadoId: number,
     empresaId: number,
     file: Express.Multer.File,
-    data: any,
+    data: AddDocumentoDto,
     usuarioId?: number,
   ) {
     // Validar que el empleado existe y pertenece a la empresa del usuario
@@ -214,7 +216,9 @@ export class EmpleadoDocumentosService {
     const documento = await this.prisma.empleadoDocumento.create({
       data: {
         empleado_id: empleadoId,
-        tipo_documento_empleado_id: parseInt(data.tipo_documento_empleado_id),
+        tipo_documento_empleado_id: parseInt(
+          data.tipo_documento_empleado_id ?? '',
+        ),
         descripcion: data.descripcion,
         archivo_url: storedPath, // Guardar PATH, no URL completa
         archivo_nombre: file.originalname,
@@ -246,7 +250,7 @@ export class EmpleadoDocumentosService {
     documentoId: number,
     empleadoId: number,
     empresaId: number,
-    user?: any,
+    user?: AuthenticatedUser,
     motivo?: string,
   ) {
     const documento = await this.prisma.empleadoDocumento.findFirst({
@@ -402,20 +406,27 @@ export class EmpleadoDocumentosService {
     });
   }
 
-  async addDocumento(empleadoId: number, empresaId: number, data: any) {
+  async addDocumento(
+    empleadoId: number,
+    empresaId: number,
+    data: AddDocumentoDto,
+  ) {
     await this.findEmpleado(empleadoId, empresaId);
 
     const documento = await this.prisma.empleadoDocumento.create({
       data: {
-        ...data,
         empleado_id: empleadoId,
+        tipo_documento_empleado_id: parseInt(
+          data.tipo_documento_empleado_id ?? '',
+        ),
+        descripcion: data.descripcion,
         fecha_emision: data.fecha_emision
           ? parsearFechaISOenPeru(data.fecha_emision)
           : null,
         fecha_vencimiento: data.fecha_vencimiento
           ? parsearFechaISOenPeru(data.fecha_vencimiento)
           : null,
-      },
+      } as Prisma.EmpleadoDocumentoUncheckedCreateInput,
     });
 
     // Actualizar estado de documentación del empleado
@@ -428,7 +439,7 @@ export class EmpleadoDocumentosService {
     documentoId: number,
     empleadoId: number,
     empresaId: number,
-    user?: any,
+    user?: AuthenticatedUser,
     motivo?: string,
   ) {
     return this.deleteDocumentoConArchivo(
@@ -542,9 +553,13 @@ export class EmpleadoDocumentosService {
       // Limpiar archivo subido si la transacción falló
       try {
         await this.uploadsService.deleteFileHybrid(storedPath);
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
+        const mensaje =
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError);
         this.logger.warn(
-          `No se pudo limpiar archivo huérfano ${storedPath}: ${cleanupError.message}`,
+          `No se pudo limpiar archivo huérfano ${storedPath}: ${mensaje}`,
         );
       }
       throw error;

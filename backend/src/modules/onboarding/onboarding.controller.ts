@@ -21,6 +21,7 @@ import {
   FilterProcesoOnboardingDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('onboarding')
 export class OnboardingController {
@@ -30,7 +31,7 @@ export class OnboardingController {
 
   @Get('plantillas')
   @RequirePermissions('empleados:leer')
-  findAllPlantillas(@CurrentUser() user: any) {
+  findAllPlantillas(@CurrentUser() user: AuthenticatedUser) {
     return this.onboardingService.findAllPlantillas(user.empresa_id);
   }
 
@@ -38,7 +39,7 @@ export class OnboardingController {
   @RequirePermissions('empleados:leer')
   findOnePlantilla(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.findOnePlantilla(id, user.empresa_id);
   }
@@ -47,7 +48,7 @@ export class OnboardingController {
   @RequirePermissions('empleados:crear')
   createPlantilla(
     @Body() dto: CreatePlantillaOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.createPlantilla(user.empresa_id, dto);
   }
@@ -57,7 +58,7 @@ export class OnboardingController {
   updatePlantilla(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePlantillaOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.updatePlantilla(id, user.empresa_id, dto);
   }
@@ -66,7 +67,7 @@ export class OnboardingController {
   @RequirePermissions('empleados:eliminar')
   deletePlantilla(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.deletePlantilla(id, user.empresa_id);
   }
@@ -78,7 +79,7 @@ export class OnboardingController {
   addTarea(
     @Param('plantillaId', ParseIntPipe) plantillaId: number,
     @Body() dto: CreateTareaOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.addTareaToPlantilla(
       plantillaId,
@@ -93,7 +94,7 @@ export class OnboardingController {
     @Param('plantillaId', ParseIntPipe) plantillaId: number,
     @Param('tareaId', ParseIntPipe) tareaId: number,
     @Body() dto: UpdateTareaOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.updateTarea(
       tareaId,
@@ -108,7 +109,7 @@ export class OnboardingController {
   deleteTarea(
     @Param('plantillaId', ParseIntPipe) plantillaId: number,
     @Param('tareaId', ParseIntPipe) tareaId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.deleteTarea(
       tareaId,
@@ -122,7 +123,7 @@ export class OnboardingController {
   @Get('procesos')
   @RequirePermissions('empleados:leer')
   findAllProcesos(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() filters: FilterProcesoOnboardingDto,
   ) {
     return this.onboardingService.findAllProcesos(user.empresa_id, filters);
@@ -132,7 +133,7 @@ export class OnboardingController {
   @RequirePermissions('empleados:leer')
   findOneProceso(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.findOneProceso(id, user.empresa_id);
   }
@@ -143,7 +144,7 @@ export class OnboardingController {
     @Param('procesoId', ParseIntPipe) procesoId: number,
     @Param('tareaId', ParseIntPipe) tareaId: number,
     @Body() dto: CompletarTareaDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.completarTarea(
       procesoId,
@@ -160,7 +161,7 @@ export class OnboardingController {
     @Param('procesoId', ParseIntPipe) procesoId: number,
     @Param('tareaId', ParseIntPipe) tareaId: number,
     @Body() dto: OmitirTareaDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.omitirTarea(
       procesoId,
@@ -176,7 +177,7 @@ export class OnboardingController {
   cancelarProceso(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { motivo: string },
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.cancelarProceso(
       id,
@@ -189,7 +190,7 @@ export class OnboardingController {
 
   @Get('dashboard')
   @RequirePermissions('empleados:leer')
-  getDashboard(@CurrentUser() user: any) {
+  getDashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.onboardingService.getDashboard(user.empresa_id);
   }
 
@@ -199,7 +200,7 @@ export class OnboardingController {
   @RequirePermissions('empleados:leer')
   buscarPlantillaParaEmpleado(
     @Param('empleadoId', ParseIntPipe) empleadoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.buscarPlantillaParaEmpleado(
       empleadoId,
@@ -218,7 +219,7 @@ export class EmpleadosOnboardingController {
   iniciarOnboarding(
     @Param('id', ParseIntPipe) empleadoId: number,
     @Body() dto: IniciarOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.iniciarOnboarding(
       empleadoId,
@@ -232,7 +233,7 @@ export class EmpleadosOnboardingController {
   @RequirePermissions('empleados:leer')
   getOnboardingEmpleado(
     @Param('id', ParseIntPipe) empleadoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.onboardingService.findAllProcesos(user.empresa_id, {
       empleado_id: empleadoId,

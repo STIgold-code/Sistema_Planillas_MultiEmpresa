@@ -89,7 +89,7 @@ export const multerStorage = (subdir: string = 'temp') =>
 
 // Filtro de archivos
 export const fileFilter = (
-  req: any,
+  req: Express.Request,
   file: Express.Multer.File,
   cb: (error: Error | null, acceptFile: boolean) => void,
 ) => {
@@ -218,8 +218,9 @@ export function validateMagicBytes(
   try {
     const fileBuffer = readFileSync(filePath);
     return validateMagicBytesFromBuffer(fileBuffer, declaredMimeType);
-  } catch (error) {
-    console.error(`[SECURITY] Error validando magic bytes: ${error.message}`);
+  } catch (error: unknown) {
+    const mensaje = error instanceof Error ? error.message : String(error);
+    console.error(`[SECURITY] Error validando magic bytes: ${mensaje}`);
     return false;
   }
 }
@@ -235,9 +236,10 @@ export function validateMagicBytesBuffer(
 ): boolean {
   try {
     return validateMagicBytesFromBuffer(fileBuffer, declaredMimeType);
-  } catch (error) {
+  } catch (error: unknown) {
+    const mensaje = error instanceof Error ? error.message : String(error);
     console.error(
-      `[SECURITY] Error validando magic bytes buffer: ${error.message}`,
+      `[SECURITY] Error validando magic bytes buffer: ${mensaje}`,
     );
     return false;
   }

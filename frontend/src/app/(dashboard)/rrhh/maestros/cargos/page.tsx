@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface Cargo {
@@ -127,8 +128,8 @@ export default function CargosPage() {
       }
       setDialogOpen(false);
       fetchCargos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el cargo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el cargo'));
     } finally {
       setSaving(false);
     }
@@ -142,8 +143,8 @@ export default function CargosPage() {
       toast.success('Cargo eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchCargos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el cargo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el cargo'));
     }
   };
 

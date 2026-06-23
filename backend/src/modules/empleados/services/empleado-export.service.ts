@@ -95,7 +95,7 @@ export class EmpleadoExportService {
     };
 
     if (buscar) {
-      const orConditions: any[] = [
+      const orConditions: Prisma.EmpleadoWhereInput[] = [
         { numero_documento: { contains: buscar, mode: 'insensitive' } },
         { nombres: { contains: buscar, mode: 'insensitive' } },
         { apellido_paterno: { contains: buscar, mode: 'insensitive' } },
@@ -285,13 +285,13 @@ export class EmpleadoExportService {
 
       // Estado REINGRESANTE computado: ACTIVO + al menos 1 vinculo_laboral cerrado
       const vinculosCerrados = (emp.vinculos_laborales || []).filter(
-        (v: any) => v.fecha_fin !== null,
+        (v) => v.fecha_fin !== null,
       );
       const ultimoCeseVinculo = vinculosCerrados
         .slice()
         .sort(
-          (a: any, b: any) =>
-            new Date(b.fecha_fin).getTime() - new Date(a.fecha_fin).getTime(),
+          (a, b) =>
+            (b.fecha_fin?.getTime() ?? 0) - (a.fecha_fin?.getTime() ?? 0),
         )[0];
       const esReingresante =
         emp.estado === 'ACTIVO' && vinculosCerrados.length >= 1;
@@ -646,8 +646,9 @@ export class EmpleadoExportService {
     }
     if (filters?.anio) {
       todosDocumentos = todosDocumentos.filter((d) => {
-        if (d.origen === 'BOLETA' && (d.metadata as any).anio) {
-          return (d.metadata as any).anio === filters.anio;
+        const metadata = d.metadata as Record<string, unknown>;
+        if (d.origen === 'BOLETA' && metadata.anio) {
+          return metadata.anio === filters.anio;
         }
         if (d.fecha_documento) {
           return leerFechaPrisma(d.fecha_documento).year === filters.anio;

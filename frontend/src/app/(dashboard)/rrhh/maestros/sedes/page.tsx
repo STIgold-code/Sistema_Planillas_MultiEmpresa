@@ -59,6 +59,7 @@ import {
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -250,8 +251,8 @@ export default function SedesPage() {
       }
       setShowModal(false);
       fetchSedes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar la sede');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar la sede'));
     } finally {
       setSaving(false);
     }
@@ -264,8 +265,8 @@ export default function SedesPage() {
       await api.delete(`/sedes/${deleteId}`);
       toast.success('Sede eliminada correctamente');
       fetchSedes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar la sede');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar la sede'));
     } finally {
       setDeleting(false);
       setDeleteId(null);
@@ -277,8 +278,8 @@ export default function SedesPage() {
       await api.patch(`/sedes/${sede.id}/toggle-activo`, {});
       toast.success(`Sede ${sede.activo ? 'desactivada' : 'activada'} correctamente`);
       fetchSedes();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar el estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar el estado'));
     }
   };
 

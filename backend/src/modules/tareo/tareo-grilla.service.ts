@@ -52,7 +52,7 @@ export class TareoGrillaService {
     const fechaFinPeriodo = new Date(periodo.anio, periodo.mes, 0);
 
     if (buscar) {
-      const orConditions: any[] = [
+      const orConditions: Prisma.EmpleadoWhereInput[] = [
         { numero_documento: { contains: buscar, mode: 'insensitive' } },
         { nombres: { contains: buscar, mode: 'insensitive' } },
         { apellido_paterno: { contains: buscar, mode: 'insensitive' } },

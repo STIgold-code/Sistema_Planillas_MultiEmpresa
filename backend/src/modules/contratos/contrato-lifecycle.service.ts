@@ -11,6 +11,49 @@ import {
 } from '../../common/constants/business-rules';
 import { CreateContratoDto } from './dto';
 import { Prisma } from '@prisma/client';
+
+/**
+ * Contrato con las relaciones necesarias para las operaciones de ciclo de vida.
+ * Coincide con lo que retorna ContratosService.findOne (empleado, vínculo,
+ * usuario, cliente). Solo se declaran los campos que estos métodos consumen.
+ */
+export type ContratoConRelaciones = Prisma.ContratoGetPayload<{
+  include: {
+    empleado: {
+      select: {
+        id: true;
+        numero_documento: true;
+        tipo_documento: true;
+        nombres: true;
+        apellido_paterno: true;
+        apellido_materno: true;
+        fecha_ingreso: true;
+        area: { select: { id: true; nombre: true } };
+        cargo: { select: { id: true; nombre: true } };
+      };
+    };
+    vinculo_laboral: {
+      select: {
+        id: true;
+        fecha_inicio: true;
+        fecha_fin: true;
+        estado: true;
+        motivo_cierre: true;
+      };
+    };
+    usuario: {
+      select: { id: true; nombre_completo: true; email: true };
+    };
+    cliente: {
+      select: {
+        id: true;
+        ruc: true;
+        razon_social: true;
+        nombre_comercial: true;
+      };
+    };
+  };
+}>;
 import {
   ahoraPeru,
   formatearFechaPeru,
@@ -32,7 +75,7 @@ export class ContratoLifecycleService {
     empresaId: number,
     dto: CreateContratoDto,
     usuarioId: number,
-    contratoActual: any,
+    contratoActual: ContratoConRelaciones,
   ) {
     if (
       contratoActual.estado !== 'ACTIVO' &&
@@ -283,7 +326,7 @@ export class ContratoLifecycleService {
   }
 
   // Terminar contrato anticipadamente
-  async terminar(id: number, contrato: any, motivo?: string) {
+  async terminar(id: number, contrato: ContratoConRelaciones, motivo?: string) {
     if (contrato.estado !== 'ACTIVO') {
       throw new BadRequestException(
         'Solo se pueden terminar contratos vigentes',
@@ -351,7 +394,7 @@ export class ContratoLifecycleService {
   async subirContratoFirmado(
     id: number,
     file: Express.Multer.File,
-    contrato: any,
+    contrato: ContratoConRelaciones,
   ) {
     if (!file) {
       throw new BadRequestException('No se ha proporcionado un archivo');
@@ -371,9 +414,10 @@ export class ContratoLifecycleService {
         if (oldKey) {
           await this.uploadsService.deleteFileAsync(oldKey);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Log pero no fallar si no se puede eliminar el archivo anterior
-        console.warn(`No se pudo eliminar archivo anterior: ${error.message}`);
+        const mensaje = error instanceof Error ? error.message : String(error);
+        console.warn(`No se pudo eliminar archivo anterior: ${mensaje}`);
       }
     }
 
@@ -408,7 +452,7 @@ export class ContratoLifecycleService {
   /**
    * Obtiene el buffer del archivo de contrato para descarga
    */
-  async descargarContrato(contrato: any) {
+  async descargarContrato(contrato: ContratoConRelaciones) {
     if (!contrato.archivo_url) {
       throw new NotFoundException('El contrato no tiene un archivo asociado');
     }
@@ -443,7 +487,7 @@ export class ContratoLifecycleService {
         filename,
         mimetype: this.getMimeType(extension),
       };
-    } catch (error) {
+    } catch {
       throw new NotFoundException('No se pudo obtener el archivo del contrato');
     }
   }
@@ -451,7 +495,7 @@ export class ContratoLifecycleService {
   /**
    * Elimina el archivo de contrato
    */
-  async eliminarArchivoContrato(id: number, contrato: any) {
+  async eliminarArchivoContrato(id: number, contrato: ContratoConRelaciones) {
     if (!contrato.archivo_url) {
       throw new BadRequestException('El contrato no tiene un archivo asociado');
     }

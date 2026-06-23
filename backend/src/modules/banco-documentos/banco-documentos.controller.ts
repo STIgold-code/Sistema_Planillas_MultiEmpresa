@@ -26,6 +26,7 @@ import {
   CategoriaDocumento,
 } from './dto';
 import { RequirePermissions, CurrentUser } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { multerOptions } from '../uploads/uploads.config';
 import { lookup } from 'mime-types';
 
@@ -40,7 +41,7 @@ export class BancoDocumentosController {
   @Get('plantillas')
   @RequirePermissions('maestros:leer')
   findAllPlantillas(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('includeInactive', new ParseBoolPipe({ optional: true }))
     includeInactive?: boolean,
   ) {
@@ -60,7 +61,7 @@ export class BancoDocumentosController {
   @RequirePermissions('maestros:leer')
   findOnePlantilla(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.findOnePlantilla(id, user.empresa_id);
   }
@@ -71,7 +72,7 @@ export class BancoDocumentosController {
   createPlantilla(
     @Body() dto: CreatePlantillaDocumentoDto,
     @UploadedFile() file: Express.Multer.File,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.createPlantilla(
       dto,
@@ -94,7 +95,7 @@ export class BancoDocumentosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePlantillaDocumentoDto,
     @UploadedFile() file: Express.Multer.File,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.updatePlantilla(
       id,
@@ -108,7 +109,7 @@ export class BancoDocumentosController {
   @RequirePermissions('maestros:eliminar')
   removePlantilla(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.removePlantilla(id, user.empresa_id);
   }
@@ -117,7 +118,7 @@ export class BancoDocumentosController {
   @RequirePermissions('maestros:editar')
   togglePlantilla(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.togglePlantilla(id, user.empresa_id);
   }
@@ -128,7 +129,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:editar')
   async generarDocumento(
     @Body() dto: GenerarDocumentoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     const result = await this.bancoDocumentosService.generarDocumento(
@@ -153,7 +154,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:editar')
   generarDocumentosMasivo(
     @Body() dto: GenerarMasivoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.generarDocumentosMasivo(
       dto,
@@ -167,7 +168,7 @@ export class BancoDocumentosController {
   getContenidosPdfEmpleado(
     @Param('empleadoId', ParseIntPipe) empleadoId: number,
     @Query('categoria') categoria: CategoriaDocumento | undefined,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.getContenidosPdfEmpleado(
       empleadoId,
@@ -180,7 +181,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:leer')
   findDocumentosEmpleado(
     @Param('empleadoId', ParseIntPipe) empleadoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.findDocumentosEmpleado(
       empleadoId,
@@ -192,7 +193,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:leer')
   findOneDocumento(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.findOneDocumento(id, user.empresa_id);
   }
@@ -202,7 +203,7 @@ export class BancoDocumentosController {
   actualizarEstadoDocumento(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarEstadoDocumentoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.actualizarEstadoDocumento(
       id,
@@ -216,7 +217,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:editar')
   eliminarDocumento(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.eliminarDocumento(id, user.empresa_id);
   }
@@ -225,7 +226,7 @@ export class BancoDocumentosController {
   @RequirePermissions('empleados:leer')
   async descargarDocumento(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
   ) {
     // Obtener información del documento
@@ -292,7 +293,7 @@ export class BancoDocumentosController {
   subirDocumentoFirmado(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.bancoDocumentosService.subirDocumentoFirmado(
       id,
@@ -306,7 +307,7 @@ export class BancoDocumentosController {
   @Get('reporte/pendientes')
   @RequirePermissions('empleados:leer')
   getDocumentosPendientes(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {

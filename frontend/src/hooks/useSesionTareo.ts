@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, getAccessToken } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 
 // Tipos de configuración
 interface ConfiguracionTareo {
@@ -15,7 +16,7 @@ interface ConfiguracionTareo {
   notificar_sistema: boolean;
 }
 
-interface SesionTareoResponse {
+export interface SesionTareoResponse {
   id: number;
   periodo_id: number;
   usuario_id: number;
@@ -192,8 +193,8 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
         await verificarPuedeIniciar();
         await verificarSolicitudPendiente();
       }
-    } catch (err: any) {
-      setError(err.message || 'Error al obtener estado de sesión');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Error al obtener estado de sesión'));
     } finally {
       setCargando(false);
     }
@@ -214,8 +215,8 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
       setTiempoRestante(response.tiempo_restante_segundos);
       setPuedeIniciarSesion(true);
       setMotivoNoInicio(null);
-    } catch (err: any) {
-      const mensaje = err.message || 'Error al iniciar sesión';
+    } catch (err: unknown) {
+      const mensaje = getApiErrorMessage(err, 'Error al iniciar sesión');
       setError(mensaje);
       // Si el error es por límite, actualizar estado
       if (mensaje.includes('límite') || mensaje.includes('hora')) {
@@ -244,8 +245,8 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
 
       // Verificar si puede iniciar otra sesión
       await verificarPuedeIniciar();
-    } catch (err: any) {
-      setError(err.message || 'Error al finalizar sesión');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Error al finalizar sesión'));
       throw err;
     } finally {
       setCargando(false);
@@ -267,8 +268,8 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
 
       setSolicitudPendiente(response);
       await cargarMisSolicitudes();
-    } catch (err: any) {
-      setError(err.message || 'Error al solicitar extensión');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Error al solicitar extensión'));
       throw err;
     } finally {
       setCargando(false);

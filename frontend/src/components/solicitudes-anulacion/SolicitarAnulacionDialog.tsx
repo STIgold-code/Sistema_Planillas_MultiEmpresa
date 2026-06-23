@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_FILES = 10;
@@ -102,8 +103,8 @@ export function SolicitarAnulacionDialog({ open, contrato, onOpenChange, onSucce
       resetForm();
       onOpenChange(false);
       onSuccess();
-    } catch (err: any) {
-      toast.error(err?.message || 'Error al crear la solicitud de anulación');
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Error al crear la solicitud de anulación'));
     } finally {
       setSaving(false);
     }

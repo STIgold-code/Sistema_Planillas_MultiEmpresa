@@ -54,8 +54,10 @@ export default function LoginPage() {
       await login(data);
       toast.success('Bienvenido al sistema');
       router.push('/');
-    } catch (error: any) {
-      toast.error(error.message || 'Credenciales incorrectas');
+    } catch (error: unknown) {
+      // Narrowing seguro del error para obtener el mensaje
+      const mensaje = error instanceof Error ? error.message : '';
+      toast.error(mensaje || 'Credenciales incorrectas');
     } finally {
       setLoading(false);
     }

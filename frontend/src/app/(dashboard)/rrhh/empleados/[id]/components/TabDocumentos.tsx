@@ -15,7 +15,8 @@ import { DocUploadDialog } from './DocUploadDialog';
 type CategoriaItem = {
   key: string;
   nombre: string;
-  tipoId: number;
+  // null para la categoría "Sin clasificar" (documentos sin tipo asignado).
+  tipoId: number | null;
   count: number;
 };
 

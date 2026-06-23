@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { EstadoSolicitudCese } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,8 +48,8 @@ export function EmpleadoCeses({ empleadoId }: EmpleadoCesesProps) {
         `/solicitudes-cese?empleado_id=${empleadoId}&limit=50`
       );
       setSolicitudes(response.data || []);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar solicitudes de cese');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar solicitudes de cese'));
     } finally {
       setLoading(false);
     }

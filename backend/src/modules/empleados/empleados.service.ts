@@ -21,7 +21,14 @@ import { EmpleadoExportService } from './services/empleado-export.service';
 import { EmpleadoPhotocheckService } from './services/empleado-photocheck.service';
 import { EmpleadoMovimientosService } from './services/empleado-movimientos.service';
 import { EmpleadoCrudService } from './services/empleado-crud.service';
-import { CreateEmpleadoDto, UpdateEmpleadoDto, FilterEmpleadoDto } from './dto';
+import {
+  CreateEmpleadoDto,
+  UpdateEmpleadoDto,
+  FilterEmpleadoDto,
+  AddFamiliarDto,
+  AddDocumentoDto,
+} from './dto';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { Prisma, EstadoDocumentacion, TipoMovimiento } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import {
@@ -67,7 +74,11 @@ export class EmpleadosService {
     return this.empleadoCrudService.remove(id, empresaId);
   }
 
-  async addFamiliar(empleadoId: number, empresaId: number, data: any) {
+  async addFamiliar(
+    empleadoId: number,
+    empresaId: number,
+    data: AddFamiliarDto,
+  ) {
     await this.findOne(empleadoId, empresaId);
 
     return this.prisma.empleadoFamiliar.create({
@@ -115,7 +126,7 @@ export class EmpleadosService {
     empleadoId: number,
     empresaId: number,
     file: Express.Multer.File,
-    data: any,
+    data: AddDocumentoDto,
     usuarioId?: number,
   ) {
     return this.empleadoDocumentosService.createDocumentoConArchivo(
@@ -135,7 +146,7 @@ export class EmpleadosService {
     documentoId: number,
     empleadoId: number,
     empresaId: number,
-    user?: any,
+    user?: AuthenticatedUser,
     motivo?: string,
   ) {
     return this.empleadoDocumentosService.deleteDocumentoConArchivo(
@@ -154,7 +165,11 @@ export class EmpleadosService {
     return this.empleadoDocumentosService.getDocumentos(empleadoId, empresaId);
   }
 
-  async addDocumento(empleadoId: number, empresaId: number, data: any) {
+  async addDocumento(
+    empleadoId: number,
+    empresaId: number,
+    data: AddDocumentoDto,
+  ) {
     return this.empleadoDocumentosService.addDocumento(
       empleadoId,
       empresaId,
@@ -166,7 +181,7 @@ export class EmpleadosService {
     documentoId: number,
     empleadoId: number,
     empresaId: number,
-    user?: any,
+    user?: AuthenticatedUser,
     motivo?: string,
   ) {
     return this.empleadoDocumentosService.removeDocumento(

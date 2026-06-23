@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe, formatDateSafeLocale, parseDateLocal } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -180,8 +181,8 @@ export default function PeriodosPage() {
       await api.post(`/vacaciones/periodos/generar/${empleadoId}`, {});
       toast.success('Períodos generados correctamente');
       fetchPeriodos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al generar períodos');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al generar períodos'));
     }
   };
 

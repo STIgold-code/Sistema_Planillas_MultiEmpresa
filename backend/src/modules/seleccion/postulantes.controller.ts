@@ -26,6 +26,7 @@ import {
   CreatePostulanteDocumentoDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { MAX_FILE_SIZE } from '../uploads/uploads.config';
 
 @Controller('postulantes')
@@ -34,25 +35,25 @@ export class PostulantesController {
 
   @Get()
   @RequirePermissions('seleccion:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterPostulanteDto) {
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterPostulanteDto) {
     return this.postulantesService.findAll(user.empresa_id, filters);
   }
 
   @Get('resumen')
   @RequirePermissions('seleccion:leer')
-  getResumen(@CurrentUser() user: any) {
+  getResumen(@CurrentUser() user: AuthenticatedUser) {
     return this.postulantesService.getResumen(user.empresa_id);
   }
 
   @Get(':id')
   @RequirePermissions('seleccion:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.postulantesService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('seleccion:crear')
-  create(@Body() dto: CreatePostulanteDto, @CurrentUser() user: any) {
+  create(@Body() dto: CreatePostulanteDto, @CurrentUser() user: AuthenticatedUser) {
     return this.postulantesService.create(user.empresa_id, dto);
   }
 
@@ -61,7 +62,7 @@ export class PostulantesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePostulanteDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.update(id, user.empresa_id, dto);
   }
@@ -71,7 +72,7 @@ export class PostulantesController {
   cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CambiarEstadoPostulanteDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.cambiarEstado(id, user.empresa_id, dto);
   }
@@ -80,7 +81,7 @@ export class PostulantesController {
   @RequirePermissions('seleccion:leer')
   getEvaluaciones(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.getEvaluaciones(id, user.empresa_id);
   }
@@ -89,7 +90,7 @@ export class PostulantesController {
   @RequirePermissions('seleccion:leer')
   getPromedioEvaluaciones(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.getPromedioEvaluaciones(id, user.empresa_id);
   }
@@ -99,7 +100,7 @@ export class PostulantesController {
   agregarEvaluacion(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AgregarEvaluacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.agregarEvaluacion(
       id,
@@ -115,7 +116,7 @@ export class PostulantesController {
     @Param('id', ParseIntPipe) id: number,
     @Param('evaluacionId', ParseIntPipe) evaluacionId: number,
     @Body() dto: UpdateEvaluacionDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.actualizarEvaluacion(
       evaluacionId,
@@ -130,7 +131,7 @@ export class PostulantesController {
   eliminarEvaluacion(
     @Param('id', ParseIntPipe) id: number,
     @Param('evaluacionId', ParseIntPipe) evaluacionId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.eliminarEvaluacion(
       evaluacionId,
@@ -144,7 +145,7 @@ export class PostulantesController {
   convertirAEmpleado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ConvertirEmpleadoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.convertirAEmpleado(
       id,
@@ -158,7 +159,7 @@ export class PostulantesController {
   @RequirePermissions('seleccion:leer')
   getDocumentos(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.getDocumentos(id, user.empresa_id);
   }
@@ -189,7 +190,7 @@ export class PostulantesController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
     @Body() data: CreatePostulanteDocumentoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Se requiere un archivo');
@@ -230,7 +231,7 @@ export class PostulantesController {
     @Param('documentoId', ParseIntPipe) documentoId: number,
     @UploadedFile() file: Express.Multer.File,
     @Body('motivo') motivo: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!file) {
       throw new BadRequestException('Se requiere un archivo');
@@ -255,7 +256,7 @@ export class PostulantesController {
   getHistorialDocumento(
     @Param('id', ParseIntPipe) id: number,
     @Param('documentoId', ParseIntPipe) documentoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.getHistorialDocumento(
       documentoId,
@@ -270,7 +271,7 @@ export class PostulantesController {
     @Param('id', ParseIntPipe) id: number,
     @Param('documentoId', ParseIntPipe) documentoId: number,
     @Body('motivo') motivo: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.postulantesService.deleteDocumento(
       documentoId,
@@ -283,7 +284,7 @@ export class PostulantesController {
 
   @Delete(':id')
   @RequirePermissions('seleccion:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.postulantesService.remove(id, user.empresa_id);
   }
 }

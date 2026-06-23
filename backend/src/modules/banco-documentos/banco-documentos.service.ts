@@ -107,9 +107,10 @@ export class BancoDocumentosService {
         if (!variables) {
           variables = extraction.variables;
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `No se pudieron extraer variables del archivo: ${error.message}`,
+          `No se pudieron extraer variables del archivo: ${mensaje}`,
         );
       }
 
@@ -124,7 +125,7 @@ export class BancoDocumentosService {
       return await this.prisma.plantillaDocumento.create({
         data: {
           ...dto,
-          variables: variables as any,
+          variables: variables as Prisma.InputJsonValue,
           archivo_base_url: archivoUrl,
           empresa_id: empresaId,
         },
@@ -146,7 +147,7 @@ export class BancoDocumentosService {
     file: Express.Multer.File,
     empresaId: number,
   ) {
-    const plantillaActual = (await this.findOnePlantilla(id, empresaId)) as any;
+    const plantillaActual = await this.findOnePlantilla(id, empresaId);
 
     let archivoUrl = plantillaActual.archivo_base_url;
     let variables = dto.variables;
@@ -157,9 +158,10 @@ export class BancoDocumentosService {
         if (!variables) {
           variables = extraction.variables;
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        const mensaje = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `No se pudieron extraer variables del archivo: ${error.message}`,
+          `No se pudieron extraer variables del archivo: ${mensaje}`,
         );
       }
 
@@ -171,12 +173,12 @@ export class BancoDocumentosService {
     }
 
     try {
-      const updateData: any = {
+      const updateData: Prisma.PlantillaDocumentoUpdateInput = {
         ...dto,
         archivo_base_url: archivoUrl,
       };
       if (variables) {
-        updateData.variables = variables;
+        updateData.variables = variables as Prisma.InputJsonValue;
       }
 
       return await this.prisma.plantillaDocumento.update({
@@ -733,8 +735,9 @@ export class BancoDocumentosService {
   async getFileStreamWasabi(key: string) {
     try {
       return await this.uploadsService.getFileFromWasabi(key);
-    } catch (error) {
-      this.logger.error(`Error obteniendo archivo de Wasabi: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error obteniendo archivo de Wasabi: ${mensaje}`);
       return null;
     }
   }
@@ -798,8 +801,8 @@ export class BancoDocumentosService {
     tablaAfectada: string,
     registroId: number,
     accion: 'CREATE' | 'UPDATE' | 'DELETE',
-    datosAnteriores: any,
-    datosNuevos: any,
+    datosAnteriores: Prisma.InputJsonValue,
+    datosNuevos: Prisma.InputJsonValue,
     usuarioId: number,
   ) {
     try {
@@ -813,8 +816,9 @@ export class BancoDocumentosService {
           usuario_id: usuarioId,
         },
       });
-    } catch (error) {
-      this.logger.error(`Error registrando auditoría: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error registrando auditoría: ${mensaje}`);
       // No lanzar error para no afectar la operación principal
     }
   }

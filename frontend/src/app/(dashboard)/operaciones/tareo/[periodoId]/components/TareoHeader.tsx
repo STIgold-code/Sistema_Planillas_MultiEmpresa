@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Download, Upload, UserPlus, Loader2, Clock, Shield } f
 import { cn } from '@/lib/utils';
 import { meses } from '../useTareoDetalle';
 import type { TareoGrillaResponse } from '@/types';
+import type { SesionTareoResponse } from '@/hooks/useSesionTareo';
 
 interface TareoHeaderProps {
   data: TareoGrillaResponse;
@@ -14,7 +15,7 @@ interface TareoHeaderProps {
   saving: boolean;
   sincronizando: boolean;
   sesionTareo: {
-    sesion: any;
+    sesion: SesionTareoResponse | null;
     esAdmin: boolean;
     esCorrector: boolean;
     requiereSesion: boolean;

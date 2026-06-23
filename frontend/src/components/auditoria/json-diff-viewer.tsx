@@ -4,8 +4,8 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface JsonDiffViewerProps {
-  before: Record<string, any> | null;
-  after: Record<string, any> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
   className?: string;
 }
 
@@ -14,11 +14,11 @@ type ChangeType = 'added' | 'removed' | 'modified' | 'unchanged';
 interface FieldChange {
   field: string;
   type: ChangeType;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
 }
 
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '-';
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   if (typeof value === 'object') {

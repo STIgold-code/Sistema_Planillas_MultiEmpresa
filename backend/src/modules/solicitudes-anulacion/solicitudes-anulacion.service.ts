@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateSolicitudAnulacionDto,
@@ -79,7 +80,9 @@ export class SolicitudesAnulacionService {
   async findAll(empresaId: number, filters: FilterSolicitudAnulacionDto) {
     const { buscar, estado, empleado_id, page = 1, limit = 20 } = filters;
 
-    const where: any = { empresa_id: empresaId };
+    const where: Prisma.SolicitudAnulacionContratoWhereInput = {
+      empresa_id: empresaId,
+    };
     if (estado) where.estado = estado;
     if (empleado_id) where.empleado_id = empleado_id;
 

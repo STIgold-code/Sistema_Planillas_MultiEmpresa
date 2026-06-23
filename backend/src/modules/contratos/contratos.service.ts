@@ -68,7 +68,7 @@ export class ContratosService {
 
     // Filtro por búsqueda (ID, nombre o documento del empleado)
     if (buscar) {
-      const orConditions: any[] = [
+      const orConditions: Prisma.EmpleadoWhereInput[] = [
         { numero_documento: { contains: buscar, mode: 'insensitive' } },
         { nombres: { contains: buscar, mode: 'insensitive' } },
         { apellido_paterno: { contains: buscar, mode: 'insensitive' } },
@@ -449,16 +449,21 @@ export class ContratosService {
         }
       }
 
-      const updateData: any = { ...dto };
+      // Separar campos que requieren transformación o no deben persistirse
+      // tal cual (fechas como string, empleado_id inmutable).
+      const {
+        fecha_inicio,
+        fecha_fin,
+        empleado_id: _empleadoIdIgnorado,
+        ...restoDto
+      } = dto;
+
+      const updateData: Prisma.ContratoUncheckedUpdateInput = { ...restoDto };
 
       // Convertir fechas usando timezone Peru
-      if (dto.fecha_inicio)
-        updateData.fecha_inicio = parsearFechaISOenPeru(dto.fecha_inicio);
-      if (dto.fecha_fin)
-        updateData.fecha_fin = parsearFechaISOenPeru(dto.fecha_fin);
-
-      // No permitir cambiar el empleado_id
-      delete updateData.empleado_id;
+      if (fecha_inicio)
+        updateData.fecha_inicio = parsearFechaISOenPeru(fecha_inicio);
+      if (fecha_fin) updateData.fecha_fin = parsearFechaISOenPeru(fecha_fin);
 
       // SEGURIDAD (mass assignment + IDOR): validar propiedad del archivo
       // referenciado contra la empresa antes de persistirlo.

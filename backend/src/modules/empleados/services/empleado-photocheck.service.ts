@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { MotivoPhotocheck } from '@prisma/client';
 
 /**
  * Servicio dedicado al log de generacion de photocheck (carnet) de empleados.
@@ -46,7 +47,7 @@ export class EmpleadoPhotocheckService {
       data: {
         empleado_id: empleadoId,
         generado_por: usuarioId,
-        motivo: motivoUpper as any,
+        motivo: motivoUpper as MotivoPhotocheck,
         observaciones,
         ip_address: ipAddress,
       },

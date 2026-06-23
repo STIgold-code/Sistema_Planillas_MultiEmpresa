@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { hasPermission } from '@/lib/auth';
 import { toDateString } from '@/lib/utils';
 import { Empleado, TipoDocumentoEmpleado } from '@/types';
@@ -132,8 +133,8 @@ export function useEmpleadoDetalle() {
     try {
       const response = await api.get<Empleado>(`/empleados/${params.id}`);
       setEmpleado(response);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar empleado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar empleado'));
       router.push('/rrhh/empleados');
     } finally {
       setLoading(false);
@@ -187,8 +188,8 @@ export function useEmpleadoDetalle() {
       toast.success('Familiar agregado correctamente');
       setFamiliarDialogOpen(false);
       fetchEmpleado();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al agregar familiar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al agregar familiar'));
     } finally {
       setSavingFamiliar(false);
     }
@@ -201,8 +202,8 @@ export function useEmpleadoDetalle() {
       await api.delete(`/empleados/${empleado.id}/familiares/${familiarId}`);
       toast.success('Familiar eliminado');
       fetchEmpleado();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar familiar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar familiar'));
     } finally {
       setDeletingFamiliarId(null);
     }
@@ -232,8 +233,8 @@ export function useEmpleadoDetalle() {
       toast.success('Movimiento registrado correctamente');
       setMovimientoDialogOpen(false);
       fetchEmpleado();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al registrar movimiento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al registrar movimiento'));
     } finally {
       setSavingMovimiento(false);
     }
@@ -266,8 +267,8 @@ export function useEmpleadoDetalle() {
       toast.success('Documento subido correctamente');
       setDocumentoDialogOpen(false);
       fetchEmpleado();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir documento'));
     } finally {
       setSavingDocumento(false);
     }
@@ -280,8 +281,8 @@ export function useEmpleadoDetalle() {
       await api.delete(`/empleados/${empleado.id}/documentos/${docId}`);
       toast.success('Documento eliminado');
       fetchEmpleado();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar documento'));
     } finally {
       setDeletingDocId(null);
     }
@@ -324,7 +325,7 @@ export function useEmpleadoDetalle() {
 
   const categoriasSeleccion = useMemo(() => {
     const tipos = tiposDocumento.filter(t => t.aplica_seleccion);
-    const cats = tipos.map(tipo => ({
+    const cats: { key: string; nombre: string; tipoId: number | null; count: number }[] = tipos.map(tipo => ({
       key: `tipo-${tipo.id}`,
       nombre: tipo.nombre,
       tipoId: tipo.id,
@@ -332,14 +333,14 @@ export function useEmpleadoDetalle() {
     }));
     const sinClasificar = docsSeleccion.filter(d => !d.tipo_documento_empleado_id).length;
     if (sinClasificar > 0) {
-      cats.push({ key: 'sin-clasificar', nombre: 'Sin clasificar', tipoId: null as any, count: sinClasificar });
+      cats.push({ key: 'sin-clasificar', nombre: 'Sin clasificar', tipoId: null, count: sinClasificar });
     }
     return cats;
   }, [tiposDocumento, docsSeleccion]);
 
   const categoriasRRHH = useMemo(() => {
     const tipos = tiposDocumento.filter(t => t.aplica_rrhh);
-    const cats = tipos.map(tipo => ({
+    const cats: { key: string; nombre: string; tipoId: number | null; count: number }[] = tipos.map(tipo => ({
       key: `tipo-${tipo.id}`,
       nombre: tipo.nombre,
       tipoId: tipo.id,
@@ -347,7 +348,7 @@ export function useEmpleadoDetalle() {
     }));
     const sinClasificar = docsRRHH.filter(d => !d.tipo_documento_empleado_id).length;
     if (sinClasificar > 0) {
-      cats.push({ key: 'sin-clasificar', nombre: 'Sin clasificar', tipoId: null as any, count: sinClasificar });
+      cats.push({ key: 'sin-clasificar', nombre: 'Sin clasificar', tipoId: null, count: sinClasificar });
     }
     return cats;
   }, [tiposDocumento, docsRRHH]);

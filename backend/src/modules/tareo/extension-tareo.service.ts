@@ -28,6 +28,23 @@ import { ahoraPeru } from '../../common/utils/datetime.util';
 const TIEMPO_LIMITE_DEFAULT = 60;
 const MAX_EXTENSIONES_DEFAULT = 3;
 
+/**
+ * Forma minima de una solicitud de extension usada por las notificaciones.
+ * Cubre los campos que leen los generadores de email.
+ */
+interface SolicitudExtensionNotificable {
+  motivo: string;
+  tiempo_solicitado_min: number | null;
+  usuario: {
+    nombre_completo: string;
+    email: string | null;
+  };
+  periodo: {
+    anio: number;
+    mes: number;
+  };
+}
+
 @Injectable()
 export class ExtensionTareoService {
   private readonly logger = new Logger(ExtensionTareoService.name);
@@ -401,7 +418,10 @@ export class ExtensionTareoService {
   /**
    * Notifica a los correctores sobre una nueva solicitud
    */
-  private async notificarCorrectores(solicitud: any, empresaId: number) {
+  private async notificarCorrectores(
+    solicitud: SolicitudExtensionNotificable,
+    empresaId: number,
+  ) {
     try {
       // Buscar usuarios con permiso de corrector
       const correctores = await this.prisma.usuario.findMany({
@@ -437,7 +457,7 @@ export class ExtensionTareoService {
    * Notifica al solicitante sobre la respuesta
    */
   private async notificarSolicitante(
-    solicitud: any,
+    solicitud: SolicitudExtensionNotificable,
     estado: string,
     comentario?: string,
     tiempoOtorgado?: number,
@@ -463,6 +483,10 @@ export class ExtensionTareoService {
         </div>
       `;
 
+      if (!solicitud.usuario.email) {
+        return;
+      }
+
       await this.emailService.sendEmail({
         to: solicitud.usuario.email,
         subject: `[Tareo] Tu solicitud de extensión fue ${estado.toLowerCase()}`,
@@ -476,7 +500,9 @@ export class ExtensionTareoService {
   /**
    * Genera el HTML del email de solicitud
    */
-  private generarEmailSolicitud(solicitud: any): string {
+  private generarEmailSolicitud(
+    solicitud: SolicitudExtensionNotificable,
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #3b82f6;">Nueva Solicitud de Extensión de Tareo</h2>

@@ -272,12 +272,12 @@ export class UploadsController {
   deleteFile(
     @Param('categoria') categoria: string,
     @Param('filename') filename: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     // SEGURIDAD IDOR: Solo superadmins pueden eliminar archivos directamente
     // Los usuarios normales deben eliminar archivos a traves de los endpoints especificos
     // (ej: DELETE /empleados/:id/foto) que validan empresa_id
-    const userPermissions: string[] = user.permisos || [];
+    const userPermissions: string[] = user.rol.permisos || [];
     const isSuperAdmin = userPermissions.includes(PERMISO_TOTAL);
 
     if (!isSuperAdmin) {

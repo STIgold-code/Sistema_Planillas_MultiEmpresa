@@ -29,6 +29,19 @@ import {
 } from './aplicacion/mapear-entrada-detalle';
 import { ParametrosLegalesEnMemoria } from './infraestructura/parametros-legales-en-memoria';
 
+/** Forma mínima de un detalle de tareo usado en los fixtures de prueba. */
+interface DetalleTareoFixture {
+  fecha: Date;
+  horas: number;
+  tipo_marcacion: {
+    codigo: string;
+    es_laborable: boolean;
+    horas_diurnas: number;
+    horas_nocturnas: number;
+    horas_default: number;
+  };
+}
+
 describe('PlanillasService.calcularEmpleado', () => {
   // El motor legacy fue retirado. Estas pruebas de comportamiento ahora ejercen
   // el motor PURO del dominio `calcularDetalleCompleto` (vía el mapper de
@@ -36,7 +49,7 @@ describe('PlanillasService.calcularEmpleado', () => {
   const PARAMS = new ParametrosLegalesEnMemoria();
 
   const calcular = (
-    empleado: Record<string, any>,
+    empleado: Record<string, unknown>,
     mes: number = 1,
     anio: number = 2026,
     acumuladoRenta: number = 0,
@@ -62,7 +75,7 @@ describe('PlanillasService.calcularEmpleado', () => {
    * Fixture: construye un empleado mínimo para cálculo.
    * Los overrides permiten personalizar atributos sin rearmar toda la estructura.
    */
-  function crearEmpleado(overrides: Record<string, any> = {}) {
+  function crearEmpleado(overrides: Record<string, unknown> = {}) {
     return {
       id: 1,
       numero_documento: '12345678',
@@ -223,7 +236,7 @@ describe('PlanillasService.calcularEmpleado', () => {
 
   describe('descuento por faltas', () => {
     function crearTareoConFaltas(diasAsistidos: number, diasFalta: number) {
-      const detalles: any[] = [];
+      const detalles: DetalleTareoFixture[] = [];
       for (let i = 0; i < diasAsistidos; i++) {
         detalles.push({
           fecha: new Date(2024, 0, i + 1),
@@ -341,7 +354,7 @@ describe('PlanillasService.calcularEmpleado', () => {
       activo: true,
     };
 
-    function empleadoAFP(sueldo: number, overrides: Record<string, any> = {}) {
+    function empleadoAFP(sueldo: number, overrides: Record<string, unknown> = {}) {
       return crearEmpleado({
         sueldo_base: sueldo,
         regimen_pensionario_id: AFP_HABITAT.id,
@@ -483,7 +496,7 @@ describe('PlanillasService.calcularEmpleado', () => {
       horasExtras25: number,
       horasExtras35: number,
     ) {
-      const detalles: any[] = [];
+      const detalles: DetalleTareoFixture[] = [];
       for (let i = 0; i < diasNormales; i++) {
         detalles.push({
           fecha: new Date(2024, 0, i + 1),
@@ -598,7 +611,7 @@ describe('PlanillasService.calcularEmpleado', () => {
 
   describe('sueldo nocturno (D.S. 007-2002-TR)', () => {
     function crearTareoNocturno(diasNoche: number, diasDia: number = 0) {
-      const detalles: any[] = [];
+      const detalles: DetalleTareoFixture[] = [];
       for (let i = 0; i < diasDia; i++) {
         detalles.push({
           fecha: new Date(2024, 0, i + 1),

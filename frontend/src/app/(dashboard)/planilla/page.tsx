@@ -59,6 +59,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe } from '@/lib/utils';
 
 interface PlanillasResponse {
@@ -156,8 +157,8 @@ export default function PlanillasPage() {
       toast.success('Planilla creada correctamente');
       setShowModal(false);
       router.push(`/planilla/${planilla.id}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al crear la planilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al crear la planilla'));
     } finally {
       setCreating(false);
     }
@@ -171,8 +172,8 @@ export default function PlanillasPage() {
       toast.success('Planilla eliminada correctamente');
       fetchPlanillas(meta.page);
       fetchResumen();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar la planilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar la planilla'));
     } finally {
       setDeleting(false);
       setDeleteId(null);

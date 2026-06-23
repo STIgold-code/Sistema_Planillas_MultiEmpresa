@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface Area {
@@ -123,8 +124,8 @@ export default function AreasPage() {
       }
       setDialogOpen(false);
       fetchAreas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el area');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el area'));
     } finally {
       setSaving(false);
     }
@@ -138,8 +139,8 @@ export default function AreasPage() {
       toast.success('Area eliminada correctamente');
       setDeleteDialogOpen(false);
       fetchAreas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el area');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el area'));
     }
   };
 

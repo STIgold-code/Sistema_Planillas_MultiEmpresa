@@ -16,11 +16,37 @@ jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashedPassword123'),
 }));
 
+// Mocks tipados por inferencia del literal: evitan `any` sin chocar con los
+// tipos recursivos de Prisma (que rompen mockDeep con referencias circulares).
+const crearPrismaMock = () => ({
+  usuario: {
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  rol: {
+    findUnique: jest.fn(),
+  },
+});
+
+const crearAuthMock = () => ({
+  revokeAllUserTokens: jest.fn(),
+});
+
+const crearAuditoriaMock = () => ({
+  registrarAccion: jest.fn(),
+  registrarCambiosCampos: jest.fn(),
+});
+
 describe('UsersService', () => {
   let service: UsersService;
-  let prismaService: any;
-  let authService: any;
-  let auditoriaService: any;
+  let prismaService: ReturnType<typeof crearPrismaMock>;
+  let authService: ReturnType<typeof crearAuthMock>;
+  let auditoriaService: ReturnType<typeof crearAuditoriaMock>;
 
   // Mock data
   const mockEmpresaId = 1;
@@ -84,30 +110,9 @@ describe('UsersService', () => {
   };
 
   beforeEach(async () => {
-    // Create mocks with jest.fn()
-    const mockPrismaService = {
-      usuario: {
-        findMany: jest.fn(),
-        findFirst: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      rol: {
-        findUnique: jest.fn(),
-      },
-    };
-
-    const mockAuthService = {
-      revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
-    };
-
-    const mockAuditoriaService = {
-      registrarAccion: jest.fn().mockResolvedValue(null),
-      registrarCambiosCampos: jest.fn().mockResolvedValue(null),
-    };
+    const mockPrismaService = crearPrismaMock();
+    const mockAuthService = crearAuthMock();
+    const mockAuditoriaService = crearAuditoriaMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -119,9 +124,9 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    prismaService = module.get(PrismaService);
-    authService = module.get(AuthService);
-    auditoriaService = module.get(AuditoriaService);
+    prismaService = mockPrismaService;
+    authService = mockAuthService;
+    auditoriaService = mockAuditoriaService;
   });
 
   afterEach(() => {
@@ -534,7 +539,7 @@ describe('UsersService', () => {
 
       const result = await service.findAll(mockEmpresaId);
 
-      result.data.forEach((user: any) => {
+      result.data.forEach((user) => {
         expect(user).not.toHaveProperty('password');
       });
     });

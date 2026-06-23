@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Loader2, Upload, FileText, Check, X, Info, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -105,8 +106,8 @@ export default function EditarPlantillaPage() {
         });
 
         setVariables(variablesRes);
-      } catch (error: any) {
-        toast.error(error.message || 'Error al cargar la plantilla');
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, 'Error al cargar la plantilla'));
         router.push('/rrhh/plantillas-contrato');
       } finally {
         setLoadingData(false);
@@ -211,8 +212,8 @@ export default function EditarPlantillaPage() {
       setValidation(null);
       setForceInvalid(false);
       toast.success('Archivo actualizado correctamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir archivo');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir archivo'));
     } finally {
       setUploadingFile(false);
     }
@@ -224,8 +225,8 @@ export default function EditarPlantillaPage() {
       await api.patch(`/plantillas-contrato/${plantillaId}`, data);
       toast.success('Plantilla actualizada correctamente');
       router.push('/rrhh/plantillas-contrato');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar la plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar la plantilla'));
     } finally {
       setLoading(false);
     }

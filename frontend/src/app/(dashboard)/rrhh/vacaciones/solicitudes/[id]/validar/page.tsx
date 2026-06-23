@@ -23,6 +23,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface Solicitud {
   id: number;
@@ -115,8 +116,8 @@ export default function ValidarSolicitudPage() {
 
       toast.success(accion === 'VALIDAR' ? 'Solicitud validada y aprobada' : 'Solicitud rechazada');
       router.push(`/rrhh/vacaciones/solicitudes/${id}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al procesar la solicitud');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al procesar la solicitud'));
     } finally {
       setSaving(false);
     }

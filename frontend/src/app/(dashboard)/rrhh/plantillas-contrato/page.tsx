@@ -56,6 +56,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 
 interface PlantillasResponse {
   data: PlantillaContrato[];
@@ -110,8 +111,8 @@ export default function PlantillasContratoPage() {
       const response = await api.get<PlantillasResponse>(`/plantillas-contrato?${params.toString()}`);
       setPlantillas(response.data);
       setMeta(response.meta);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar plantillas');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar plantillas'));
     } finally {
       setLoading(false);
     }
@@ -128,8 +129,8 @@ export default function PlantillasContratoPage() {
       });
       toast.success('Plantilla duplicada correctamente');
       fetchPlantillas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al duplicar plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al duplicar plantilla'));
     } finally {
       setDuplicando(null);
     }
@@ -143,8 +144,8 @@ export default function PlantillasContratoPage() {
       toast.success('Plantilla eliminada correctamente');
       setDeleteDialog({ open: false, plantilla: null });
       fetchPlantillas();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar plantilla');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar plantilla'));
     }
   };
 

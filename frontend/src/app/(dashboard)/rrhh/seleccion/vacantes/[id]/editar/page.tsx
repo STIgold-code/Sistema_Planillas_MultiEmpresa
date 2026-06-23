@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Vacante } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -183,8 +184,8 @@ export default function EditarVacantePage() {
       await api.patch(`/vacantes/${id}`, payload);
       toast.success('Vacante actualizada correctamente');
       router.push(`/rrhh/seleccion/vacantes/${id}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar la vacante');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar la vacante'));
     } finally {
       setLoading(false);
     }

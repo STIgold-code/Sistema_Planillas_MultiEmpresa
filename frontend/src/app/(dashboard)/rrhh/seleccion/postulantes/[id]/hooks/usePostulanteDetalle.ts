@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Postulante, TipoEvaluacionMaestro, TipoDocumentoEmpleado, PostulanteDocumento, PostulanteDocumentoHistorial } from '@/types';
 import { toast } from 'sonner';
 
@@ -112,8 +113,8 @@ export function usePostulanteDetalle() {
       await api.patch(`/postulantes/${id}/estado`, { nuevo_estado: 'APROBADO' });
       toast.success('Postulante aprobado');
       fetchPostulante();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al aprobar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al aprobar'));
     } finally {
       setActionLoading(false);
     }
@@ -125,8 +126,8 @@ export function usePostulanteDetalle() {
       await api.patch(`/postulantes/${id}/estado`, { nuevo_estado: 'EN_PROCESO' });
       toast.success('Postulante devuelto a En Proceso');
       fetchPostulante();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cambiar estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cambiar estado'));
     } finally {
       setActionLoading(false);
     }
@@ -139,8 +140,8 @@ export function usePostulanteDetalle() {
       toast.success('Postulante rechazado');
       setRejectDialog(false);
       fetchPostulante();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al rechazar');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al rechazar'));
     } finally {
       setActionLoading(false);
     }
@@ -176,8 +177,8 @@ export function usePostulanteDetalle() {
       setEvalArchivo(null);
       fetchPostulante();
       fetchPromedio();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al registrar evaluacion');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al registrar evaluacion'));
     } finally {
       setSavingEvalTipoId(null);
     }
@@ -192,8 +193,8 @@ export function usePostulanteDetalle() {
       setDeleteEvalId(null);
       fetchPostulante();
       fetchPromedio();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar evaluacion');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar evaluacion'));
     } finally {
       setActionLoading(false);
     }
@@ -213,8 +214,8 @@ export function usePostulanteDetalle() {
       await api.upload(`/postulantes/${id}/documentos`, formData);
       toast.success('Documento subido correctamente');
       fetchDocumentos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir documento'));
     } finally {
       setUploadingTipoId(null);
     }
@@ -237,8 +238,8 @@ export function usePostulanteDetalle() {
       setDeleteDocDialog(false);
       setDeleteDocTarget(null);
       fetchDocumentos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar documento'));
     } finally {
       setDeletingDocId(null);
     }
@@ -262,8 +263,8 @@ export function usePostulanteDetalle() {
       toast.success('Nueva version subida correctamente');
       setShowNuevaVersionDialog(false);
       fetchDocumentos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir nueva version');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir nueva version'));
     } finally {
       setSubiendoVersion(false);
     }
@@ -278,8 +279,8 @@ export function usePostulanteDetalle() {
         `/postulantes/${id}/documentos/${doc.id}/historial`,
       );
       setHistorial(data);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar historial');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar historial'));
     } finally {
       setCargandoHistorial(false);
     }

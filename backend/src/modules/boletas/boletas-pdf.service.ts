@@ -40,7 +40,7 @@ export class BoletasPdfService {
 
   async generarPdf(id: number, empresaId: number): Promise<Buffer> {
     const boleta = await this.findBoleta(id, empresaId);
-    const detalle = boleta.planilla_detalle as any;
+    const detalle = boleta.planilla_detalle;
     const empleado = boleta.empleado;
 
     const empresa = await this.prisma.empresa.findUnique({
@@ -263,7 +263,7 @@ export class BoletasPdfService {
 
       for (let i = 0; i < boletas.length; i++) {
         const boleta = boletas[i];
-        const detalle = boleta.planilla_detalle as any;
+        const detalle = boleta.planilla_detalle;
         const empleado = boleta.empleado;
 
         if (i > 0) {

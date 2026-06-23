@@ -17,6 +17,7 @@ import {
   CreateSedeContactoDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('sedes')
 export class SedesController {
@@ -24,14 +25,14 @@ export class SedesController {
 
   @Get()
   @RequirePermissions('maestros:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterSedeDto) {
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterSedeDto) {
     return this.sedesService.findAll(user.empresa_id, filters);
   }
 
   @Get('select')
   @RequirePermissions('maestros:leer')
   findForSelect(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('cliente_id') clienteId?: string,
   ) {
     return this.sedesService.findForSelect(
@@ -42,13 +43,13 @@ export class SedesController {
 
   @Get(':id')
   @RequirePermissions('maestros:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.sedesService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('maestros:crear')
-  create(@Body() dto: CreateSedeDto, @CurrentUser() user: any) {
+  create(@Body() dto: CreateSedeDto, @CurrentUser() user: AuthenticatedUser) {
     return this.sedesService.create(user.empresa_id, dto);
   }
 
@@ -57,7 +58,7 @@ export class SedesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSedeDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.sedesService.update(id, user.empresa_id, dto);
   }
@@ -66,14 +67,14 @@ export class SedesController {
   @RequirePermissions('maestros:editar')
   toggleActivo(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.sedesService.toggleActivo(id, user.empresa_id);
   }
 
   @Delete(':id')
   @RequirePermissions('maestros:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
     return this.sedesService.remove(id, user.empresa_id);
   }
 
@@ -84,7 +85,7 @@ export class SedesController {
   addContacto(
     @Param('id', ParseIntPipe) sedeId: number,
     @Body() dto: CreateSedeContactoDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.sedesService.addContacto(sedeId, user.empresa_id, dto);
   }
@@ -94,7 +95,7 @@ export class SedesController {
   updateContacto(
     @Param('contactoId', ParseIntPipe) contactoId: number,
     @Body() dto: Partial<CreateSedeContactoDto>,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.sedesService.updateContacto(contactoId, user.empresa_id, dto);
   }
@@ -103,7 +104,7 @@ export class SedesController {
   @RequirePermissions('maestros:eliminar')
   removeContacto(
     @Param('contactoId', ParseIntPipe) contactoId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.sedesService.removeContacto(contactoId, user.empresa_id);
   }

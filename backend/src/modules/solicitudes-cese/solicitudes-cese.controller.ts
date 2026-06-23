@@ -21,6 +21,7 @@ import {
   FilterSolicitudCeseDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 import { ALLOWED_MIME_TYPES } from '../uploads/uploads.config';
 
 // Limites especificos para solicitudes de cese (mas amplios que el default 10MB)
@@ -56,9 +57,9 @@ export class SolicitudesCeseController {
     }),
   )
   async create(
-    @Body() dto: any,
+    @Body() dto: Record<string, string>,
     @UploadedFiles() files: Express.Multer.File[] | undefined,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     // Validacion: al menos 1 archivo obligatorio
     if (!files || files.length === 0) {
@@ -101,13 +102,19 @@ export class SolicitudesCeseController {
 
   @Get()
   @RequirePermissions('ceses:leer')
-  findAll(@CurrentUser() user: any, @Query() filters: FilterSolicitudCeseDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterSolicitudCeseDto,
+  ) {
     return this.solicitudesCeseService.findAll(user.empresa_id, filters);
   }
 
   @Get(':id')
   @RequirePermissions('ceses:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.solicitudesCeseService.findOne(id, user.empresa_id);
   }
 
@@ -116,7 +123,7 @@ export class SolicitudesCeseController {
   aprobar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ResolverSolicitudCeseDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.solicitudesCeseService.aprobar(
       id,
@@ -131,7 +138,7 @@ export class SolicitudesCeseController {
   rechazar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ResolverSolicitudCeseDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.solicitudesCeseService.rechazar(
       id,

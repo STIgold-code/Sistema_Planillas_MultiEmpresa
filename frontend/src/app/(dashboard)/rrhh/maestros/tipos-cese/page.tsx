@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/form';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/errors';
 import Link from 'next/link';
 
 interface TipoCese {
@@ -120,8 +121,8 @@ export default function TiposCesePage() {
       }
       setDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar el tipo de cese');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al guardar el tipo de cese'));
     } finally {
       setSaving(false);
     }
@@ -135,8 +136,8 @@ export default function TiposCesePage() {
       toast.success('Tipo de cese eliminado correctamente');
       setDeleteDialogOpen(false);
       fetchTipos();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar el tipo de cese');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar el tipo de cese'));
     }
   };
 

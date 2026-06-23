@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
@@ -88,7 +89,10 @@ export class PlanillaDetalleService {
     }
 
     // Helper para obtener valor actualizado o existente
-    const getVal = (dtoVal: number | undefined, detalleVal: any): number => {
+    const getVal = (
+      dtoVal: number | undefined,
+      detalleVal: Prisma.Decimal | number | null,
+    ): number => {
       return dtoVal !== undefined ? dtoVal : Number(detalleVal) || 0;
     };
 

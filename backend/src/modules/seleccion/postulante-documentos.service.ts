@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { UPLOAD_PATHS } from '../uploads/uploads.config';
 import { CreatePostulanteDocumentoDto } from './dto';
+import { Postulante } from '@prisma/client';
 import {
   parsearFechaISOenPeru,
   ahoraPeru,
@@ -22,7 +23,7 @@ export class PostulanteDocumentosService {
     private uploadsService: UploadsService,
   ) {}
 
-  async getDocumentos(postulanteId: number, postulante: any) {
+  async getDocumentos(postulanteId: number, postulante: Postulante) {
     const documentos = await this.prisma.postulanteDocumento.findMany({
       where: {
         postulante_id: postulanteId,
@@ -65,7 +66,7 @@ export class PostulanteDocumentosService {
 
   async createDocumentoConArchivo(
     postulanteId: number,
-    postulante: any,
+    postulante: Postulante,
     file: Express.Multer.File,
     data: CreatePostulanteDocumentoDto,
     usuarioId?: number,
@@ -123,7 +124,7 @@ export class PostulanteDocumentosService {
   async crearNuevaVersionDocumento(
     documentoId: number,
     postulanteId: number,
-    postulante: any,
+    postulante: Postulante,
     file: Express.Multer.File,
     motivo: string,
     usuarioId: number,
@@ -271,7 +272,7 @@ export class PostulanteDocumentosService {
   async deleteDocumento(
     documentoId: number,
     postulanteId: number,
-    postulante: any,
+    postulante: Postulante,
     usuarioId?: number,
     motivo?: string,
   ) {

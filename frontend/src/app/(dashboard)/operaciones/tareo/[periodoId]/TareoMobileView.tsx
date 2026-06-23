@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { TareoGrillaResponse, TareoGrillaEmpleado, TipoMarcacion } from '@/types';
+import type { CeldaModificada } from './useTareoDetalle';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -44,7 +45,7 @@ import { cn } from '@/lib/utils';
 
 interface TareoMobileViewProps {
   data: TareoGrillaResponse;
-  cambiosPendientes: Map<string, any>;
+  cambiosPendientes: Map<string, CeldaModificada>;
   onSelectMarcacion: (empleado: TareoGrillaEmpleado, dia: number, tipoId: number | null) => void;
   onApplyRange: (tareoId: number, diaInicio: number, diaFin: number, tipoId: number | null) => void;
   searchTerm: string;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
 import { exportToPdf, generatePdfFilename, exportMultipleToPdf } from '@/lib/pdf-export';
 import type {
@@ -77,8 +78,8 @@ export function useDocumentosTab(empleadoId: string) {
       setPlantillas(plantillasRes);
       setTiposDocumento(tiposRes.filter(t => t.activo));
       setDocumentosSubidos(subidosRes);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar documentos');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar documentos'));
     } finally {
       setLoading(false);
     }
@@ -103,8 +104,8 @@ export function useDocumentosTab(empleadoId: string) {
       setShowGenerateDialog(false);
       setSelectedPlantilla('');
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al generar documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al generar documento'));
     } finally {
       setGenerating(false);
     }
@@ -122,8 +123,8 @@ export function useDocumentosTab(empleadoId: string) {
       await api.patch(`/banco-documentos/documento/${docId}/estado`, { estado: nuevoEstado });
       toast.success('Estado actualizado');
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar estado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar estado'));
     } finally {
       setUpdatingEstado(null);
     }
@@ -137,8 +138,8 @@ export function useDocumentosTab(empleadoId: string) {
       toast.success('Documento eliminado');
       setDocumentoToDelete(null);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar documento'));
     } finally {
       setDeletingId(null);
     }
@@ -160,8 +161,8 @@ export function useDocumentosTab(empleadoId: string) {
       await api.upload(`/banco-documentos/documento/${selectedDocId}/subir-firmado`, formData);
       toast.success('Documento firmado subido correctamente');
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir documento firmado');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir documento firmado'));
     } finally {
       setUploadingId(null);
       setSelectedDocId(null);
@@ -193,7 +194,7 @@ export function useDocumentosTab(empleadoId: string) {
       const result = await api.post<{
         generados: number;
         mensaje: string;
-        documentos: any[];
+        documentos: unknown[];
       }>('/banco-documentos/generar-masivo', {
         empleado_id: parseInt(empleadoId),
         categoria: 'INGRESO',
@@ -219,8 +220,8 @@ export function useDocumentosTab(empleadoId: string) {
       const filename = generatePdfFilename('Documentos_Ingreso', contenidos.empleado.nombre_completo);
       await exportMultipleToPdf(contenidos.documentos, { filename, margin: 10, pageSize: 'a4' });
       toast.success('PDF descargado correctamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al generar documentos');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al generar documentos'));
     } finally {
       setGenerandoMasivo('idle');
     }
@@ -266,8 +267,8 @@ export function useDocumentosTab(empleadoId: string) {
       toast.success('Documento subido correctamente');
       setShowUploadDialog(false);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir documento'));
     } finally {
       setUploading(false);
     }
@@ -281,8 +282,8 @@ export function useDocumentosTab(empleadoId: string) {
       toast.success('Documento eliminado');
       setDocumentoSubidoToDelete(null);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar documento');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar documento'));
     } finally {
       setDeletingId(null);
     }
@@ -315,8 +316,8 @@ export function useDocumentosTab(empleadoId: string) {
       toast.success('Nueva versión subida correctamente');
       setShowNuevaVersionDialog(false);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al subir nueva versión');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al subir nueva versión'));
     } finally {
       setSubiendoVersion(false);
     }
@@ -329,8 +330,8 @@ export function useDocumentosTab(empleadoId: string) {
       setShowHistorialDialog(true);
       const data = await api.get<VersionHistorial[]>(`/empleados/${empleadoId}/documentos/${doc.id}/historial`);
       setHistorial(data);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cargar historial');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Error al cargar historial'));
     } finally {
       setCargandoHistorial(false);
     }
