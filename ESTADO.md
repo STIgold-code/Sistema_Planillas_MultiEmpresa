@@ -1,64 +1,66 @@
 # ESTADO — Sistema de Planillas MultiEmpresa
 
-> Última actualización: 2026-06-18. Rama de trabajo: `feat/motor-planillas-paridad-general`.
+> Última actualización: 2026-06-23. Rama principal: `main`.
 
-## Qué se hizo
+## Resumen ejecutivo
 
-De repo vacío a motor de planillas integrado:
+El producto está en **fase de cierre / hardening**, no de construcción. Las 6 fases
+técnicas del plan están implementadas y con tests en verde. El circuito está cerrado
+de punta a punta: pantalla → API → motor → planilla → boleta.
 
-1. **Bootstrap (Fase 0):** base heredada de RRHH limpia, SUCAMEC oculto tras feature flag
-   (`FF_SUCAMEC` / `NEXT_PUBLIC_FF_SUCAMEC`), `CLAUDE.md`/`README`/`.gitignore` propios.
-2. **Planificación SDD:** propuesta + specs de los 6 regímenes + diseño + tareas (en engram).
-3. **Motor de cálculo (Fase 1):** hexagonal + DDD táctico, los 6 regímenes peruanos vía
-   estrategia + factory, orquestador sin `if` por régimen (OCP). TDD, paridad General al céntimo
-   contra el motor legacy. Todos los archivos del dominio < 500 líneas.
-4. **Base de datos:** `regimen_laboral` (Contrato override + Empresa default) y tabla
-   `ParametroLegal`. 61 migraciones heredadas colapsadas en un `init` limpio, aplicado a la BD
-   local `planillas_multiempresa` y verificado. Seed idempotente de parámetros legales.
-5. **Integración (PR6):** motor nuevo es la fuente de los montos del régimen en el camino real;
-   W1 resuelto (`conceptosRegimen()`); adapter Prisma de parámetros; servicio partido.
-6. **Cierre de migración (PR7):** ~110 campos auxiliares del DTO modelados en el dominio,
-   **motor legacy `calcular-empleado.ts` retirado** con paridad al céntimo; servicios heredados
-   partidos bajo 500 líneas.
+**Estado de calidad:** 0 usos de `any`, 0 errores de ESLint (backend además 0 warnings),
+`tsc --noEmit` limpio en backend y frontend, CI bloqueante en cada PR. Tests backend:
+**377 passed, 7 skipped** (los 5 puntos legales sin confirmar + 2 relacionados).
 
-7. **Revisión adversarial + fixes (PR #1):** 3 revisores independientes encontraron 7 críticos
-   (bypass de guardia de certificación en updateDetalle/generarBoletas, IDOR cross-tenant en
-   periodoTareo, doble conteo agrario prorrateado, bonif. 30334 huérfana en CC/agrario, falta
-   UNIQUE + resolución de vigencia no determinista en ParametroLegal). **Todos corregidos con
-   test de regresión.** PR #1 **mergeado a `main`**.
+## Fases (estado real)
 
-Estado de tests: **350 passed, 7 skipped** (los 5 puntos legales no confirmados), 7 snapshots golden.
+| Fase | Descripción | Estado |
+|------|-------------|--------|
+| 0 | Bootstrap (base RRHH limpia, repo propio) | ✅ Completa |
+| 1 | Motor de dominio: interfaz `CalculadoraRegimen`, 6 regímenes, factory, conceptos (hexagonal + DDD táctico, OCP, TDD) | ✅ Completa |
+| 2 | Parámetros legales versionados (`ParametroLegal` + `dominio/parametros`) | ✅ Completa |
+| 3 | Schema normalizado + migración limpia; **SUCAMEC eliminado** (PR #12) | ✅ Completa |
+| 4 | Casos de uso + API (`planillas-calcular`, `carga`, `consulta`, controller) | ✅ Completa |
+| 5 | Frontend (gestión, generación de planilla, boleta) | ✅ Completa |
+| 6 | Exportación PDF boleta + Excel planilla | ✅ Completa |
 
-## Fase 4–5 — Régimen end-to-end (en curso)
+Los 6 regímenes peruanos (General, Pequeña empresa, Microempresa, Agrario, Construcción
+civil, Hogar) están implementados vía estrategia + factory; el orquestador no tiene
+`if (regimen === ...)` (OCP). Paridad General al céntimo contra el motor legacy, que ya
+fue retirado. Todos los archivos del dominio < 500 líneas.
 
-- **PR #2 (mergeado):** API expone `regimen_laboral` (contrato override + empresa default) + test e2e que prueba que el régimen fluye API→motor y bloquea no-certificados.
-- **PR #3 (mergeado):** UI — selector de régimen en contrato/empresa, `RegimenBadge`, fuente única `lib/regimenes.ts`.
-- **PR #4 (mergeado):** planilla guarda el régimen usado (snapshot) y lo muestra (columna + resumen multi-régimen); modal de bloqueo de certificación con buena UX.
-- **PR #5 (mergeado):** la boleta expone el régimen (leído del detalle 1:1) + limpieza de lint en exportación.
-- **PR #6 (mergeado):** hardening de seguridad (guards a nivel de clase en ContratosController).
+## Calidad de código (PRs #8–#12, jun 2026)
 
-El circuito está cerrado de punta a punta: pantalla → API → motor → planilla → boleta.
+- **#8** — eliminados ~440 usos de `any`; ESLint `no-explicit-any: error`; workflow de CI creado.
+- **#9** — saldados ~352 errores de lint heredados de RRHH; gate de lint pasa a bloqueante.
+- **#10** — limpiados 108 warnings del frontend (quedan 11 del React Compiler, en `warn` consciente).
+- **#11** — backend a 0 errores y 0 warnings; `no-unsafe-argument` y `no-floating-promises` a `error`.
+- **#12** — **SUCAMEC eliminado por completo** (schema, backend, frontend, permisos, flag, migración).
 
-**Auditoría de seguridad (superficie nueva):** 0 críticos / 0 high / 0 medium. Multi-tenant sólido,
-sin IDOR, mass assignment bloqueado (whitelist), guardia de certificación sin caminos de bypass.
-Veredicto: segura para producción.
+CI (`.github/workflows/ci.yml`) corre en cada PR: `tsc` + ausencia de `any` + tests + lint, todo bloqueante.
 
 ## Pendiente
 
-- **Validación de contador (bloqueante para Agrario/CC):** 5 puntos legales marcados `it.skip`
-  (vacaciones agrario, base CONAFOVICER, BAE/SCTR, días mínimos grati CC, movilidad). Agrario y
-  Construcción civil quedan `certificadoProduccion=false` hasta esa firma.
-- **Asignación familiar:** ✅ CORREGIDA (PR #7) — se paga el 10% RMV según `Empleado.asignacion_familiar`.
-  Dos asunciones a confirmar con contador: es afecta a pensión/EsSalud (default correcto, Ley 25129) y
-  no se prorratea por días.
-- **Fases siguientes:** API/casos de uso (Fase 4), Frontend (Fase 5), Exportación configurable (Fase 6).
+- **Validación de contador (bloqueante para Agrario / Construcción civil):** 5 puntos legales
+  marcados `it.skip` (vacaciones agrario, base CONAFOVICER, BAE/SCTR, días mínimos grati CC,
+  movilidad). Agrario y CC quedan `certificadoProduccion=false` hasta esa firma. **No es código:
+  es validación legal humana.**
+- **Asignación familiar:** corregida (PR #7) — 10% RMV según `Empleado.asignacion_familiar`.
+  Dos asunciones a confirmar con contador: afecta a pensión/EsSalud (default Ley 25129) y no se
+  prorratea por días.
+- **Migración SUCAMEC:** `20260623120000_eliminar_sucamec` dropea `carnets_sucamec`. Aplicar con
+  `migrate deploy` por entorno (confirmar que no haya datos a preservar; el módulo estaba oculto y sin uso).
 - **Deploy:** crear proyecto Sentry NUEVO para este producto (no reusar el de ERMIR).
+- **Deuda menor:** 11 warnings frontend del React Compiler (falsos positivos pre-Compiler, en `warn`).
 
 ## Cómo correr
 
 ```bash
 cd backend && npm install && npx prisma generate
-npx prisma migrate deploy        # aplica el init a la BD
-npm test                         # 389 passed, 7 skipped
+npx prisma migrate deploy        # aplica migraciones a la BD
+npm test                         # 377 passed, 7 skipped
 npm run start:dev                # puerto 4001
 ```
+
+> Nota de entorno: `node` no está en el PATH del sistema; hay un node funcional embebido en
+> Visual Studio (`...\MSBuild\Microsoft\VisualStudio\NodeJs\node.exe`).
