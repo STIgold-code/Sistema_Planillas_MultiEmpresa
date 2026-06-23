@@ -1,19 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  BUSINESS_ERROR_MESSAGES,
-  calcularEdad,
-  validarEdadMinima,
-  validarSueldoMinimo,
-  EstadoDocumentosFilter,
-  DIAS_POR_VENCER_DOCUMENTO,
-} from '../../common/constants/business-rules';
 import { UploadsService } from '../uploads/uploads.service';
 import { FileCleanupService } from './services/file-cleanup.service';
 import { EmpleadoDocumentosService } from './services/empleado-documentos.service';
@@ -29,15 +15,9 @@ import {
   AddDocumentoDto,
 } from './dto';
 import { AuthenticatedUser } from '../../common/types/auth.types';
-import { Prisma, EstadoDocumentacion, TipoMovimiento } from '@prisma/client';
+import { EstadoDocumentacion } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
-import {
-  ahoraPeru,
-  sumarDiasPeru,
-  formatearFechaPeru,
-  parsearFechaISOenPeru,
-  fechaHoyPeruDate,
-} from '../../common/utils/datetime.util';
+import { parsearFechaISOenPeru } from '../../common/utils/datetime.util';
 
 @Injectable()
 export class EmpleadosService {

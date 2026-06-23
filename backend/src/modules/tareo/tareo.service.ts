@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   FilterTareoDto,
@@ -12,19 +7,10 @@ import {
   CreateJustificacionDto,
   UpdateJustificacionDto,
   AddArchivoDto,
-  FilterJustificacionDto,
 } from './dto';
-import { Prisma, EstadoPeriodoTareo, EstadoSesionTareo } from '@prisma/client';
-import { ahoraPeru } from '../../common/utils/datetime.util';
 import { TareoJustificacionesService } from './tareo-justificaciones.service';
 import { TareoGrillaService } from './tareo-grilla.service';
 import { TareoEdicionService } from './tareo-edicion.service';
-
-// Código especial para días sin contrato
-const CODIGO_SIN_CONTRATO = 'SC';
-
-// Límite máximo de celdas por actualización masiva (previene DoS)
-const MAX_BULK_UPDATE_CELLS = 1000;
 
 @Injectable()
 export class TareoService {

@@ -447,7 +447,7 @@ export default function RolesPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-lg md:text-xl">Eliminar Rol</AlertDialogTitle>
               <AlertDialogDescription className="text-sm">
-                ¿Estas seguro de eliminar el rol "{selectedRol?.nombre}"? Esta accion no se puede deshacer.
+                ¿Estas seguro de eliminar el rol &quot;{selectedRol?.nombre}&quot;? Esta accion no se puede deshacer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

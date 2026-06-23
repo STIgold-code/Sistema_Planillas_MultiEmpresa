@@ -414,7 +414,7 @@ export class PlantillasContratoGeneracionService {
     // Soporta: El(La), trabajador(a), del(de la), etc.
     return text.replace(
       /([A-Za-záéíóúÁÉÍÓÚñÑüÜ]+)\(([^)]+)\)/g,
-      (match, base, alt) => {
+      (_match: string, base: string, alt: string) => {
         if (esFemenino) {
           // Si la alternativa es solo una letra (sufijo), concatenar a la base
           if (alt.length === 1) {
@@ -453,7 +453,7 @@ export class PlantillasContratoGeneracionService {
         // Aplicar transformación de género solo al contenido de texto (dentro de <w:t>)
         content = content.replace(
           /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g,
-          (match, openTag, text, closeTag) => {
+          (_match: string, openTag: string, text: string, closeTag: string) => {
             const transformed = this.applyGenderTransformation(text, sexo);
             return openTag + transformed + closeTag;
           },

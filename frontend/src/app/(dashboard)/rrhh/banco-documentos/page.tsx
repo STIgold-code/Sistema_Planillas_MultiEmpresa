@@ -99,7 +99,7 @@ export default function BancoDocumentosPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Eliminar Plantilla</AlertDialogTitle>
               <AlertDialogDescription>
-                ¿Estas seguro de eliminar la plantilla "{selectedPlantilla?.nombre}"?
+                ¿Estas seguro de eliminar la plantilla &quot;{selectedPlantilla?.nombre}&quot;?
                 Esta accion no se puede deshacer y eliminara el archivo base asociado.
               </AlertDialogDescription>
             </AlertDialogHeader>

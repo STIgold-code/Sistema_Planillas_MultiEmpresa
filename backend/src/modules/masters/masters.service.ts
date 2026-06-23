@@ -535,7 +535,7 @@ export class MastersService {
   }
 
   async removeTipoEvaluacion(id: number, empresaId: number) {
-    const tipo = await this.findOneTipoEvaluacion(id, empresaId);
+    await this.findOneTipoEvaluacion(id, empresaId);
 
     // Verificar si tiene evaluaciones asociadas
     const count = await this.prisma.postulanteEvaluacion.count({

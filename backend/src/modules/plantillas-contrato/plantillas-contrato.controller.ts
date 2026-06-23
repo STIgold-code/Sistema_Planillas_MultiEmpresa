@@ -14,6 +14,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import * as fs from 'fs';
 import { Response } from 'express';
 import { PlantillasContratoService } from './plantillas-contrato.service';
 import {
@@ -272,7 +273,6 @@ export class PlantillasContratoController {
     const preview = this.plantillasService.previewWordFile(file.path);
 
     // Eliminar archivo temporal
-    const fs = require('fs');
     fs.unlinkSync(file.path);
 
     return preview;
@@ -300,7 +300,6 @@ export class PlantillasContratoController {
       this.plantillasService.validateExtractedVariables(variables);
 
     // Eliminar archivo temporal
-    const fs = require('fs');
     fs.unlinkSync(file.path);
 
     return { variables, validation };

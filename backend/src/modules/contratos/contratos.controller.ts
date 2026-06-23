@@ -12,7 +12,6 @@ import {
   UploadedFile,
   Res,
   BadRequestException,
-  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';

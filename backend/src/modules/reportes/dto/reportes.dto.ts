@@ -8,7 +8,7 @@ import {
   Max,
   IsObject,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { FormatoReporte as FormatoReporteEnum } from '@prisma/client';
 
 export class GenerarReporteDto {

@@ -28,7 +28,7 @@ export function extractVariablesFromWordFile(file: string | Buffer): string[] {
 
     const variableRegex = /\{\{([^}]+)\}\}/g;
     const variables: string[] = [];
-    let match;
+    let match: RegExpExecArray | null;
 
     while ((match = variableRegex.exec(fullText)) !== null) {
       const variable = `{{${match[1]}}}`;

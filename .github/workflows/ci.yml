@@ -43,9 +43,9 @@ jobs:
       - name: Tests
         run: npx jest --maxWorkers=2
 
-      # Lint completo: informativo hasta saldar la deuda heredada de RRHH.
-      - name: Lint (informativo)
-        run: npx eslint "{src,apps,libs,test}/**/*.ts" || true
+      # Lint bloqueante: 0 errores (los warnings no rompen el build).
+      - name: Lint
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
   frontend:
     name: Frontend
@@ -77,6 +77,6 @@ jobs:
             exit 1
           fi
 
-      # Lint completo: informativo hasta saldar la deuda heredada de RRHH.
-      - name: Lint (informativo)
-        run: npx eslint src || true
+      # Lint bloqueante: 0 errores (los warnings no rompen el build).
+      - name: Lint
+        run: npx eslint src

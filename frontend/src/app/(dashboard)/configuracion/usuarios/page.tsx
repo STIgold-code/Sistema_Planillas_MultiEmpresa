@@ -374,7 +374,7 @@ export default function UsuariosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg md:text-xl">Eliminar Usuario</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              ¿Estas seguro de eliminar al usuario "{selectedUsuario?.nombre_completo}"? Esta accion no se puede deshacer.
+              ¿Estas seguro de eliminar al usuario &quot;{selectedUsuario?.nombre_completo}&quot;? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

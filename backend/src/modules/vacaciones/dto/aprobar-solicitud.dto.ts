@@ -21,17 +21,17 @@ export class AprobarJefeDto {
   accion: AccionAprobacion;
 
   // Si accion = MODIFICAR, se requieren las nuevas fechas
-  @ValidateIf((o) => o.accion === AccionAprobacion.MODIFICAR)
+  @ValidateIf((o: AprobarJefeDto) => o.accion === AccionAprobacion.MODIFICAR)
   @IsDateString()
   @IsNotEmpty({ message: 'La fecha de inicio es requerida al modificar' })
   fecha_inicio_aprobada?: string;
 
-  @ValidateIf((o) => o.accion === AccionAprobacion.MODIFICAR)
+  @ValidateIf((o: AprobarJefeDto) => o.accion === AccionAprobacion.MODIFICAR)
   @IsDateString()
   @IsNotEmpty({ message: 'La fecha de fin es requerida al modificar' })
   fecha_fin_aprobada?: string;
 
-  @ValidateIf((o) => o.accion === AccionAprobacion.MODIFICAR)
+  @ValidateIf((o: AprobarJefeDto) => o.accion === AccionAprobacion.MODIFICAR)
   @IsInt()
   @Min(1)
   @IsNotEmpty({ message: 'Los días aprobados son requeridos al modificar' })
@@ -47,7 +47,7 @@ export class AprobarJefeDto {
   observacion?: string;
 
   // Si accion = RECHAZAR, se requiere motivo
-  @ValidateIf((o) => o.accion === AccionAprobacion.RECHAZAR)
+  @ValidateIf((o: AprobarJefeDto) => o.accion === AccionAprobacion.RECHAZAR)
   @IsString()
   @IsNotEmpty({ message: 'El motivo de rechazo es requerido' })
   motivo_rechazo?: string;

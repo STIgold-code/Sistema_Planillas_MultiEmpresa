@@ -243,11 +243,10 @@ export class VacacionesTareoSyncService {
           `${resultado.periodosAfectados} períodos, ${resultado.diasMarcados} días marcados`,
       );
     } catch (error) {
-      this.logger.error(
-        `Error sincronizando vacaciones: ${error.message}`,
-        error.stack,
-      );
-      resultado.errores.push(`Error interno: ${error.message}`);
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error sincronizando vacaciones: ${mensaje}`, stack);
+      resultado.errores.push(`Error interno: ${mensaje}`);
       resultado.exito = false;
     }
 
@@ -339,11 +338,10 @@ export class VacacionesTareoSyncService {
           `${resultado.periodosAfectados} períodos, ${resultado.diasMarcados} días limpiados`,
       );
     } catch (error) {
-      this.logger.error(
-        `Error revirtiendo vacaciones: ${error.message}`,
-        error.stack,
-      );
-      resultado.errores.push(`Error interno: ${error.message}`);
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error revirtiendo vacaciones: ${mensaje}`, stack);
+      resultado.errores.push(`Error interno: ${mensaje}`);
       resultado.exito = false;
     }
 

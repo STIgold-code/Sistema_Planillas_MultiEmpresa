@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
@@ -20,18 +19,11 @@ import {
 } from './dto';
 import { Prisma } from '@prisma/client';
 import * as fs from 'fs';
-import * as path from 'path';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { UPLOADS_DIR } from '../uploads/uploads.config';
-import { convert } from 'libreoffice-convert';
-import { promisify } from 'util';
-
-const convertAsync = promisify(convert);
 import {
   formatearFechaPeru,
   formatearFechaLargaPeru,
-  fechaHoyPeru,
   ahoraPeru,
 } from '../../common/utils/datetime.util';
 
@@ -916,7 +908,7 @@ export class PlantillasContratoService {
     // Detectar variables que quedaron sin reemplazar
     const unreplacedRegex = /\{\{([^}]+)\}\}/g;
     const unreplaced: string[] = [];
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = unreplacedRegex.exec(replaced)) !== null) {
       const variable = `{{${match[1]}}}`;
       if (!unreplaced.includes(variable)) {

@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { chromium, Browser } from 'playwright';
+import { obtenerMensajeError } from '../../../common/utils/error.util';
 
 export interface SbsConsultaResult {
   afp: string | null;
@@ -87,9 +88,9 @@ export class SbsConsultaService {
       // Verificar IP pública del servidor
       try {
         const ipResponse = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipResponse.json();
-        this.logger.log(`IP pública del servidor: ${ipData.ip}`);
-      } catch (e) {
+        const ipData = (await ipResponse.json()) as { ip?: string };
+        this.logger.log(`IP pública del servidor: ${ipData.ip ?? ''}`);
+      } catch {
         this.logger.warn('No se pudo obtener IP pública');
       }
 
@@ -273,8 +274,9 @@ export class SbsConsultaService {
         regimen_pensionario_id: regimenId,
         mensaje: 'Consulta exitosa',
       };
-    } catch (error) {
-      this.logger.error(`Error consultando SBS: ${error.message}`);
+    } catch (error: unknown) {
+      const mensaje = obtenerMensajeError(error);
+      this.logger.error(`Error consultando SBS: ${mensaje}`);
 
       if (error instanceof BadRequestException) {
         throw error;
@@ -285,7 +287,7 @@ export class SbsConsultaService {
         afp: null,
         cuspp: null,
         regimen_pensionario_id: null,
-        mensaje: `Error al consultar SBS: ${error.message}`,
+        mensaje: `Error al consultar SBS: ${mensaje}`,
       };
     } finally {
       if (browser) {

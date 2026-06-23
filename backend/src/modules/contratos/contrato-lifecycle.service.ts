@@ -9,6 +9,7 @@ import {
   BUSINESS_ERROR_MESSAGES,
   validarSueldoMinimo,
 } from '../../common/constants/business-rules';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 import { CreateContratoDto } from './dto';
 import { Prisma } from '@prisma/client';
 
@@ -416,7 +417,7 @@ export class ContratoLifecycleService {
         }
       } catch (error: unknown) {
         // Log pero no fallar si no se puede eliminar el archivo anterior
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         console.warn(`No se pudo eliminar archivo anterior: ${mensaje}`);
       }
     }

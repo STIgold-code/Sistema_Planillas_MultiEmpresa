@@ -271,7 +271,7 @@ export class BancoDocumentosController {
           this.bancoDocumentosService.createLocalReadStream(filePath);
 
         // Manejar errores del stream
-        fileStream.on('error', (err) => {
+        fileStream.on('error', () => {
           if (!res.headersSent) {
             res.status(500).json({ message: 'Error al leer el archivo' });
           }

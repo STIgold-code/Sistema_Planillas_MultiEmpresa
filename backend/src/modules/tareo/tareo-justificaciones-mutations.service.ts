@@ -278,6 +278,8 @@ export class TareoJustificacionesMutationsService {
 
   // Eliminar justificación
   async deleteJustificacion(id: number, empresaId: number, usuarioId?: number) {
+    // usuarioId se recibe para trazabilidad futura del borrado; aún no se persiste.
+    void usuarioId;
     const justificacion = await this.prisma.tareoJustificacion.findFirst({
       where: { id, empresa_id: empresaId },
       include: { tareo: { include: { periodo: true } } },
@@ -524,7 +526,7 @@ export class TareoJustificacionesMutationsService {
 
     // Filtrar empleados con >= minimoFaltas
     const empleadosConAlerta = Array.from(faltasPorEmpleadoMap.entries())
-      .filter(([_, count]) => count >= minimoFaltas)
+      .filter(([, count]) => count >= minimoFaltas)
       .map(([empleadoId, count]) => ({ empleadoId, faltas: count }));
 
     if (empleadosConAlerta.length === 0) {

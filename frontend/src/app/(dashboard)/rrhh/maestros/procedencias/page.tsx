@@ -341,7 +341,7 @@ export default function ProcedenciasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg md:text-xl">Eliminar Procedencia</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              ¿Estas seguro de eliminar la procedencia "{selectedProcedencia?.nombre}"? Esta accion no se puede deshacer.
+              ¿Estas seguro de eliminar la procedencia &quot;{selectedProcedencia?.nombre}&quot;? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

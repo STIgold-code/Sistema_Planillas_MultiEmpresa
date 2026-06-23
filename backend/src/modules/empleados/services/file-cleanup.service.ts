@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { UploadsService } from '../../uploads/uploads.service';
+import { obtenerMensajeError } from '../../../common/utils/error.util';
 
 interface FileReference {
   url: string;
@@ -125,9 +126,10 @@ export class FileCleanupService {
           result.failed++;
           result.errors.push(`No se pudo eliminar: ${key}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         result.failed++;
-        const errorMsg = `Error eliminando ${file.url}: ${error.message}`;
+        const mensaje = obtenerMensajeError(error);
+        const errorMsg = `Error eliminando ${file.url}: ${mensaje}`;
         result.errors.push(errorMsg);
         this.logger.warn(errorMsg);
       }

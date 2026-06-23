@@ -272,13 +272,7 @@ export class ReportesService {
       dto.codigo_reporte,
       filtros,
     );
-    const workbook = this.generarExcel(
-      reporte,
-      data,
-      columns,
-      empresaNombre,
-      dto.filtros,
-    );
+    const workbook = this.generarExcel(reporte, data, columns, empresaNombre);
 
     const tiempoGeneracion = Date.now() - startTime;
     await this.registrarHistorial(
@@ -424,7 +418,6 @@ export class ReportesService {
     data: Record<string, unknown>[],
     columns: ColumnConfig[],
     empresaNombre?: string,
-    filtrosAplicados?: Record<string, unknown>,
   ): ExcelJS.Workbook {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'ERMIR Sistema RRHH';
@@ -666,7 +659,8 @@ export class ReportesService {
         },
       });
     } catch (error) {
-      this.logger.error(`Error registrando historial: ${error.message}`);
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error registrando historial: ${mensaje}`);
     }
   }
 }

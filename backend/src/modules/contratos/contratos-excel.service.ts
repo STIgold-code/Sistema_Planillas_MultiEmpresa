@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { ContratosExcelExportService } from './contratos-excel-export.service';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 
 export interface ContratoImportRow {
   dni: string;
@@ -48,6 +49,43 @@ export class ContratosExcelService {
     private prisma: PrismaService,
     private contratosExcelExportService: ContratosExcelExportService,
   ) {}
+
+  /**
+   * Convierte el valor de una celda de ExcelJS (CellValue, un union que incluye
+   * objetos como fórmulas o hipervínculos) a su representación de texto, sin
+   * producir "[object Object]". Equivalente a leer el texto plano de la celda.
+   */
+  private cellToString(value: ExcelJS.CellValue): string | undefined {
+    if (value === null || value === undefined) return undefined;
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    // Objetos de ExcelJS: fórmula (.result), hipervínculo (.text) o richtext.
+    if ('result' in value) {
+      const { result } = value;
+      if (result instanceof Date) return result.toISOString();
+      if (
+        typeof result === 'string' ||
+        typeof result === 'number' ||
+        typeof result === 'boolean'
+      ) {
+        return String(result);
+      }
+      return undefined;
+    }
+    if ('text' in value && typeof value.text === 'string') {
+      return value.text;
+    }
+    if ('richText' in value) {
+      return value.richText.map((r) => r.text).join('');
+    }
+    return undefined;
+  }
 
   private parseExcelDate(value: unknown): Date | null {
     if (!value) return null;
@@ -101,7 +139,7 @@ export class ContratosExcelService {
     const columnMap: Record<string, number> = {};
 
     headerRow.eachCell((cell, colNumber) => {
-      const value = cell.value?.toString()?.toUpperCase().trim() || '';
+      const value = this.cellToString(cell.value)?.toUpperCase().trim() || '';
       if (value.includes('DOCUMENTO') || value === 'DNI') {
         columnMap['DOCUMENTO'] = colNumber;
       } else if (
@@ -158,7 +196,7 @@ export class ContratosExcelService {
       if (rowNumber === 1) return; // Skip header
 
       const dniCell = row.getCell(columnMap['DOCUMENTO']);
-      const dni = dniCell.value?.toString()?.trim();
+      const dni = this.cellToString(dniCell.value)?.trim();
 
       if (!dni || dni.length < 7) return; // Skip filas sin DNI válido
 
@@ -181,7 +219,7 @@ export class ContratosExcelService {
       let sueldo: number | null = null;
       if (sueldoCell.value) {
         const sueldoNum = parseFloat(
-          sueldoCell.value.toString().replace(',', '.'),
+          (this.cellToString(sueldoCell.value) ?? '').replace(',', '.'),
         );
         if (!isNaN(sueldoNum)) {
           sueldo = sueldoNum;
@@ -195,44 +233,40 @@ export class ContratosExcelService {
 
       // Leer motivo de cese si existe
       const motivoCese = columnMap['MOTIVO_CESE']
-        ? row.getCell(columnMap['MOTIVO_CESE']).value?.toString()?.trim() || ''
+        ? this.cellToString(
+            row.getCell(columnMap['MOTIVO_CESE']).value,
+          )?.trim() || ''
         : '';
 
       rows.push({
         dni,
         nombre:
-          row
-            .getCell(columnMap['NOMBRE'] || 0)
-            .value?.toString()
-            ?.trim() || '',
+          this.cellToString(
+            row.getCell(columnMap['NOMBRE'] || 0).value,
+          )?.trim() || '',
         tipo_contrato:
-          row
-            .getCell(columnMap['TIPO'] || 0)
-            .value?.toString()
-            ?.trim() || 'PLAZO FIJO',
+          this.cellToString(
+            row.getCell(columnMap['TIPO'] || 0).value,
+          )?.trim() || 'PLAZO FIJO',
         modalidad:
-          row
-            .getCell(columnMap['MODALIDAD'] || 0)
-            .value?.toString()
-            ?.trim() || 'RENOVACION',
+          this.cellToString(
+            row.getCell(columnMap['MODALIDAD'] || 0).value,
+          )?.trim() || 'RENOVACION',
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         sueldo,
         area:
-          row
-            .getCell(columnMap['AREA'] || 0)
-            .value?.toString()
-            ?.trim() || '',
+          this.cellToString(
+            row.getCell(columnMap['AREA'] || 0).value,
+          )?.trim() || '',
         sede:
-          row
-            .getCell(columnMap['SEDE'] || 0)
-            .value?.toString()
-            ?.trim() || '',
+          this.cellToString(
+            row.getCell(columnMap['SEDE'] || 0).value,
+          )?.trim() || '',
         cargo:
-          row
-            .getCell(columnMap['CARGO'] || 0)
-            .value?.toString()
-            ?.trim() || '',
+          this.cellToString(
+            row.getCell(columnMap['CARGO'] || 0).value,
+          )?.trim() || '',
         fecha_cese: fechaCese,
         motivo_cese: motivoCese,
       });
@@ -405,7 +439,7 @@ export class ContratosExcelService {
           creados++;
         }
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         errores.push(`DNI ${contrato.dni}: ${mensaje}`);
       }
     }

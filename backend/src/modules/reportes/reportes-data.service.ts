@@ -6,12 +6,8 @@ import { ReporteConfig } from './reportes.constants';
 import { ReportesDetalleService } from './reportes-detalle.service';
 import { ColumnConfig, ReporteData } from './reportes.types';
 import {
-  ahoraPeru,
   fechaHoyPeruDate,
   sumarDiasPeru,
-  inicioDelMesPeru,
-  finDelMesPeru,
-  parsearFechaISOenPeru,
 } from '../../common/utils/datetime.util';
 
 @Injectable()

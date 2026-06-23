@@ -211,7 +211,7 @@ export class EmpleadosController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         const allowed = [
           'application/pdf',
           'application/msword',
@@ -251,7 +251,7 @@ export class EmpleadosController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         const allowed = [
           'application/pdf',
           'application/msword',

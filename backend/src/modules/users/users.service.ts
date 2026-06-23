@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { Prisma } from '@prisma/client';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 import {
   hasPermission,
   PERMISO_TOTAL,
@@ -48,7 +49,8 @@ export class UsersService {
   private sanitizeUser<T extends { password: string }>(
     user: T,
   ): Omit<T, 'password'> {
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password; // descartado intencionalmente para excluirlo del resultado
     return userWithoutPassword;
   }
 
@@ -338,11 +340,11 @@ export class UsersService {
         this.logger.log(
           `Tokens revocados para usuario ${id} después de cambio de contraseña`,
         );
-      } catch (error) {
+      } catch (error: unknown) {
         // Loggear el error pero no fallar la operación (la contraseña ya cambió)
         this.logger.error(
-          `Error revocando tokens para usuario ${id}: ${error.message}`,
-          error.stack,
+          `Error revocando tokens para usuario ${id}: ${obtenerMensajeError(error)}`,
+          error instanceof Error ? error.stack : undefined,
         );
       }
     }
@@ -379,9 +381,9 @@ export class UsersService {
     // Revocar todos los tokens del usuario eliminado
     try {
       await this.authService.revokeAllUserTokens(id);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(
-        `Error revocando tokens para usuario eliminado ${id}: ${error.message}`,
+        `Error revocando tokens para usuario eliminado ${id}: ${obtenerMensajeError(error)}`,
       );
     }
 
