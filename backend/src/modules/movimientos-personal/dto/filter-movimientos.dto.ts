@@ -26,14 +26,18 @@ export enum EstadoEmpleadoFiltro {
 
 export class FilterMovimientosDto {
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(1)
   @Max(12)
   mes?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(2020)
   anio?: number;
@@ -55,17 +59,23 @@ export class FilterMovimientosDto {
   estado?: EstadoEmpleadoFiltro;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   cliente_id?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   sede_id?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   area_id?: number;
 
@@ -74,13 +84,17 @@ export class FilterMovimientosDto {
   buscar?: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(1)
   page?: number = 1;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(1)
   @Max(100)

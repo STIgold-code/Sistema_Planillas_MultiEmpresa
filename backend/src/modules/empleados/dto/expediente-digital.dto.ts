@@ -43,7 +43,9 @@ export class FilterExpedienteDto {
   @IsOptional()
   @IsInt()
   @Min(2000)
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value) : value,
+  )
   anio?: number;
 
   @IsOptional()

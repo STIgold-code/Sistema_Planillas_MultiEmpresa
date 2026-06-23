@@ -68,7 +68,9 @@ export class CreateTareaOnboardingDto {
   dias_desde_ingreso: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
   duracion_horas?: number;
 
   @IsOptional()
@@ -179,7 +181,9 @@ export class UpdateTareaOnboardingDto {
   dias_desde_ingreso?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
   duracion_horas?: number;
 
   @IsOptional()
@@ -246,21 +250,29 @@ export class FilterProcesoOnboardingDto {
 
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value) : value,
+  )
   empleado_id?: number;
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(
+    ({ value }: { value: unknown }) => value === 'true' || value === true,
+  )
   con_alertas?: boolean;
 
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value) : value,
+  )
   page?: number;
 
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value) : value,
+  )
   limit?: number;
 }

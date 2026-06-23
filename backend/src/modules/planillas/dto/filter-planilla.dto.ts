@@ -12,12 +12,16 @@ export enum EstadoPlanillaFilter {
 
 export class FilterPlanillaDto {
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   anio?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   mes?: number;
 
@@ -26,12 +30,16 @@ export class FilterPlanillaDto {
   estado?: EstadoPlanillaFilter;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   page?: number = 1;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   limit?: number = 20;
 }

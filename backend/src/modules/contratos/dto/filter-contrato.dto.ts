@@ -18,7 +18,9 @@ export class FilterContratoDto {
   buscar?: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   empleado_id?: number;
 
@@ -39,20 +41,26 @@ export class FilterContratoDto {
   fecha_hasta?: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(1)
   page?: number = 1;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   @Min(1)
   @Max(100)
   limit?: number = 20;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(
+    ({ value }: { value: unknown }) => value === 'true' || value === true,
+  )
   @IsBoolean()
   por_vencer?: boolean; // true para contratos que vencen en 30 días
 
