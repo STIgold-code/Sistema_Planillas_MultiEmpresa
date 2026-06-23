@@ -547,7 +547,7 @@ export default function ClientesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg md:text-xl">Eliminar Cliente</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              ¿Estas seguro de eliminar el cliente "{selectedCliente?.razon_social}"? Esta accion no se puede deshacer.
+              ¿Estas seguro de eliminar el cliente &quot;{selectedCliente?.razon_social}&quot;? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

@@ -55,7 +55,7 @@ export class ReportesPdfService {
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
@@ -63,8 +63,9 @@ export class ReportesPdfService {
         this.dibujarReporte(doc, reporte, data, columns, options);
         doc.end();
       } catch (error) {
-        this.logger.error(`Error generando PDF: ${error.message}`);
-        reject(error);
+        const mensaje = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error generando PDF: ${mensaje}`);
+        reject(error instanceof Error ? error : new Error(mensaje));
       }
     });
   }
@@ -97,7 +98,7 @@ export class ReportesPdfService {
     );
 
     // ==================== TABLA ====================
-    y = this.dibujarTabla(
+    this.dibujarTabla(
       doc,
       data,
       columns,
@@ -206,7 +207,6 @@ export class ReportesPdfService {
     );
 
     let y = startY;
-    let currentPage = 1;
 
     // Función para dibujar encabezados
     const dibujarEncabezados = () => {
@@ -239,7 +239,6 @@ export class ReportesPdfService {
       // Verificar si necesitamos nueva página
       if (y + rowHeight > maxY) {
         doc.addPage();
-        currentPage++;
         y = 40; // Margen superior
         dibujarEncabezados();
       }
@@ -286,8 +285,16 @@ export class ReportesPdfService {
             } else {
               displayValue = value.toString();
             }
-          } else {
+          } else if (value instanceof Date) {
+            displayValue = value.toISOString();
+          } else if (
+            typeof value === 'string' ||
+            typeof value === 'boolean' ||
+            typeof value === 'bigint'
+          ) {
             displayValue = String(value);
+          } else {
+            displayValue = JSON.stringify(value);
           }
         }
 
@@ -369,6 +376,21 @@ export class ReportesPdfService {
   formatearFiltrosTexto(filtros: Record<string, unknown>): string {
     const partes: string[] = [];
 
+    // Convierte un valor desconocido a texto sin producir "[object Object]".
+    const aTexto = (valor: unknown): string => {
+      if (valor === null || valor === undefined) return '';
+      if (
+        typeof valor === 'string' ||
+        typeof valor === 'number' ||
+        typeof valor === 'boolean' ||
+        typeof valor === 'bigint'
+      ) {
+        return String(valor);
+      }
+      if (valor instanceof Date) return valor.toISOString();
+      return JSON.stringify(valor);
+    };
+
     if (filtros.mes && filtros.anio) {
       const meses = [
         'Enero',
@@ -385,7 +407,7 @@ export class ReportesPdfService {
         'Diciembre',
       ];
       const mesIndex = Number(filtros.mes) - 1;
-      partes.push(`Período: ${meses[mesIndex]} ${filtros.anio}`);
+      partes.push(`Período: ${meses[mesIndex]} ${aTexto(filtros.anio)}`);
     }
 
     if (filtros.fecha_desde || filtros.fecha_hasta) {
@@ -405,15 +427,15 @@ export class ReportesPdfService {
     }
 
     if (filtros.area_id) {
-      partes.push(`Área: ID ${filtros.area_id}`);
+      partes.push(`Área: ID ${aTexto(filtros.area_id)}`);
     }
 
     if (filtros.sede_id) {
-      partes.push(`Sede: ID ${filtros.sede_id}`);
+      partes.push(`Sede: ID ${aTexto(filtros.sede_id)}`);
     }
 
     if (filtros.estado) {
-      partes.push(`Estado: ${filtros.estado}`);
+      partes.push(`Estado: ${aTexto(filtros.estado)}`);
     }
 
     return partes.join(' | ');

@@ -209,15 +209,13 @@ export class SedesService {
       }
     }
 
-    const { contactos, ...sedeData } = dto;
-
     const sedeActualizada = await this.prisma.sede.update({
       where: { id },
       data: {
-        nombre: sedeData.nombre,
-        direccion: sedeData.direccion,
-        cliente_id: sedeData.cliente_id,
-        activo: sedeData.activo,
+        nombre: dto.nombre,
+        direccion: dto.direccion,
+        cliente_id: dto.cliente_id,
+        activo: dto.activo,
       },
       include: {
         cliente: {

@@ -190,7 +190,7 @@ export function ImportDialog({
                                   {err.tipo === 'CELDA_VACIA' && 'Celda vacía'}
                                 </span>
                                 <span className="text-red-600/80 truncate max-w-[200px]" title={err.mensaje}>
-                                  {err.valor && <span className="font-mono bg-red-100 px-1 rounded mr-1">"{err.valor}"</span>}
+                                  {err.valor && <span className="font-mono bg-red-100 px-1 rounded mr-1">&quot;{err.valor}&quot;</span>}
                                   {err.empleado && <span className="text-red-500">({err.empleado.split(',')[0]})</span>}
                                 </span>
                               </div>

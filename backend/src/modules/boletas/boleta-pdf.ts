@@ -1,4 +1,3 @@
-import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { Boleta, PlanillaDetalle } from '@prisma/client';
 import { LOGO_ERMIR_PATH } from '../../common/utils/assets.util';
@@ -62,7 +61,6 @@ export function dibujarBoletaA4(
   const COLOR_NEGRO = '#000000';
   const COLOR_GRIS_OSCURO = '#333333';
   const COLOR_GRIS = '#999999';
-  const COLOR_GRIS_CLARO = '#e0e0e0';
   const COLOR_GRIS_MUY_CLARO = '#f5f5f5';
   const COLOR_BLANCO = '#FFFFFF';
 

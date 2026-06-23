@@ -257,6 +257,8 @@ export class PeriodosService {
   }
 
   async reabrir(id: number, empresaId: number, usuarioId?: number) {
+    // usuarioId se recibe para trazabilidad futura del reabierto; aún no se persiste.
+    void usuarioId;
     const periodo = await this.findOne(id, empresaId);
 
     if (periodo.estado !== EstadoPeriodoTareo.CERRADO) {

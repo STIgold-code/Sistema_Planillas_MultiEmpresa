@@ -5,7 +5,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
-  Prisma,
   EstadoSolicitudVacaciones,
   EstadoPeriodoVacacional,
   TipoMovimientoVacacional,
@@ -278,8 +277,9 @@ export class VacacionesAprobacionService {
       }
     } catch (error) {
       // No fallar la aprobación si la sincronización falla, solo loguear
+      const mensaje = error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Error inesperado al sincronizar vacaciones #${id} con tareo: ${error.message}`,
+        `Error inesperado al sincronizar vacaciones #${id} con tareo: ${mensaje}`,
       );
     }
 
@@ -434,8 +434,9 @@ export class VacacionesAprobacionService {
           );
         }
       } catch (error) {
+        const mensaje = error instanceof Error ? error.message : String(error);
         this.logger.error(
-          `Error inesperado al revertir vacaciones #${id} en tareo: ${error.message}`,
+          `Error inesperado al revertir vacaciones #${id} en tareo: ${mensaje}`,
         );
       }
     } else {

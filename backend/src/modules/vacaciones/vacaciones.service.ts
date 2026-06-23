@@ -1,13 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateSolicitudDto,
-  UpdateSolicitudDto,
   FilterSolicitudDto,
   AprobarJefeDto,
   AprobarRrhhDto,
@@ -15,20 +9,15 @@ import {
   FilterPeriodoVacacionalDto,
   UpdateConfiguracionVacacionesDto,
 } from './dto';
-import { AccionAprobacion } from './dto/aprobar-solicitud.dto';
 import {
   Prisma,
   EstadoSolicitudVacaciones,
   EstadoPeriodoVacacional,
-  TipoMovimientoVacacional,
 } from '@prisma/client';
-import { VacacionesTareoSyncService } from './vacaciones-tareo-sync.service';
 import { VacacionesSolicitudesService } from './vacaciones-solicitudes.service';
 import {
   ahoraPeru,
-  formatearFechaPeru,
   sumarDiasPeru,
-  parsearFechaISOenPeru,
   leerFechaPrisma,
 } from '../../common/utils/datetime.util';
 
@@ -38,7 +27,6 @@ export class VacacionesService {
 
   constructor(
     private prisma: PrismaService,
-    private tareoSyncService: VacacionesTareoSyncService,
     private solicitudesService: VacacionesSolicitudesService,
   ) {}
 
@@ -179,7 +167,7 @@ export class VacacionesService {
     });
 
     const ultimoPeriodo = periodosExistentes[0]?.numero_periodo || 0;
-    const periodosCreados = [];
+    const periodosCreados: Prisma.PeriodoVacacionalGetPayload<object>[] = [];
 
     // Crear períodos faltantes
     for (let i = ultimoPeriodo + 1; i <= aniosTrabajados; i++) {

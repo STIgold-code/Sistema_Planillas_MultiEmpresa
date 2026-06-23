@@ -12,6 +12,7 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  createWriteStream,
 } from 'fs';
 import { join, extname, dirname, basename, resolve, normalize } from 'path';
 import { Readable } from 'stream';
@@ -22,7 +23,7 @@ import {
   validateAndSecureFile,
   validateAndSecureBuffer,
 } from './uploads.config';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import {
   PutObjectCommand,
   DeleteObjectCommand,
@@ -33,6 +34,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { s3Client, bucketName, useWasabi } from '../../config/wasabi.config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestContextService } from '../../common/context/request-context.service';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 import { esCategoriaPublica } from './archivo.constants';
 import { extraerKeyDeValor } from './archivo-key.util';
 import type { Archivo } from '@prisma/client';
@@ -235,7 +237,7 @@ export class UploadsService {
         mkdirSync(dir, { recursive: true });
       }
 
-      const writeStream = require('fs').createWriteStream(filePath);
+      const writeStream = createWriteStream(filePath);
       return new Promise((resolve, reject) => {
         stream.pipe(writeStream);
         writeStream.on('finish', () => {
@@ -312,7 +314,7 @@ export class UploadsService {
       }
       return true;
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
+      const mensaje = obtenerMensajeError(error);
       this.logger.error(`Error eliminando archivo: ${mensaje}`);
       return false;
     }
@@ -415,17 +417,19 @@ export class UploadsService {
         // Es un Web ReadableStream, convertir a Node.js Readable
         const reader = bodyDesconocido.getReader();
         nodeStream = new Readable({
-          async read() {
-            try {
-              const { done, value } = await reader.read();
-              if (done) {
-                this.push(null);
-              } else {
-                this.push(Buffer.from(value));
+          read() {
+            void (async () => {
+              try {
+                const { done, value } = await reader.read();
+                if (done) {
+                  this.push(null);
+                } else {
+                  this.push(Buffer.from(value));
+                }
+              } catch (err) {
+                this.destroy(err as Error);
               }
-            } catch (err) {
-              this.destroy(err as Error);
-            }
+            })();
           },
         });
       } else {
@@ -440,7 +444,7 @@ export class UploadsService {
         contentLength: response.ContentLength || 0,
       };
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
+      const mensaje = obtenerMensajeError(error);
       this.logger.error(`Error obteniendo archivo de Wasabi: ${mensaje}`);
       return null;
     }
@@ -518,7 +522,7 @@ export class UploadsService {
           throw new Error('Unsupported response body type from S3');
         }
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error obteniendo buffer de Wasabi: ${mensaje}`);
         throw new NotFoundException(
           'No se pudo obtener el archivo de la plantilla',
@@ -573,7 +577,7 @@ export class UploadsService {
     // Generar nombre y path destino (común a ambos modos).
     const filename =
       file.filename ??
-      `${uuidv4()}-${Date.now()}${extname(file.originalname).toLowerCase()}`;
+      `${randomUUID()}-${Date.now()}${extname(file.originalname).toLowerCase()}`;
     const relativePath = `${categoria}/${filename}`;
     const fullLocalPath = join(UPLOADS_DIR, relativePath);
 
@@ -622,7 +626,7 @@ export class UploadsService {
         finalPath = key;
         finalUrl = this.getFileUrl(key);
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error moviendo archivo a Wasabi: ${mensaje}`);
       }
     } else if (isMemoryStorage) {
@@ -731,7 +735,7 @@ export class UploadsService {
           message: 'Archivo eliminado correctamente',
         };
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error deleting file from Wasabi: ${mensaje}`);
         return {
           success: false,
@@ -757,7 +761,7 @@ export class UploadsService {
       return existsSync(fullPath);
     } catch (error: unknown) {
       // Si la validacion falla (path traversal), retornar false
-      const mensaje = error instanceof Error ? error.message : String(error);
+      const mensaje = obtenerMensajeError(error);
       this.logger.warn(`[SECURITY] fileExists validation failed: ${mensaje}`);
       return false;
     }
@@ -799,7 +803,7 @@ export class UploadsService {
       };
     } catch (error: unknown) {
       // Si la validacion falla, retornar no existe
-      const mensaje = error instanceof Error ? error.message : String(error);
+      const mensaje = obtenerMensajeError(error);
       this.logger.warn(`[SECURITY] getFileInfo validation failed: ${mensaje}`);
       return { exists: false };
     }

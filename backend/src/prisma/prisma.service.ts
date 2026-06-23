@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClient, Prisma, AccionAuditoria } from '@prisma/client';
 import { RequestContextService } from '../common/context/request-context.service';
+import { obtenerMensajeError } from '../common/utils/error.util';
 
 /**
  * Tablas que NO deben auditarse para evitar loops infinitos o ruido
@@ -88,96 +89,116 @@ export class PrismaService
    * CREATE, UPDATE y DELETE en la base de datos.
    */
   private setupAuditMiddleware() {
-    this.$use(async (params: Prisma.MiddlewareParams, next) => {
-      const { model, action } = params;
+    this.$use(
+      async (
+        params: Prisma.MiddlewareParams,
+        next: (params: Prisma.MiddlewareParams) => Promise<unknown>,
+      ) => {
+        return this.procesarMiddlewareAuditoria(params, next);
+      },
+    );
+  }
 
-      // Si no hay modelo, continuar sin auditar
-      if (!model) {
-        return next(params);
-      }
+  /**
+   * Procesa una operación interceptada por el middleware de auditoría.
+   */
+  private async procesarMiddlewareAuditoria(
+    params: Prisma.MiddlewareParams,
+    next: (params: Prisma.MiddlewareParams) => Promise<unknown>,
+  ): Promise<unknown> {
+    const { model, action } = params;
 
-      // Obtener nombre de tabla
-      const tabla = MODELO_A_TABLA[model] || model.toLowerCase();
+    // Si no hay modelo, continuar sin auditar
+    if (!model) {
+      return next(params);
+    }
 
-      // Verificar si debe auditarse
-      if (TABLAS_EXCLUIDAS.has(tabla)) {
-        return next(params);
-      }
+    // Obtener nombre de tabla
+    const tabla = MODELO_A_TABLA[model] || model.toLowerCase();
 
-      // Solo auditar operaciones de escritura
-      const accionesAuditables = [
-        'create',
-        'update',
-        'delete',
-        'createMany',
-        'updateMany',
-        'deleteMany',
-      ];
-      if (!accionesAuditables.includes(action)) {
-        return next(params);
-      }
+    // Verificar si debe auditarse
+    if (TABLAS_EXCLUIDAS.has(tabla)) {
+      return next(params);
+    }
 
-      // Verificar si es UPDATE en tabla sin auditoría de updates
-      if (TABLAS_SIN_UPDATE_AUDIT.has(tabla) && action.startsWith('update')) {
-        return next(params);
-      }
+    // Solo auditar operaciones de escritura
+    const accionesAuditables = [
+      'create',
+      'update',
+      'delete',
+      'createMany',
+      'updateMany',
+      'deleteMany',
+    ];
+    if (!accionesAuditables.includes(action)) {
+      return next(params);
+    }
 
-      // Obtener contexto del request (usuario, empresa, etc.)
-      const context = RequestContextService.getContext();
+    // Verificar si es UPDATE en tabla sin auditoría de updates
+    if (TABLAS_SIN_UPDATE_AUDIT.has(tabla) && action.startsWith('update')) {
+      return next(params);
+    }
 
-      // Capturar datos anteriores para UPDATE y DELETE
-      let datosAnteriores: Record<string, unknown> | null = null;
-      let registroId: number | null = null;
+    // Obtener contexto del request (usuario, empresa, etc.)
+    const context = RequestContextService.getContext();
 
-      if ((action === 'update' || action === 'delete') && params.args?.where) {
-        try {
-          const delegates = this as unknown as Record<
-            string,
-            { findUnique?: (args: { where: unknown }) => Promise<unknown> }
-          >;
-          const modelDelegate =
-            delegates[model.charAt(0).toLowerCase() + model.slice(1)];
-          if (modelDelegate?.findUnique) {
-            const registro = await modelDelegate.findUnique({
-              where: params.args.where,
-            });
-            if (registro && typeof registro === 'object') {
-              datosAnteriores = this.sanitizarDatos(registro);
-              registroId = (registro as { id?: number | null }).id ?? null;
-            }
+    // `params.args` es `any` por diseño de Prisma: lo acotamos a la forma
+    // concreta que consume la auditoría (where/data opcionales).
+    const args = (params.args ?? {}) as {
+      where?: unknown;
+      data?: Record<string, unknown>;
+    };
+
+    // Capturar datos anteriores para UPDATE y DELETE
+    let datosAnteriores: Record<string, unknown> | null = null;
+    let registroId: number | null = null;
+
+    if ((action === 'update' || action === 'delete') && args.where) {
+      try {
+        const delegates = this as unknown as Record<
+          string,
+          { findUnique?: (args: { where: unknown }) => Promise<unknown> }
+        >;
+        const modelDelegate =
+          delegates[model.charAt(0).toLowerCase() + model.slice(1)];
+        if (modelDelegate?.findUnique) {
+          const registro = await modelDelegate.findUnique({
+            where: args.where,
+          });
+          if (registro && typeof registro === 'object') {
+            datosAnteriores = this.sanitizarDatos(registro);
+            registroId = (registro as { id?: number | null }).id ?? null;
           }
-        } catch (error) {
-          // Si falla la captura de datos anteriores, continuar sin ellos
-          const mensaje =
-            error instanceof Error ? error.message : String(error);
-          this.logger.debug(
-            `No se pudieron capturar datos anteriores: ${mensaje}`,
-          );
         }
+      } catch (error) {
+        // Si falla la captura de datos anteriores, continuar sin ellos
+        this.logger.debug(
+          `No se pudieron capturar datos anteriores: ${obtenerMensajeError(error)}`,
+        );
       }
+    }
 
-      // Ejecutar la operación original
-      const resultado = await next(params);
+    // Ejecutar la operación original
+    const resultado = await next(params);
 
-      // Registrar auditoría de forma asíncrona (no bloquea la respuesta)
-      setImmediate(() => {
-        this.registrarAuditoria({
-          action,
-          tabla,
-          resultado,
-          datosAnteriores,
-          registroId,
-          datosNuevos: params.args?.data,
-          context,
-        }).catch((error: unknown) => {
-          const mensaje =
-            error instanceof Error ? error.message : String(error);
-          this.logger.error(`Error registrando auditoría: ${mensaje}`);
-        });
+    // Registrar auditoría de forma asíncrona (no bloquea la respuesta)
+    setImmediate(() => {
+      this.registrarAuditoria({
+        action,
+        tabla,
+        resultado,
+        datosAnteriores,
+        registroId,
+        datosNuevos: args.data,
+        context,
+      }).catch((error: unknown) => {
+        this.logger.error(
+          `Error registrando auditoría: ${obtenerMensajeError(error)}`,
+        );
       });
-
-      return resultado;
     });
+
+    return resultado;
   }
 
   /**
@@ -277,8 +298,9 @@ export class PrismaService
         )
       `;
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error insertando auditoría: ${mensaje}`);
+      this.logger.error(
+        `Error insertando auditoría: ${obtenerMensajeError(error)}`,
+      );
     }
   }
 
@@ -333,7 +355,7 @@ export class PrismaService
         if (value.length > 10) {
           resultado[key] = `[Array de ${value.length} elementos]`;
         } else {
-          resultado[key] = value.map((item) =>
+          resultado[key] = (value as unknown[]).map((item) =>
             typeof item === 'object'
               ? this.sanitizarDatos(item, profundidad + 1)
               : item,

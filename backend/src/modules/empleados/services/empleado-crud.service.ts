@@ -253,13 +253,12 @@ export class EmpleadoCrudService {
       const esReingresanteComputed =
         emp.estado === 'ACTIVO' && vinculosCerrados.length >= 1;
 
-      const {
-        solicitudes_cese,
-        contratos,
-        movimientos,
-        vinculos_laborales,
-        ...empSinRelaciones
-      } = emp;
+      const { vinculos_laborales, ...empConRelaciones } = emp;
+      const empSinRelaciones = { ...empConRelaciones };
+      delete (empSinRelaciones as Partial<typeof empConRelaciones>)
+        .solicitudes_cese;
+      delete (empSinRelaciones as Partial<typeof empConRelaciones>).contratos;
+      delete (empSinRelaciones as Partial<typeof empConRelaciones>).movimientos;
       return {
         ...empSinRelaciones,
         tipo_cese: tipoCese,
@@ -374,7 +373,7 @@ export class EmpleadoCrudService {
     }
 
     // Crear empleado - excluir campos que no van directo al modelo
-    const { departamento, provincia, distrito, ...restDto } = dto;
+    const restDto = this.excluirCamposUbicacion(dto);
 
     // SEGURIDAD (mass assignment + IDOR): validar propiedad de la foto antes de
     // persistirla. Evita referenciar la foto de un empleado de otra empresa.
@@ -465,13 +464,19 @@ export class EmpleadoCrudService {
               ? parsearFechaISOenPeru(dto.fecha_cese)
               : null,
             estudios: dto.estudios
-              ? JSON.parse(JSON.stringify(dto.estudios))
+              ? (JSON.parse(
+                  JSON.stringify(dto.estudios),
+                ) as Prisma.InputJsonValue)
               : [],
             capacitaciones: dto.capacitaciones
-              ? JSON.parse(JSON.stringify(dto.capacitaciones))
+              ? (JSON.parse(
+                  JSON.stringify(dto.capacitaciones),
+                ) as Prisma.InputJsonValue)
               : [],
             experiencias: dto.experiencias
-              ? JSON.parse(JSON.stringify(dto.experiencias))
+              ? (JSON.parse(
+                  JSON.stringify(dto.experiencias),
+                ) as Prisma.InputJsonValue)
               : [],
           },
         });
@@ -584,7 +589,7 @@ export class EmpleadoCrudService {
     );
 
     // Excluir campos string de ubicación que no son columnas Prisma
-    const { departamento, provincia, distrito, ...restDto } = dto;
+    const restDto = this.excluirCamposUbicacion(dto);
     const updateData: Prisma.EmpleadoUncheckedUpdateInput = {
       ...restDto,
     } as unknown as Prisma.EmpleadoUncheckedUpdateInput;
@@ -674,6 +679,24 @@ export class EmpleadoCrudService {
   }
 
   // Métodos para familiares
+
+  /**
+   * Excluye los campos de ubicación (departamento/provincia/distrito) que llegan
+   * en el DTO pero no son columnas del modelo Prisma de Empleado.
+   */
+  private excluirCamposUbicacion<
+    T extends {
+      departamento?: unknown;
+      provincia?: unknown;
+      distrito?: unknown;
+    },
+  >(dto: T): Omit<T, 'departamento' | 'provincia' | 'distrito'> {
+    const resto = { ...dto };
+    delete resto.departamento;
+    delete resto.provincia;
+    delete resto.distrito;
+    return resto;
+  }
 
   private async validarEntidadesEmpresa(
     empresaId: number,

@@ -21,7 +21,9 @@ export class CreateUserDto {
   @IsEmail({}, { message: 'Email inválido' })
   @IsNotEmpty({ message: 'El email es requerido' })
   @MaxLength(150, { message: 'El email no puede exceder 150 caracteres' })
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase().trim() : value,
+  )
   email: string;
 
   @ApiProperty({
@@ -50,7 +52,9 @@ export class CreateUserDto {
     message:
       'El nombre solo puede contener letras, espacios, apóstrofes y guiones',
   })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value,
+  )
   nombre_completo: string;
 
   @ApiProperty({

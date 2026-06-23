@@ -66,8 +66,8 @@ export class BoletasPdfService {
     });
     const chunks: Buffer[] = [];
 
-    return new Promise(async (resolve, reject) => {
-      doc.on('data', (chunk) => chunks.push(chunk));
+    return new Promise((resolve, reject) => {
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
@@ -228,8 +228,8 @@ export class BoletasPdfService {
     });
     const chunks: Buffer[] = [];
 
-    return new Promise(async (resolve, reject) => {
-      doc.on('data', (chunk) => chunks.push(chunk));
+    return new Promise((resolve, reject) => {
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => {
         const planilla = boletas[0].planilla_detalle.planilla;
         const meses = [

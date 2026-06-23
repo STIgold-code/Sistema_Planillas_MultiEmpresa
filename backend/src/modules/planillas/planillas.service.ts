@@ -173,12 +173,14 @@ export class PlanillasService {
           return await this.calcular(planilla.id, empresaId, usuarioId);
         } catch (error) {
           // Si falla el cálculo, devolver la planilla con advertencia
+          const mensajeError =
+            error instanceof Error ? error.message : String(error);
           this.logger.warn(
-            `No se pudo calcular automáticamente: ${error.message}`,
+            `No se pudo calcular automáticamente: ${mensajeError}`,
           );
           return {
             ...planilla,
-            _warning: `Planilla creada pero el cálculo automático falló: ${error.message}`,
+            _warning: `Planilla creada pero el cálculo automático falló: ${mensajeError}`,
             _requiresManualCalculation: true,
           };
         }

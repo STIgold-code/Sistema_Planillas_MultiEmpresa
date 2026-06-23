@@ -14,6 +14,7 @@ import {
 import { UploadsService } from '../../uploads/uploads.service';
 import { AuthenticatedUser } from '../../../common/types/auth.types';
 import { AddDocumentoDto } from '../dto';
+import { obtenerMensajeError } from '../../../common/utils/error.util';
 import { Prisma, EstadoDocumentacion } from '@prisma/client';
 import {
   ahoraPeru,
@@ -510,7 +511,17 @@ export class EmpleadoDocumentosService {
     );
 
     // Transacción: desactivar versión anterior + crear nueva versión
-    let nuevoDocumento;
+    type NuevaVersionDocumento = Prisma.EmpleadoDocumentoGetPayload<{
+      include: {
+        tipo_documento_empleado: {
+          select: { id: true; codigo: true; nombre: true };
+        };
+        subido_por: {
+          select: { id: true; email: true; nombre_completo: true };
+        };
+      };
+    }>;
+    let nuevoDocumento: NuevaVersionDocumento;
     try {
       nuevoDocumento = await this.prisma.$transaction(async (tx) => {
         // Marcar versión anterior como no vigente
@@ -554,10 +565,7 @@ export class EmpleadoDocumentosService {
       try {
         await this.uploadsService.deleteFileHybrid(storedPath);
       } catch (cleanupError: unknown) {
-        const mensaje =
-          cleanupError instanceof Error
-            ? cleanupError.message
-            : String(cleanupError);
+        const mensaje = obtenerMensajeError(cleanupError);
         this.logger.warn(
           `No se pudo limpiar archivo huérfano ${storedPath}: ${mensaje}`,
         );

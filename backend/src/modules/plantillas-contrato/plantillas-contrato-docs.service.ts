@@ -5,7 +5,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import * as fs from 'fs';
-import * as path from 'path';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { convert } from 'libreoffice-convert';
@@ -13,7 +12,6 @@ import { promisify } from 'util';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
-import { UPLOADS_DIR } from '../uploads/uploads.config';
 import { extractVariablesFromWordFile } from './plantillas-contrato-word-utils';
 import { CreatePlantillaContratoDto } from './dto';
 
@@ -441,7 +439,7 @@ export class PlantillasContratoDocsService {
     // Soporta: El(La), trabajador(a), del(de la), etc.
     return text.replace(
       /([A-Za-záéíóúÁÉÍÓÚñÑüÜ]+)\(([^)]+)\)/g,
-      (match, base, alt) => {
+      (_match: string, base: string, alt: string) => {
         if (esFemenino) {
           // Si la alternativa es solo una letra (sufijo), concatenar a la base
           if (alt.length === 1) {
@@ -480,7 +478,7 @@ export class PlantillasContratoDocsService {
         // Aplicar transformación de género solo al contenido de texto (dentro de <w:t>)
         content = content.replace(
           /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g,
-          (match, openTag, text, closeTag) => {
+          (_match: string, openTag: string, text: string, closeTag: string) => {
             const transformed = this.applyGenderTransformation(text, sexo);
             return openTag + transformed + closeTag;
           },

@@ -6,13 +6,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  BUSINESS_RULES,
-  BUSINESS_ERROR_MESSAGES,
-  calcularEdad,
-  validarEdadMinima,
-  validarSueldoMinimo,
-} from '../../common/constants/business-rules';
 import { OnboardingService } from '../onboarding/onboarding.service';
 import {
   CreatePostulanteDto,
@@ -26,12 +19,8 @@ import {
 } from './dto';
 import { EstadoPostulante, Prisma } from '@prisma/client';
 import { UploadsService } from '../uploads/uploads.service';
-import { UPLOAD_PATHS } from '../uploads/uploads.config';
-import {
-  parsearFechaISOenPeru,
-  leerFechaPrisma,
-  ahoraPeru,
-} from '../../common/utils/datetime.util';
+import { parsearFechaISOenPeru } from '../../common/utils/datetime.util';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 import { PostulanteConversionService } from './postulante-conversion.service';
 import { PostulanteDocumentosService } from './postulante-documentos.service';
 
@@ -500,7 +489,7 @@ export class PostulantesService {
         dto.puntaje > Number(tipoEval.puntaje_maximo)
       ) {
         throw new BadRequestException(
-          `El puntaje (${dto.puntaje}) excede el maximo permitido (${tipoEval.puntaje_maximo}) para ${tipoEval.nombre}`,
+          `El puntaje (${dto.puntaje}) excede el maximo permitido (${tipoEval.puntaje_maximo.toString()}) para ${tipoEval.nombre}`,
         );
       }
     }
@@ -670,11 +659,9 @@ export class PostulantesService {
   }
 
   async getDocumentos(postulanteId: number, empresaId: number) {
-    const postulante = await this.findOne(postulanteId, empresaId);
-    return this.postulanteDocumentosService.getDocumentos(
-      postulanteId,
-      postulante,
-    );
+    // Valida que el postulante exista y pertenezca a la empresa antes de listar.
+    await this.findOne(postulanteId, empresaId);
+    return this.postulanteDocumentosService.getDocumentos(postulanteId);
   }
 
   async createDocumentoConArchivo(
@@ -781,7 +768,7 @@ export class PostulantesService {
       try {
         await this.uploadsService.deleteFileHybrid(archivo);
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error eliminando archivo ${archivo}: ${mensaje}`);
       }
     }

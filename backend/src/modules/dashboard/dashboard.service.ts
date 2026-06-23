@@ -24,7 +24,6 @@ export class DashboardService {
       contratosPorVencer,
       contratosVencidos,
       ausencias,
-      planillaMes,
       solicitudesCesePendientes,
     ] = await Promise.all([
       // Conteos de empleados por estado
@@ -55,7 +54,6 @@ export class DashboardService {
       // Ausencias del día y mes
       this.calcularAusencias(hoy, empresaId),
       // TODO: Mostrar total de última planilla activa en lugar de proyección
-      Promise.resolve(null),
       // Solicitudes de cese pendientes
       this.prisma.solicitudCese.count({
         where: { empresa_id: empresaId, estado: 'PENDIENTE' },

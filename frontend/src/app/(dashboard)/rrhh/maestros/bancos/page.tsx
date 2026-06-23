@@ -274,7 +274,7 @@ export default function BancosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg md:text-xl">Eliminar Banco</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              ¿Estas seguro de eliminar el banco "{selectedBanco?.nombre}"? Esta accion no se puede deshacer.
+              ¿Estas seguro de eliminar el banco &quot;{selectedBanco?.nombre}&quot;? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

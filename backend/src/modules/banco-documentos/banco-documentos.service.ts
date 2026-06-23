@@ -17,12 +17,14 @@ import {
   EstadoDocumentoGenerado,
   GenerarMasivoDto,
   CategoriaDocumento,
+  TipoArchivoPlantilla,
 } from './dto';
 import { existsSync, createReadStream } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { UPLOADS_DIR } from '../uploads/uploads.config';
 import { Prisma } from '@prisma/client';
 import { ahoraPeru } from '../../common/utils/datetime.util';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 
 // Transiciones de estado válidas
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
@@ -92,13 +94,13 @@ export class BancoDocumentosService {
     file: Express.Multer.File,
     empresaId: number,
   ) {
-    if (dto.tipo_archivo !== 'HTML' && !file) {
+    if (dto.tipo_archivo !== TipoArchivoPlantilla.HTML && !file) {
       throw new BadRequestException(
         `Las plantillas de tipo ${dto.tipo_archivo} requieren subir un archivo base`,
       );
     }
 
-    let archivoUrl = null;
+    let archivoUrl: string | null = null;
     let variables = dto.variables;
 
     if (file) {
@@ -108,9 +110,8 @@ export class BancoDocumentosService {
           variables = extraction.variables;
         }
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `No se pudieron extraer variables del archivo: ${mensaje}`,
+          `No se pudieron extraer variables del archivo: ${obtenerMensajeError(error)}`,
         );
       }
 
@@ -159,9 +160,8 @@ export class BancoDocumentosService {
           variables = extraction.variables;
         }
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `No se pudieron extraer variables del archivo: ${mensaje}`,
+          `No se pudieron extraer variables del archivo: ${obtenerMensajeError(error)}`,
         );
       }
 
@@ -311,7 +311,10 @@ export class BancoDocumentosService {
     }
 
     // Requerir observaciones para rechazo
-    if (dto.estado === 'RECHAZADO' && !dto.observaciones) {
+    if (
+      dto.estado === EstadoDocumentoGenerado.RECHAZADO &&
+      !dto.observaciones
+    ) {
       throw new BadRequestException(
         'Debe indicar el motivo del rechazo en las observaciones',
       );
@@ -322,7 +325,7 @@ export class BancoDocumentosService {
       observaciones: dto.observaciones,
     };
 
-    if (dto.estado === 'FIRMADO') {
+    if (dto.estado === EstadoDocumentoGenerado.FIRMADO) {
       updateData.fecha_firma = ahoraPeru().toJSDate();
     }
 
@@ -736,8 +739,9 @@ export class BancoDocumentosService {
     try {
       return await this.uploadsService.getFileFromWasabi(key);
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error obteniendo archivo de Wasabi: ${mensaje}`);
+      this.logger.error(
+        `Error obteniendo archivo de Wasabi: ${obtenerMensajeError(error)}`,
+      );
       return null;
     }
   }
@@ -761,8 +765,8 @@ export class BancoDocumentosService {
     const fullPath = join(UPLOADS_DIR, key);
 
     // SEGURIDAD: Verificar que la ruta resuelta está dentro de UPLOADS_DIR
-    const resolvedPath = require('path').resolve(fullPath);
-    const resolvedUploadsDir = require('path').resolve(UPLOADS_DIR);
+    const resolvedPath = resolve(fullPath);
+    const resolvedUploadsDir = resolve(UPLOADS_DIR);
 
     if (!resolvedPath.startsWith(resolvedUploadsDir)) {
       this.logger.warn(
@@ -817,8 +821,9 @@ export class BancoDocumentosService {
         },
       });
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error registrando auditoría: ${mensaje}`);
+      this.logger.error(
+        `Error registrando auditoría: ${obtenerMensajeError(error)}`,
+      );
       // No lanzar error para no afectar la operación principal
     }
   }

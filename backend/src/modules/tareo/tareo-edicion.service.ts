@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, EstadoPeriodoTareo, EstadoSesionTareo } from '@prisma/client';
+import { EstadoPeriodoTareo, EstadoSesionTareo } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ahoraPeru } from '../../common/utils/datetime.util';
 import { UpdateTareoDetalleDto, BulkUpdateTareoDto } from './dto';

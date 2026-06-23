@@ -1,15 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateJustificacionDto,
   UpdateJustificacionDto,
   AddArchivoDto,
 } from './dto';
-import { Prisma, EstadoPeriodoTareo, TipoJustificacion } from '@prisma/client';
+import { Prisma, TipoJustificacion } from '@prisma/client';
 import { TareoJustificacionesMutationsService } from './tareo-justificaciones-mutations.service';
 
 @Injectable()

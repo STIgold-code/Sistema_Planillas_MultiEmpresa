@@ -18,7 +18,6 @@ import {
   RMV,
   ONP_PORCENTAJE,
   ESSALUD_PORCENTAJE,
-  ESSALUD_MINIMO,
   SOBRETASA_NOCTURNA,
   round2,
 } from './planillas.config';

@@ -43,7 +43,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
   }
 
   private mapError(exception: Prisma.PrismaClientKnownRequestError): {
-    status: number;
+    status: HttpStatus;
     message: string;
   } {
     switch (exception.code) {
@@ -72,7 +72,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     }
   }
 
-  private errorName(status: number): string {
+  private errorName(status: HttpStatus): string {
     switch (status) {
       case HttpStatus.CONFLICT:
         return 'Conflict';

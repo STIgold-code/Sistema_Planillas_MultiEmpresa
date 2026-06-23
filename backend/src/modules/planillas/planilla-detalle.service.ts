@@ -146,22 +146,6 @@ export class PlanillaDetalleService {
     const turnoDia = getVal(dto.turno_dia, detalle.turno_dia);
     const turnoNoche = getVal(dto.turno_noche, detalle.turno_noche);
 
-    // Calcular días trabajados (con protección contra negativos)
-    // NOTA: Esta fórmula debe coincidir con calcularEmpleado()
-    // - Vacaciones NO reducen días trabajados (se pagan como remuneración vacacional)
-    // - Licencias con goce NO reducen días trabajados (se pagan como licencia_goce_monto)
-    // - Subsidios sí reducen días trabajados (son pagados por EsSalud)
-    const diasNoTrabajados =
-      diasCesadoNoLab +
-      diasNuevoNoLab +
-      diasSinCobertura +
-      diasFalta +
-      diasSuspension +
-      diasLicenciaSinGoce;
-
-    const diasSubsidio =
-      diasSubsidioIncapacidad + diasSubsidioMaternidad + diasDescansoMedico;
-
     // Usar el valor existente del detalle (calculado correctamente desde tareo)
     // Fallback a 0 si no existe - tareo es la fuente de verdad
     const diasTrabajados =

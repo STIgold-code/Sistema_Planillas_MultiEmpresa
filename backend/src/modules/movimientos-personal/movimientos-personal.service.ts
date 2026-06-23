@@ -496,7 +496,9 @@ export class MovimientosPersonalService {
         ultimosPeriodos,
       };
     } catch (error) {
-      this.logger.error(`Error en findAll: ${error.message}`, error.stack);
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error en findAll: ${mensaje}`, stack);
       throw error;
     }
   }
@@ -569,7 +571,6 @@ export class MovimientosPersonalService {
     filters: FilterMovimientosDto,
   ): Promise<ExcelJS.Workbook> {
     const { fechaDesde, fechaHasta } = this.getFechasDelPeriodo(filters);
-    const tipo = filters.tipo ?? TipoMovimiento.TODOS;
 
     // Obtener todos los datos sin paginación
     const filtersNoPaging = { ...filters, page: 1, limit: 10000 };

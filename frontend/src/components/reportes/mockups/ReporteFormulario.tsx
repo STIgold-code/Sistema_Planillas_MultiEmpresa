@@ -281,7 +281,7 @@ export function ReporteFormulario() {
         {/* Tips */}
         <div className="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
           <p className="text-sm text-indigo-700">
-            <strong>Tip:</strong> Usa "Vista Previa" para verificar los datos antes de descargar el archivo completo.
+            <strong>Tip:</strong> Usa &quot;Vista Previa&quot; para verificar los datos antes de descargar el archivo completo.
           </p>
         </div>
       </div>

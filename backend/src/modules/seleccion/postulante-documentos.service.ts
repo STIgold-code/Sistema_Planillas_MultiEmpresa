@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { UPLOAD_PATHS } from '../uploads/uploads.config';
 import { CreatePostulanteDocumentoDto } from './dto';
-import { Postulante } from '@prisma/client';
+import { Postulante, Prisma } from '@prisma/client';
 import {
   parsearFechaISOenPeru,
   ahoraPeru,
@@ -23,7 +23,7 @@ export class PostulanteDocumentosService {
     private uploadsService: UploadsService,
   ) {}
 
-  async getDocumentos(postulanteId: number, postulante: Postulante) {
+  async getDocumentos(postulanteId: number) {
     const documentos = await this.prisma.postulanteDocumento.findMany({
       where: {
         postulante_id: postulanteId,
@@ -175,7 +175,16 @@ export class PostulanteDocumentosService {
       file.mimetype,
     );
 
-    let nuevoDocumento;
+    let nuevoDocumento: Prisma.PostulanteDocumentoGetPayload<{
+      include: {
+        tipo_documento_empleado: {
+          select: { id: true; codigo: true; nombre: true };
+        };
+        subido_por: {
+          select: { id: true; email: true; nombre_completo: true };
+        };
+      };
+    }>;
     try {
       nuevoDocumento = await this.prisma.$transaction(async (tx) => {
         await tx.postulanteDocumento.update({
@@ -215,8 +224,12 @@ export class PostulanteDocumentosService {
       try {
         await this.uploadsService.deleteFileHybrid(storedPath);
       } catch (cleanupError) {
+        const mensaje =
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError);
         this.logger.warn(
-          `No se pudo limpiar archivo huérfano ${storedPath}: ${cleanupError.message}`,
+          `No se pudo limpiar archivo huérfano ${storedPath}: ${mensaje}`,
         );
       }
       throw error;

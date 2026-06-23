@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { createGzip } from 'zlib';
 import { UploadsService } from '../uploads/uploads.service';
 import { PassThrough } from 'stream';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 
 @Injectable()
 export class BackupService implements OnModuleInit {
@@ -16,9 +17,10 @@ export class BackupService implements OnModuleInit {
     // Ejecutar backup al inicio para verificación (No bloqueante)
     this.createFullBackup()
       .then((key) => this.logger.log(`✅ Backup de inicio completado: ${key}`))
-      .catch((err) =>
-        this.logger.error(`❌ Error en backup de inicio: ${err.message}`),
-      );
+      .catch((err: unknown) => {
+        const mensaje = obtenerMensajeError(err);
+        this.logger.error(`❌ Error en backup de inicio: ${mensaje}`);
+      });
   }
 
   /**
@@ -31,7 +33,8 @@ export class BackupService implements OnModuleInit {
       const result = await this.createFullBackup();
       this.logger.log(`✅ Backup completado exitosamente: ${result}`);
     } catch (error) {
-      this.logger.error(`❌ Error en el backup programado: ${error.message}`);
+      const mensaje = error instanceof Error ? error.message : String(error);
+      this.logger.error(`❌ Error en el backup programado: ${mensaje}`);
     }
   }
 
@@ -69,8 +72,8 @@ export class BackupService implements OnModuleInit {
         reject(new Error(`gzip error: ${err.message}`)),
       );
 
-      pgDump.stderr.on('data', (data) => {
-        this.logger.warn(`[pg_dump stderr]: ${data}`);
+      pgDump.stderr.on('data', (data: Buffer) => {
+        this.logger.warn(`[pg_dump stderr]: ${data.toString()}`);
       });
 
       pgDump.on('error', (err) => {

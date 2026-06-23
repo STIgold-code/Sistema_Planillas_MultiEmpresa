@@ -268,7 +268,7 @@ export default function AreasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg md:text-xl">Eliminar Area</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              ¿Estas seguro de eliminar el area "{selectedArea?.nombre}"? Esta accion no se puede deshacer.
+              ¿Estas seguro de eliminar el area &quot;{selectedArea?.nombre}&quot;? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">

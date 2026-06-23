@@ -21,7 +21,9 @@ export class UpdateUserDto {
   })
   @IsEmail({}, { message: 'Email inválido' })
   @MaxLength(150, { message: 'El email no puede exceder 150 caracteres' })
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase().trim() : value,
+  )
   @IsOptional()
   email?: string;
 
@@ -51,7 +53,9 @@ export class UpdateUserDto {
     message:
       'El nombre solo puede contener letras, espacios, apóstrofes y guiones',
   })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value,
+  )
   @IsOptional()
   nombre_completo?: string;
 

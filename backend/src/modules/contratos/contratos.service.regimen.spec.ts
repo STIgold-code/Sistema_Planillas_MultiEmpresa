@@ -17,12 +17,19 @@ const crearTxMock = () => ({
   },
   contrato: {
     findFirst: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockImplementation(({ data }) => ({
-      id: 10,
-      ...data,
-      empleado: { fecha_cese: null },
-    })),
-    update: jest.fn().mockImplementation(({ data }) => ({ id: 10, ...data })),
+    create: jest
+      .fn()
+      .mockImplementation(({ data }: { data: Record<string, unknown> }) => ({
+        id: 10,
+        ...data,
+        empleado: { fecha_cese: null },
+      })),
+    update: jest
+      .fn()
+      .mockImplementation(({ data }: { data: Record<string, unknown> }) => ({
+        id: 10,
+        ...data,
+      })),
   },
   vinculoLaboral: {
     findFirst: jest.fn().mockResolvedValue({ id: 7 }),
@@ -70,12 +77,11 @@ describe('ContratosService - persistencia de regimen_laboral', () => {
 
     await service.create(empresaId, dto, usuarioId);
 
+    const dataEsperada: unknown = expect.objectContaining({
+      regimen_laboral: RegimenLaboral.CONSTRUCCION_CIVIL,
+    });
     expect(tx.contrato.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          regimen_laboral: RegimenLaboral.CONSTRUCCION_CIVIL,
-        }),
-      }),
+      expect.objectContaining({ data: dataEsperada }),
     );
   });
 
@@ -88,7 +94,10 @@ describe('ContratosService - persistencia de regimen_laboral', () => {
 
     await service.create(empresaId, dto, usuarioId);
 
-    const dataArg = tx.contrato.create.mock.calls[0][0].data;
+    const primerLlamado = tx.contrato.create.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    const dataArg = primerLlamado[0].data;
     expect(dataArg.regimen_laboral ?? null).toBeNull();
   });
 });

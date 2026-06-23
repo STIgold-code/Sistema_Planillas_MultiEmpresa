@@ -115,7 +115,7 @@ export class OnboardingService {
   }
 
   async deletePlantilla(id: number, empresaId: number) {
-    const plantilla = await this.findOnePlantilla(id, empresaId);
+    await this.findOnePlantilla(id, empresaId);
 
     // Verificar si tiene procesos activos
     const procesosActivos = await this.prisma.procesoOnboarding.count({

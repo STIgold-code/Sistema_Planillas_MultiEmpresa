@@ -16,10 +16,10 @@ import {
   formatearFechaPeru,
   obtenerNombreMes,
 } from '../../common/utils/datetime.util';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 
-const PizZip = require('pizzip');
-
-const Docxtemplater = require('docxtemplater');
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
 import * as ExcelJS from 'exceljs';
 import { DateTime } from 'luxon';
 
@@ -234,7 +234,7 @@ export class BancoDocumentosGeneracionService {
       if (cleanup && file.path && existsSync(file.path)) {
         try {
           unlinkSync(file.path);
-        } catch (e) {
+        } catch {
           this.logger.warn(
             `No se pudo eliminar el archivo temporal: ${file.path}`,
           );
@@ -248,16 +248,16 @@ export class BancoDocumentosGeneracionService {
   private extractVariablesFromWord(buffer: Buffer): string[] {
     try {
       const zip = new PizZip(buffer);
-      const doc = new Docxtemplater(zip, {
+      const doc = new Docxtemplater<PizZip>(zip, {
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '{{', end: '}}' },
       });
 
       const fullText = doc.getFullText();
-      const variableRegex = /\{\{([\w\.]+)\}\}/g;
+      const variableRegex = /\{\{([\w.]+)\}\}/g;
       const variables = new Set<string>();
-      let match;
+      let match: RegExpExecArray | null;
 
       while ((match = variableRegex.exec(fullText)) !== null) {
         variables.add(match[1].trim());
@@ -265,8 +265,9 @@ export class BancoDocumentosGeneracionService {
 
       return Array.from(variables);
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error al extraer variables de Word: ${mensaje}`);
+      this.logger.error(
+        `Error al extraer variables de Word: ${obtenerMensajeError(error)}`,
+      );
       throw new BadRequestException(
         'Error al leer el archivo Word. Verifique que no esté corrupto.',
       );
@@ -281,13 +282,13 @@ export class BancoDocumentosGeneracionService {
       const variables = new Set<string>();
       // Regex para capturar texto dentro de {{ }}
       // Soporta caracteres alfanuméricos, puntos y guiones bajos
-      const variableRegex = /\{\{([\w\.]+)\}\}/g;
+      const variableRegex = /\{\{([\w.]+)\}\}/g;
 
       workbook.eachSheet((worksheet) => {
         worksheet.eachRow((row) => {
           row.eachCell((cell) => {
             if (cell.value && typeof cell.value === 'string') {
-              let match;
+              let match: RegExpExecArray | null;
               // Reiniciamos lastIndex para búsqeuda global en nueva celda (aunque creamos nuevo regex en loop si declaramos dentro)
               // Mejor usar matchAll o exec en loop
               const cellValue = cell.value;
@@ -302,7 +303,7 @@ export class BancoDocumentosGeneracionService {
               // Soporte para texto enriquecido (RichText)
               const richText = cell.value;
               const text = richText.richText.map((rt) => rt.text).join('');
-              let match;
+              let match: RegExpExecArray | null;
               while ((match = variableRegex.exec(text)) !== null) {
                 variables.add(match[1].trim());
               }
@@ -313,8 +314,9 @@ export class BancoDocumentosGeneracionService {
 
       return Array.from(variables);
     } catch (error: unknown) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error al extraer variables de Excel: ${mensaje}`);
+      this.logger.error(
+        `Error al extraer variables de Excel: ${obtenerMensajeError(error)}`,
+      );
       throw new BadRequestException(
         'Error al leer el archivo Excel. Verifique que no esté corrupto.',
       );
@@ -332,16 +334,7 @@ export class BancoDocumentosGeneracionService {
     const empleado = await this.prisma.empleado.findFirst({
       where: { id: dto.empleado_id, empresa_id: empresaId },
       include: {
-        area: true,
-        cargo: true,
-        sede: { include: { cliente: true } },
-        distrito: {
-          include: { provincia: { include: { departamento: true } } },
-        },
-        regimen_pensionario: true,
-        banco_haberes: true,
-        banco_cts: true,
-        empresa: true,
+        ...EMPLEADO_GENERACION_INCLUDE,
         contratos: {
           where: { estado: 'ACTIVO' },
           take: 1,
@@ -391,8 +384,7 @@ export class BancoDocumentosGeneracionService {
     }
 
     const variables = this.obtenerMapaVariables(empleado);
-    const contenidoGenerado = null;
-    let archivoUrl = null;
+    const contenidoGenerado: string | null = null;
 
     // Generar documento físico (WORD o EXCEL)
     const { buffer, filename, mimeType } = await this.generarArchivoFisico(
@@ -402,9 +394,8 @@ export class BancoDocumentosGeneracionService {
     );
 
     // Subir el archivo generado
-    const timestamp = Date.now();
     const outputKey = `documentos_generados/${filename}`;
-    archivoUrl = await this.uploadsService.uploadFile(
+    const archivoUrl = await this.uploadsService.uploadFile(
       buffer,
       outputKey,
       mimeType,
@@ -497,14 +488,13 @@ export class BancoDocumentosGeneracionService {
     const extension = plantilla.tipo_archivo === 'WORD' ? 'docx' : 'xlsx';
     const timestamp = Date.now();
     const fileName = `doc_${plantilla.codigo}_${empleado.numero_documento}_${timestamp}.${extension}`;
-    const outputKey = `documentos_generados/${fileName}`;
 
     let outputBuffer: Buffer;
 
     if (plantilla.tipo_archivo === 'WORD') {
       try {
         const zip = new PizZip(templateBuffer);
-        const doc = new Docxtemplater(zip, {
+        const doc = new Docxtemplater<PizZip>(zip, {
           paragraphLoop: true,
           linebreaks: true,
           delimiters: { start: '{{', end: '}}' },
@@ -513,7 +503,7 @@ export class BancoDocumentosGeneracionService {
         doc.render(variables);
         outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error generando Word: ${mensaje}`, error);
         throw new InternalServerErrorException(
           `Error generando documento Word: ${mensaje}`,
@@ -542,7 +532,7 @@ export class BancoDocumentosGeneracionService {
 
         outputBuffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
       } catch (error: unknown) {
-        const mensaje = error instanceof Error ? error.message : String(error);
+        const mensaje = obtenerMensajeError(error);
         this.logger.error(`Error generando Excel: ${mensaje}`, error);
         throw new InternalServerErrorException(
           `Error generando documento Excel: ${mensaje}`,
@@ -807,12 +797,15 @@ export class BancoDocumentosGeneracionService {
     };
 
     // Reemplazo optimizado en una sola pasada
-    const resultado = contenido.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      if (variables.hasOwnProperty(key)) {
-        return variables[key];
-      }
-      return match; // Mantener la variable si no se encuentra
-    });
+    const resultado = contenido.replace(
+      /\{\{(\w+)\}\}/g,
+      (match, key: string) => {
+        if (Object.prototype.hasOwnProperty.call(variables, key)) {
+          return variables[key];
+        }
+        return match; // Mantener la variable si no se encuentra
+      },
+    );
 
     // Detectar variables no reemplazadas
     const variablesNoReemplazadas = resultado.match(/\{\{(\w+)\}\}/g);

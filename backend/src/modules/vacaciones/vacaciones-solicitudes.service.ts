@@ -12,18 +12,14 @@ import {
   AprobarRrhhDto,
   CancelarSolicitudDto,
 } from './dto';
-import { AccionAprobacion } from './dto/aprobar-solicitud.dto';
 import {
   Prisma,
   EstadoSolicitudVacaciones,
   EstadoPeriodoVacacional,
-  TipoMovimientoVacacional,
 } from '@prisma/client';
-import { VacacionesTareoSyncService } from './vacaciones-tareo-sync.service';
 import { VacacionesAprobacionService } from './vacaciones-aprobacion.service';
 import {
   ahoraPeru,
-  formatearFechaPeru,
   parsearFechaISOenPeru,
 } from '../../common/utils/datetime.util';
 
@@ -33,7 +29,6 @@ export class VacacionesSolicitudesService {
 
   constructor(
     private prisma: PrismaService,
-    private tareoSyncService: VacacionesTareoSyncService,
     private vacacionesAprobacionService: VacacionesAprobacionService,
   ) {}
 

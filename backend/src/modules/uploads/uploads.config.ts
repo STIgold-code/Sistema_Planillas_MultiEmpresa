@@ -2,7 +2,8 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { BadRequestException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
+import { obtenerMensajeError } from '../../common/utils/error.util';
 
 // Tipos de archivo permitidos por categoría
 export const ALLOWED_MIME_TYPES = {
@@ -72,16 +73,16 @@ export function ensureUploadDirs() {
 // Configuración de almacenamiento para Multer
 export const multerStorage = (subdir: string = 'temp') =>
   diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
       const uploadPath = join(UPLOADS_DIR, subdir);
       if (!existsSync(uploadPath)) {
         mkdirSync(uploadPath, { recursive: true });
       }
       cb(null, uploadPath);
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
       // Generar nombre único: uuid + timestamp + extensión original
-      const uniqueSuffix = `${uuidv4()}-${Date.now()}`;
+      const uniqueSuffix = `${randomUUID()}-${Date.now()}`;
       const ext = extname(file.originalname).toLowerCase();
       cb(null, `${uniqueSuffix}${ext}`);
     },
@@ -89,7 +90,7 @@ export const multerStorage = (subdir: string = 'temp') =>
 
 // Filtro de archivos
 export const fileFilter = (
-  req: Express.Request,
+  _req: Express.Request,
   file: Express.Multer.File,
   cb: (error: Error | null, acceptFile: boolean) => void,
 ) => {
@@ -219,7 +220,7 @@ export function validateMagicBytes(
     const fileBuffer = readFileSync(filePath);
     return validateMagicBytesFromBuffer(fileBuffer, declaredMimeType);
   } catch (error: unknown) {
-    const mensaje = error instanceof Error ? error.message : String(error);
+    const mensaje = obtenerMensajeError(error);
     console.error(`[SECURITY] Error validando magic bytes: ${mensaje}`);
     return false;
   }
@@ -237,7 +238,7 @@ export function validateMagicBytesBuffer(
   try {
     return validateMagicBytesFromBuffer(fileBuffer, declaredMimeType);
   } catch (error: unknown) {
-    const mensaje = error instanceof Error ? error.message : String(error);
+    const mensaje = obtenerMensajeError(error);
     console.error(`[SECURITY] Error validando magic bytes buffer: ${mensaje}`);
     return false;
   }

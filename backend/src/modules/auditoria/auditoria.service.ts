@@ -71,43 +71,46 @@ export class AuditoriaService {
    * No bloquea la operación principal y maneja errores silenciosamente.
    */
   registrarAsync(params: RegistrarAuditoriaAsyncParams): void {
-    setImmediate(async () => {
-      try {
-        await this.prisma.auditoria.create({
-          data: {
-            usuario_id: params.usuarioId,
-            usuario_email: params.usuarioEmail,
-            empresa_id: params.empresaId,
-            accion: params.accion,
-            tabla_afectada: params.tablaAfectada,
-            registro_id: params.registroId,
-            datos_anteriores:
-              (params.datosAnteriores as Prisma.InputJsonValue) || null,
-            datos_nuevos: params.datosNuevos
+    setImmediate(() => {
+      void this.persistirAuditoriaAsync(params);
+    });
+  }
+
+  private async persistirAuditoriaAsync(
+    params: RegistrarAuditoriaAsyncParams,
+  ): Promise<void> {
+    try {
+      await this.prisma.auditoria.create({
+        data: {
+          usuario_id: params.usuarioId,
+          usuario_email: params.usuarioEmail,
+          empresa_id: params.empresaId,
+          accion: params.accion,
+          tabla_afectada: params.tablaAfectada,
+          registro_id: params.registroId,
+          datos_anteriores:
+            (params.datosAnteriores as Prisma.InputJsonValue) || null,
+          datos_nuevos: params.datosNuevos
+            ? ({
+                ...params.datosNuevos,
+                _descripcion: params.descripcion,
+              } as Prisma.InputJsonValue)
+            : params.descripcion
               ? ({
-                  ...params.datosNuevos,
                   _descripcion: params.descripcion,
                 } as Prisma.InputJsonValue)
-              : params.descripcion
-                ? ({
-                    _descripcion: params.descripcion,
-                  } as Prisma.InputJsonValue)
-                : null,
-          },
-        });
+              : null,
+        },
+      });
 
-        this.logger.debug(
-          `Auditoría registrada: ${params.accion} en ${params.tablaAfectada}[${params.registroId}]`,
-        );
-      } catch (error) {
-        const mensaje = error instanceof Error ? error.message : String(error);
-        const stack = error instanceof Error ? error.stack : undefined;
-        this.logger.error(
-          `Error registrando auditoría async: ${mensaje}`,
-          stack,
-        );
-      }
-    });
+      this.logger.debug(
+        `Auditoría registrada: ${params.accion} en ${params.tablaAfectada}[${params.registroId}]`,
+      );
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Error registrando auditoría async: ${mensaje}`, stack);
+    }
   }
 
   /**
@@ -516,7 +519,8 @@ export class AuditoriaService {
       const formatJson = (data: Prisma.JsonValue) => {
         if (!data || typeof data !== 'object' || Array.isArray(data)) return '';
         try {
-          const { _descripcion: _omitido, ...rest } = data;
+          const rest: Record<string, Prisma.JsonValue> = { ...data };
+          delete rest._descripcion;
           return Object.keys(rest).length > 0
             ? JSON.stringify(rest, null, 0)
             : '';

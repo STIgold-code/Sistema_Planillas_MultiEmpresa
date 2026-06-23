@@ -21,7 +21,6 @@ import {
   EntradaCalculo,
   RegimenLaboral,
   SistemaPensionario,
-  TamanoEmpresa,
   TramoIR,
 } from '../tipos';
 import { CLAVE_PRORRATEO_AGRARIO } from '../conceptos/prorrateo-agrario';

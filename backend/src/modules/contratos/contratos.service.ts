@@ -17,8 +17,6 @@ import {
   sumarDiasPeru,
   finDelDiaPeru,
   parsearFechaISOenPeru,
-  toDateOnly,
-  fechaHoyPeru,
 } from '../../common/utils/datetime.util';
 import { ContratoLifecycleService } from './contrato-lifecycle.service';
 
@@ -451,12 +449,9 @@ export class ContratosService {
 
       // Separar campos que requieren transformación o no deben persistirse
       // tal cual (fechas como string, empleado_id inmutable).
-      const {
-        fecha_inicio,
-        fecha_fin,
-        empleado_id: _empleadoIdIgnorado,
-        ...restoDto
-      } = dto;
+      const { fecha_inicio, fecha_fin, ...restoDto } = dto;
+      // empleado_id es inmutable: no debe persistirse en la actualización.
+      delete restoDto.empleado_id;
 
       const updateData: Prisma.ContratoUncheckedUpdateInput = { ...restoDto };
 

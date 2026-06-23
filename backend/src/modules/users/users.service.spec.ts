@@ -46,7 +46,6 @@ describe('UsersService', () => {
   let service: UsersService;
   let prismaService: ReturnType<typeof crearPrismaMock>;
   let authService: ReturnType<typeof crearAuthMock>;
-  let auditoriaService: ReturnType<typeof crearAuditoriaMock>;
 
   // Mock data
   const mockEmpresaId = 1;
@@ -126,7 +125,6 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
     prismaService = mockPrismaService;
     authService = mockAuthService;
-    auditoriaService = mockAuditoriaService;
   });
 
   afterEach(() => {

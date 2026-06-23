@@ -12,6 +12,43 @@ export class TareoExcelService {
     private exportService: TareoExcelExportService,
   ) {}
 
+  /**
+   * Convierte el valor de una celda de ExcelJS (CellValue, un union que incluye
+   * objetos como fórmulas o hipervínculos) a su representación de texto, sin
+   * producir "[object Object]". Equivalente a leer el texto plano de la celda.
+   */
+  private cellToString(value: ExcelJS.CellValue): string | undefined {
+    if (value === null || value === undefined) return undefined;
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    // Objetos de ExcelJS: fórmula (.result), hipervínculo (.text) o richtext.
+    if ('result' in value) {
+      const { result } = value;
+      if (result instanceof Date) return result.toISOString();
+      if (
+        typeof result === 'string' ||
+        typeof result === 'number' ||
+        typeof result === 'boolean'
+      ) {
+        return String(result);
+      }
+      return undefined;
+    }
+    if ('text' in value && typeof value.text === 'string') {
+      return value.text;
+    }
+    if ('richText' in value) {
+      return value.richText.map((r) => r.text).join('');
+    }
+    return undefined;
+  }
+
   private isDiaEnContrato(
     dia: number,
     mes: number,
@@ -152,7 +189,7 @@ export class TareoExcelService {
     let primerDiaColIndex = -1;
 
     headerRow.eachCell((cell, colNumber) => {
-      const value = cell.value?.toString().toUpperCase().trim();
+      const value = this.cellToString(cell.value)?.toUpperCase().trim();
       if (value === 'DNI' || value === 'DOCUMENTO') {
         dniColIndex = colNumber;
       }
@@ -233,7 +270,7 @@ export class TareoExcelService {
       if (rowNumber === 1) return;
 
       const dniCell = row.getCell(dniColIndex);
-      const dni = dniCell.value?.toString().trim();
+      const dni = this.cellToString(dniCell.value)?.trim();
       const dniColumna = getColumnLetter(dniColIndex);
 
       // Validar DNI vacío o inválido
@@ -284,8 +321,9 @@ export class TareoExcelService {
         const colIndex = primerDiaColIndex + dia - 1;
         const cell = row.getCell(colIndex);
         const columna = getColumnLetter(colIndex);
-        let codigoNuevo = cell.value?.toString().trim().toUpperCase() || null;
-        const valorOriginal = cell.value?.toString().trim() || '';
+        let codigoNuevo =
+          this.cellToString(cell.value)?.trim().toUpperCase() || null;
+        const valorOriginal = this.cellToString(cell.value)?.trim() || '';
 
         // Validar si el día está fuera del contrato
         const diaEnContrato = this.isDiaEnContrato(

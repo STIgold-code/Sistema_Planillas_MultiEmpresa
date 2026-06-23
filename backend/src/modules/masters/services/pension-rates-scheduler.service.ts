@@ -18,7 +18,7 @@ export class PensionRatesSchedulerService implements OnModuleInit {
   /**
    * Se ejecuta automáticamente cuando el módulo se inicia (al levantar el servidor).
    */
-  async onModuleInit() {
+  onModuleInit(): void {
     this.logger.log('Iniciando servicio de tasas de pensiones (Playwright)...');
     // Ejecutamos de forma asíncrona para no bloquear el inicio del servidor
     this.actualizarTasas().catch((err) =>
