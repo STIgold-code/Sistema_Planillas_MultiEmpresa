@@ -89,7 +89,9 @@ export class AuditoriaService {
                   _descripcion: params.descripcion,
                 } as Prisma.InputJsonValue)
               : params.descripcion
-                ? ({ _descripcion: params.descripcion } as Prisma.InputJsonValue)
+                ? ({
+                    _descripcion: params.descripcion,
+                  } as Prisma.InputJsonValue)
                 : null,
           },
         });
@@ -100,7 +102,10 @@ export class AuditoriaService {
       } catch (error) {
         const mensaje = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error ? error.stack : undefined;
-        this.logger.error(`Error registrando auditoría async: ${mensaje}`, stack);
+        this.logger.error(
+          `Error registrando auditoría async: ${mensaje}`,
+          stack,
+        );
       }
     });
   }
@@ -147,7 +152,10 @@ export class AuditoriaService {
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : String(error);
       const stack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Error registrando cambio de estado: ${mensaje}`, stack);
+      this.logger.error(
+        `Error registrando cambio de estado: ${mensaje}`,
+        stack,
+      );
       return null;
     }
   }

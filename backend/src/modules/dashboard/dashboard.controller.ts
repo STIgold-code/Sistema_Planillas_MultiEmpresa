@@ -49,7 +49,9 @@ export class DashboardController {
 
   @Get('solicitudes-anulacion-pendientes')
   @RequirePermissions('dashboard:leer')
-  async getSolicitudesAnulacionPendientes(@CurrentUser() user: AuthenticatedUser) {
+  async getSolicitudesAnulacionPendientes(
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.dashboardService.getSolicitudesAnulacionPendientes(
       user.empresa_id,
     );

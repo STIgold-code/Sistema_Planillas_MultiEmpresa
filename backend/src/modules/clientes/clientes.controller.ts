@@ -26,7 +26,10 @@ export class ClientesController {
 
   @Post()
   @RequirePermissions('maestros:crear')
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateClienteDto) {
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateClienteDto,
+  ) {
     return this.clientesService.create(user.empresa_id, dto);
   }
 
@@ -83,7 +86,10 @@ export class ClientesController {
 
   @Delete(':id')
   @RequirePermissions('maestros:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.clientesService.remove(id, user.empresa_id);
   }
 }

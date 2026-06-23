@@ -14,7 +14,10 @@ import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { ParametrosLegalesEnMemoria } from '../infraestructura/parametros-legales-en-memoria';
 import { CLAVE_ASIGNACION_FAMILIAR } from '../dominio/conceptos/asignacion-familiar';
-import { mapearEntradaCalculo, EmpleadoParaMapeo } from './mapear-entrada-calculo';
+import {
+  mapearEntradaCalculo,
+  EmpleadoParaMapeo,
+} from './mapear-entrada-calculo';
 import {
   mapearEntradaDetalle,
   EmpleadoParaDetalle,
@@ -69,7 +72,9 @@ function empleadoDetalle(asignacionFamiliar: boolean): EmpleadoParaDetalle {
       prima_seguro: 0,
       comision_flujo: 0,
     },
-    contratos: [{ fecha_inicio: new Date(Date.UTC(2020, 0, 1)), fecha_fin: null }],
+    contratos: [
+      { fecha_inicio: new Date(Date.UTC(2020, 0, 1)), fecha_fin: null },
+    ],
     tareos: [
       {
         detalles: Array.from({ length: 30 }, () => ({
@@ -105,7 +110,9 @@ function detalleConAsignacion(asignacionFamiliar: boolean) {
   return calcularDetalleCompleto(entrada, params);
 }
 
-const montoAsignacion = (conceptos: { clave: string; monto: number }[]): number =>
+const montoAsignacion = (
+  conceptos: { clave: string; monto: number }[],
+): number =>
   conceptos
     .filter((c) => c.clave === CLAVE_ASIGNACION_FAMILIAR)
     .reduce((a, c) => a + c.monto, 0);

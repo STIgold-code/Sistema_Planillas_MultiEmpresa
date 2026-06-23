@@ -354,7 +354,10 @@ describe('PlanillasService.calcularEmpleado', () => {
       activo: true,
     };
 
-    function empleadoAFP(sueldo: number, overrides: Record<string, unknown> = {}) {
+    function empleadoAFP(
+      sueldo: number,
+      overrides: Record<string, unknown> = {},
+    ) {
       return crearEmpleado({
         sueldo_base: sueldo,
         regimen_pensionario_id: AFP_HABITAT.id,

@@ -23,15 +23,30 @@ const fecha = (iso: string) => new Date(iso);
 
 function filas(): FilaParametroLegal[] {
   return [
-    { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
-    { clave: 'uit', valor: 5500, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+    {
+      clave: 'rmv',
+      valor: 1130,
+      vigencia_desde: fecha('2025-01-01'),
+      vigencia_hasta: null,
+    },
+    {
+      clave: 'uit',
+      valor: 5500,
+      vigencia_desde: fecha('2025-01-01'),
+      vigencia_hasta: null,
+    },
     {
       clave: 'asignacionFamiliar',
       valor: 113,
       vigencia_desde: fecha('2025-01-01'),
       vigencia_hasta: null,
     },
-    { clave: 'essaludTasa', valor: 0.09, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+    {
+      clave: 'essaludTasa',
+      valor: 0.09,
+      vigencia_desde: fecha('2025-01-01'),
+      vigencia_hasta: null,
+    },
     {
       clave: 'essaludMinimo',
       valor: 101.7,
@@ -56,8 +71,18 @@ describe('ParametrosLegalesPrisma', () => {
 
   it('resuelve por vigencia: elige la fila cuya ventana cubre la fecha', () => {
     const rows: FilaParametroLegal[] = [
-      { clave: 'rmv', valor: 1025, vigencia_desde: fecha('2022-01-01'), vigencia_hasta: fecha('2024-12-31') },
-      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+      {
+        clave: 'rmv',
+        valor: 1025,
+        vigencia_desde: fecha('2022-01-01'),
+        vigencia_hasta: fecha('2024-12-31'),
+      },
+      {
+        clave: 'rmv',
+        valor: 1130,
+        vigencia_desde: fecha('2025-01-01'),
+        vigencia_hasta: null,
+      },
     ];
     const adapter = new ParametrosLegalesPrisma(rows, fallback);
     expect(adapter.rmv(new Date('2023-06-30'))).toBe(1025);
@@ -69,8 +94,18 @@ describe('ParametrosLegalesPrisma', () => {
     // El orden de inserción es la vieja primero; el adapter debe devolver la de
     // 2026, no la primera por inserción.
     const rows: FilaParametroLegal[] = [
-      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
-      { clave: 'rmv', valor: 1300, vigencia_desde: fecha('2026-01-01'), vigencia_hasta: null },
+      {
+        clave: 'rmv',
+        valor: 1130,
+        vigencia_desde: fecha('2025-01-01'),
+        vigencia_hasta: null,
+      },
+      {
+        clave: 'rmv',
+        valor: 1300,
+        vigencia_desde: fecha('2026-01-01'),
+        vigencia_hasta: null,
+      },
     ];
     const adapter = new ParametrosLegalesPrisma(rows, fallback);
     expect(adapter.rmv(new Date('2026-03-31'))).toBe(1300);
@@ -80,8 +115,18 @@ describe('ParametrosLegalesPrisma', () => {
 
   it('el resultado no depende del orden de inserción de las filas', () => {
     const rows: FilaParametroLegal[] = [
-      { clave: 'rmv', valor: 1300, vigencia_desde: fecha('2026-01-01'), vigencia_hasta: null },
-      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+      {
+        clave: 'rmv',
+        valor: 1300,
+        vigencia_desde: fecha('2026-01-01'),
+        vigencia_hasta: null,
+      },
+      {
+        clave: 'rmv',
+        valor: 1130,
+        vigencia_desde: fecha('2025-01-01'),
+        vigencia_hasta: null,
+      },
     ];
     const adapter = new ParametrosLegalesPrisma(rows, fallback);
     expect(adapter.rmv(new Date('2026-03-31'))).toBe(1300);
@@ -89,7 +134,12 @@ describe('ParametrosLegalesPrisma', () => {
 
   it('lanza ParametroLegalNoVigenteError si no hay fila vigente para la fecha', () => {
     const rows: FilaParametroLegal[] = [
-      { clave: 'rmv', valor: 1130, vigencia_desde: fecha('2025-01-01'), vigencia_hasta: null },
+      {
+        clave: 'rmv',
+        valor: 1130,
+        vigencia_desde: fecha('2025-01-01'),
+        vigencia_hasta: null,
+      },
     ];
     const adapter = new ParametrosLegalesPrisma(rows, fallback);
     expect(() => adapter.rmv(new Date('2020-01-01'))).toThrow(

@@ -35,7 +35,10 @@ export class PostulantesController {
 
   @Get()
   @RequirePermissions('seleccion:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterPostulanteDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterPostulanteDto,
+  ) {
     return this.postulantesService.findAll(user.empresa_id, filters);
   }
 
@@ -47,13 +50,19 @@ export class PostulantesController {
 
   @Get(':id')
   @RequirePermissions('seleccion:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.postulantesService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('seleccion:crear')
-  create(@Body() dto: CreatePostulanteDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreatePostulanteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.postulantesService.create(user.empresa_id, dto);
   }
 
@@ -284,7 +293,10 @@ export class PostulantesController {
 
   @Delete(':id')
   @RequirePermissions('seleccion:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.postulantesService.remove(id, user.empresa_id);
   }
 }

@@ -25,7 +25,10 @@ export class SedesController {
 
   @Get()
   @RequirePermissions('maestros:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterSedeDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterSedeDto,
+  ) {
     return this.sedesService.findAll(user.empresa_id, filters);
   }
 
@@ -43,7 +46,10 @@ export class SedesController {
 
   @Get(':id')
   @RequirePermissions('maestros:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.sedesService.findOne(id, user.empresa_id);
   }
 
@@ -74,7 +80,10 @@ export class SedesController {
 
   @Delete(':id')
   @RequirePermissions('maestros:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.sedesService.remove(id, user.empresa_id);
   }
 

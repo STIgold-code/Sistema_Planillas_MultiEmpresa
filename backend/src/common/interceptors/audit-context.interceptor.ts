@@ -36,8 +36,7 @@ export class AuditContextInterceptor implements NestInterceptor {
     if (currentContext && user) {
       // Mutar el objeto de contexto existente
       const userId = user.id ?? user.sub ?? null;
-      currentContext.userId =
-        userId === null ? null : Number(userId);
+      currentContext.userId = userId === null ? null : Number(userId);
       currentContext.userEmail = user.email ?? null;
       currentContext.empresaId = user.empresa_id ?? null;
     }

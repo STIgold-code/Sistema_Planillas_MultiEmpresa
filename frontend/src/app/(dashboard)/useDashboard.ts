@@ -375,7 +375,7 @@ export function useDashboard() {
       }
     }
     fetchDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [usuario, router]);
 
   // ── Cese handlers ────────────────────────────────────────────────────────

@@ -40,7 +40,10 @@ export class CompaniesController {
 
   @Get(':id')
   @RequirePermissions('empresas:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // Validar que solo acceda a su propia empresa (o tiene permiso *)
     if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
       throw new ForbiddenException('No puede acceder a otra empresa');
@@ -70,7 +73,10 @@ export class CompaniesController {
 
   @Delete(':id')
   @RequirePermissions('empresas:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // Validar que solo elimine su propia empresa (o tiene permiso *)
     if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
       throw new ForbiddenException('No puede eliminar otra empresa');

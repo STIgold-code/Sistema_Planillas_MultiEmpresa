@@ -20,7 +20,10 @@ export class VacantesController {
 
   @Get()
   @RequirePermissions('seleccion:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterVacanteDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterVacanteDto,
+  ) {
     return this.vacantesService.findAll(user.empresa_id, filters);
   }
 
@@ -32,7 +35,10 @@ export class VacantesController {
 
   @Get(':id')
   @RequirePermissions('seleccion:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.findOne(id, user.empresa_id);
   }
 
@@ -47,7 +53,10 @@ export class VacantesController {
 
   @Post()
   @RequirePermissions('seleccion:crear')
-  create(@Body() dto: CreateVacanteDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreateVacanteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.create(user.empresa_id, dto);
   }
 
@@ -63,31 +72,46 @@ export class VacantesController {
 
   @Patch(':id/publicar')
   @RequirePermissions('seleccion:editar')
-  publicar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  publicar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.cambiarEstado(id, user.empresa_id, 'PUBLICADA');
   }
 
   @Patch(':id/cerrar')
   @RequirePermissions('seleccion:editar')
-  cerrar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  cerrar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.cambiarEstado(id, user.empresa_id, 'CERRADA');
   }
 
   @Patch(':id/cancelar')
   @RequirePermissions('seleccion:editar')
-  cancelar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  cancelar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.cambiarEstado(id, user.empresa_id, 'CANCELADA');
   }
 
   @Patch(':id/reactivar')
   @RequirePermissions('seleccion:editar')
-  reactivar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  reactivar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.cambiarEstado(id, user.empresa_id, 'BORRADOR');
   }
 
   @Delete(':id')
   @RequirePermissions('seleccion:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.vacantesService.remove(id, user.empresa_id);
   }
 }

@@ -238,9 +238,7 @@ export function validateMagicBytesBuffer(
     return validateMagicBytesFromBuffer(fileBuffer, declaredMimeType);
   } catch (error: unknown) {
     const mensaje = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[SECURITY] Error validando magic bytes buffer: ${mensaje}`,
-    );
+    console.error(`[SECURITY] Error validando magic bytes buffer: ${mensaje}`);
     return false;
   }
 }

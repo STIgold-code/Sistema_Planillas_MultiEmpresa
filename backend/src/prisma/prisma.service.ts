@@ -143,13 +143,13 @@ export class PrismaService
             });
             if (registro && typeof registro === 'object') {
               datosAnteriores = this.sanitizarDatos(registro);
-              registroId =
-                (registro as { id?: number | null }).id ?? null;
+              registroId = (registro as { id?: number | null }).id ?? null;
             }
           }
         } catch (error) {
           // Si falla la captura de datos anteriores, continuar sin ellos
-          const mensaje = error instanceof Error ? error.message : String(error);
+          const mensaje =
+            error instanceof Error ? error.message : String(error);
           this.logger.debug(
             `No se pudieron capturar datos anteriores: ${mensaje}`,
           );
@@ -170,7 +170,8 @@ export class PrismaService
           datosNuevos: params.args?.data,
           context,
         }).catch((error: unknown) => {
-          const mensaje = error instanceof Error ? error.message : String(error);
+          const mensaje =
+            error instanceof Error ? error.message : String(error);
           this.logger.error(`Error registrando auditoría: ${mensaje}`);
         });
       });

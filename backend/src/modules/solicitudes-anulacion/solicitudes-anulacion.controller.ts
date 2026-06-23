@@ -110,7 +110,10 @@ export class SolicitudesAnulacionController {
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.solicitudesAnulacionService.findOne(id, user.empresa_id);
   }
 

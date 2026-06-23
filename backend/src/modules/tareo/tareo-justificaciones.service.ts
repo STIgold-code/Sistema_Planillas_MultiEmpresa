@@ -9,11 +9,7 @@ import {
   UpdateJustificacionDto,
   AddArchivoDto,
 } from './dto';
-import {
-  Prisma,
-  EstadoPeriodoTareo,
-  TipoJustificacion,
-} from '@prisma/client';
+import { Prisma, EstadoPeriodoTareo, TipoJustificacion } from '@prisma/client';
 import { TareoJustificacionesMutationsService } from './tareo-justificaciones-mutations.service';
 
 @Injectable()

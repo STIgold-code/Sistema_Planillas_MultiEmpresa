@@ -53,7 +53,10 @@ export class PlantillasContratoController {
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.plantillasService.findOne(id, user.empresa_id);
   }
 
@@ -99,7 +102,10 @@ export class PlantillasContratoController {
 
   @Post()
   @RequirePermissions('contratos:crear')
-  create(@Body() dto: CreatePlantillaContratoDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreatePlantillaContratoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.plantillasService.create(user.empresa_id, dto);
   }
 
@@ -125,7 +131,10 @@ export class PlantillasContratoController {
 
   @Delete(':id')
   @RequirePermissions('contratos:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.plantillasService.remove(id, user.empresa_id);
   }
 

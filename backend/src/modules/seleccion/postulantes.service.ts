@@ -280,10 +280,12 @@ export class PostulantesService {
           ? parsearFechaISOenPeru(fecha_nacimiento)
           : undefined,
         estudios: estudios as unknown as Prisma.InputJsonValue | undefined,
-        experiencias:
-          experiencias as unknown as Prisma.InputJsonValue | undefined,
-        capacitaciones:
-          capacitaciones as unknown as Prisma.InputJsonValue | undefined,
+        experiencias: experiencias as unknown as
+          | Prisma.InputJsonValue
+          | undefined,
+        capacitaciones: capacitaciones as unknown as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       include: {
         vacante: { select: { id: true, codigo: true, titulo: true } },

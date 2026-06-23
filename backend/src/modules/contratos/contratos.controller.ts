@@ -41,7 +41,10 @@ export class ContratosController {
 
   @Get()
   @RequirePermissions('contratos:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterContratoDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterContratoDto,
+  ) {
     return this.contratosService.findAll(user.empresa_id, filters);
   }
 
@@ -59,7 +62,10 @@ export class ContratosController {
 
   @Get('exportar/excel')
   @RequirePermissions('contratos:leer')
-  async exportarExcel(@CurrentUser() user: AuthenticatedUser, @Res() res: Response) {
+  async exportarExcel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
     const workbook = await this.contratosExcelService.exportarContratos(
       user.empresa_id,
     );
@@ -79,13 +85,19 @@ export class ContratosController {
 
   @Get(':id')
   @RequirePermissions('contratos:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('contratos:crear')
-  create(@Body() dto: CreateContratoDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreateContratoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.create(user.empresa_id, dto, user.id);
   }
 
@@ -101,13 +113,19 @@ export class ContratosController {
 
   @Delete(':id')
   @RequirePermissions('contratos:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.remove(id, user.empresa_id);
   }
 
   @Post('reingreso')
   @RequirePermissions('contratos:crear')
-  reingreso(@Body() dto: CreateContratoDto, @CurrentUser() user: AuthenticatedUser) {
+  reingreso(
+    @Body() dto: CreateContratoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.contratosService.reingreso(user.empresa_id, dto, user.id);
   }
 
@@ -167,7 +185,10 @@ export class ContratosController {
     @Body()
     body: {
       contratos: Array<
-        Omit<ContratoParaImportar, 'fecha_inicio' | 'fecha_fin' | 'fecha_cese'> & {
+        Omit<
+          ContratoParaImportar,
+          'fecha_inicio' | 'fecha_fin' | 'fecha_cese'
+        > & {
           fecha_inicio: string;
           fecha_fin: string;
           fecha_cese?: string | null;

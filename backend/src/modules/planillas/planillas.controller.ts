@@ -36,7 +36,10 @@ export class PlanillasController {
 
   @Get()
   @RequirePermissions('planilla:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterPlanillaDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterPlanillaDto,
+  ) {
     return this.planillasService.findAll(user.empresa_id, filters);
   }
 
@@ -48,7 +51,10 @@ export class PlanillasController {
 
   @Get(':id')
   @RequirePermissions('planilla:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.findOne(id, user.empresa_id);
   }
 
@@ -73,19 +79,28 @@ export class PlanillasController {
 
   @Get(':id/exportar')
   @RequirePermissions('planilla:leer')
-  exportar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  exportar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.exportar(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('planilla:crear')
-  create(@Body() dto: CreatePlanillaDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreatePlanillaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.create(user.empresa_id, dto, user.id);
   }
 
   @Post(':id/calcular')
   @RequirePermissions('planilla:crear')
-  calcular(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  calcular(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.calcular(id, user.empresa_id, user.id);
   }
 
@@ -108,7 +123,10 @@ export class PlanillasController {
 
   @Post(':id/aprobar')
   @RequirePermissions('planilla:aprobar')
-  aprobar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  aprobar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.aprobar(id, user.empresa_id, user.id);
   }
 
@@ -153,7 +171,10 @@ export class PlanillasController {
 
   @Delete(':id')
   @RequirePermissions('planilla:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.planillasService.remove(id, user.empresa_id, user.id);
   }
 }

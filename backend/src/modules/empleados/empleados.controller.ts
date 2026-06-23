@@ -43,7 +43,10 @@ export class EmpleadosController {
 
   @Get()
   @RequirePermissions('empleados:leer')
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query() filters: FilterEmpleadoDto) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() filters: FilterEmpleadoDto,
+  ) {
     return this.empleadosService.findAll(user.empresa_id, filters);
   }
 
@@ -129,13 +132,19 @@ export class EmpleadosController {
 
   @Get(':id')
   @RequirePermissions('empleados:leer')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.empleadosService.findOne(id, user.empresa_id);
   }
 
   @Post()
   @RequirePermissions('empleados:crear_directo')
-  create(@Body() dto: CreateEmpleadoDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() dto: CreateEmpleadoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     // NOTA: Este endpoint requiere permiso especial 'empleados:crear_directo'
     // La forma estándar de crear empleados es mediante el proceso de selección:
     // POST /postulantes/:id/convertir (requiere 'seleccion:editar')
@@ -154,7 +163,10 @@ export class EmpleadosController {
 
   @Delete(':id')
   @RequirePermissions('empleados:eliminar')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.empleadosService.remove(id, user.empresa_id);
   }
 

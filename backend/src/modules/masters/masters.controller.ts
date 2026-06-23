@@ -44,13 +44,19 @@ export class MastersController {
 
   @Get('areas/:id')
   @RequirePermissions('maestros:leer')
-  findOneArea(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOneArea(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.findOneArea(id, user.empresa_id);
   }
 
   @Post('areas')
   @RequirePermissions('maestros:crear')
-  createArea(@Body() dto: CreateAreaDto, @CurrentUser() user: AuthenticatedUser) {
+  createArea(
+    @Body() dto: CreateAreaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createArea(dto, user.empresa_id);
   }
 
@@ -66,7 +72,10 @@ export class MastersController {
 
   @Delete('areas/:id')
   @RequirePermissions('maestros:eliminar')
-  removeArea(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  removeArea(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.removeArea(id, user.empresa_id);
   }
 
@@ -90,7 +99,10 @@ export class MastersController {
 
   @Post('cargos')
   @RequirePermissions('maestros:crear')
-  createCargo(@Body() dto: CreateCargoDto, @CurrentUser() user: AuthenticatedUser) {
+  createCargo(
+    @Body() dto: CreateCargoDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createCargo(dto, user.empresa_id);
   }
 
@@ -106,7 +118,10 @@ export class MastersController {
 
   @Delete('cargos/:id')
   @RequirePermissions('maestros:eliminar')
-  removeCargo(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  removeCargo(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.removeCargo(id, user.empresa_id);
   }
 
@@ -376,7 +391,10 @@ export class MastersController {
 
   @Post('tipos-cese')
   @RequirePermissions('maestros:crear')
-  createTipoCese(@Body() dto: CreateTipoCeseDto, @CurrentUser() user: AuthenticatedUser) {
+  createTipoCese(
+    @Body() dto: CreateTipoCeseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.mastersService.createTipoCese(dto, user.empresa_id);
   }
 
