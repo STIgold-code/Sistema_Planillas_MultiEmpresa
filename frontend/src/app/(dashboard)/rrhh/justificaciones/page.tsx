@@ -131,7 +131,6 @@ export default function JustificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
-  void areas;
 
   // Filtros
   const [busqueda, setBusqueda] = useState('');
@@ -140,7 +139,6 @@ export default function JustificacionesPage() {
   const [mes, setMes] = useState<string>('all');
   const [sedeId, setSedeId] = useState<string>('all');
   const [areaId, setAreaId] = useState<string>('all');
-  void setAreaId;
 
   // Paginación
   const [page, setPage] = useState(1);
@@ -321,6 +319,18 @@ export default function JustificacionesPage() {
               <SelectItem value="all">Todas las sedes</SelectItem>
               {sedes.map((s) => (
                 <SelectItem key={s.id} value={s.id.toString()}>{s.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={areaId} onValueChange={(v) => { setAreaId(v); handleFilterChange(); }}>
+            <SelectTrigger>
+              <SelectValue placeholder="Área" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las áreas</SelectItem>
+              {areas.map((a) => (
+                <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
               ))}
             </SelectContent>
           </Select>

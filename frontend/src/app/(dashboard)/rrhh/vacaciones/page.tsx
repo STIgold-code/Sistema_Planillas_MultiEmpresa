@@ -374,23 +374,6 @@ export default function VacacionesPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card
-          className="cursor-pointer hover:bg-muted/50 transition-colors"
-          onClick={() => router.push('/rrhh/vacaciones/configuracion')}
-        >
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Configuración
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Parámetros y reglas de vacaciones
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
