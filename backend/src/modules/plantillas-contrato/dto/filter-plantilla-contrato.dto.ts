@@ -16,10 +16,14 @@ export class FilterPlantillaContratoDto {
   activo?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   page?: number;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   limit?: number;
 }

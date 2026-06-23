@@ -7,7 +7,9 @@ export class FilterSedeDto {
   buscar?: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   cliente_id?: number;
 
@@ -17,12 +19,16 @@ export class FilterSedeDto {
   activo?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   page?: number = 1;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   @IsInt()
   limit?: number = 50;
 }
