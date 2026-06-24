@@ -25,10 +25,11 @@ export default function IngresosPage() {
   // Requerimientos aprobados para "jalar" la compra en la digitalización.
   useEffect(() => {
     let activo = true;
+    // El endpoint es paginado: devuelve { data, meta }, no un array plano.
     api
-      .get<Requerimiento[]>("/inventario/requerimientos")
-      .then((data) => {
-        if (activo) setRequerimientos(data);
+      .get<{ data: Requerimiento[] }>("/inventario/requerimientos")
+      .then((res) => {
+        if (activo) setRequerimientos(res.data ?? []);
       })
       .catch(() => {
         // silencioso; el selector quedará vacío
