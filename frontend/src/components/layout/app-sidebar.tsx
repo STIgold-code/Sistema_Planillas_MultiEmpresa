@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils";
 import { Usuario } from "@/types";
 import { hasPermission, logout } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { SelectorEmpresaActiva } from "@/components/layout/selector-empresa-activa";
 
 interface AppSidebarProps {
   usuario: Usuario | null;
@@ -333,6 +334,9 @@ export function AppSidebar({ usuario }: AppSidebarProps) {
             </span>
           </div>
         </div>
+
+        {/* Selector de empresa activa (solo visible para superadmins) */}
+        <SelectorEmpresaActiva usuario={usuario} />
       </SidebarHeader>
 
       <SidebarContent>

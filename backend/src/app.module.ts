@@ -48,6 +48,7 @@ import { ReportesModule } from './modules/reportes/reportes.module';
 import { MovimientosPersonalModule } from './modules/movimientos-personal/movimientos-personal.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { EmpresaActivaGuard } from './common/guards/empresa-activa.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
@@ -131,6 +132,12 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Resuelve la empresa activa (debe correr DESPUÉS de JwtAuthGuard:
+    // necesita req.user, y sobrescribe empresa_id antes de los controllers).
+    {
+      provide: APP_GUARD,
+      useClass: EmpresaActivaGuard,
     },
     // Guard de permisos global
     {
