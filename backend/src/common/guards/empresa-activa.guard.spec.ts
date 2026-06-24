@@ -1,8 +1,4 @@
-import {
-  ExecutionContext,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ExecutionContext, BadRequestException } from '@nestjs/common';
 import { EmpresaActivaGuard } from './empresa-activa.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../types/auth.types';
@@ -73,13 +69,12 @@ describe('EmpresaActivaGuard', () => {
     expect(prisma.empresa.findUnique).not.toHaveBeenCalled();
   });
 
-  it('superadmin con empresa inexistente, lanza Forbidden (R4)', async () => {
+  it('superadmin con empresa inexistente, mantiene la empresa propia (R4)', async () => {
     const user = superadmin();
     prisma.empresa.findUnique.mockResolvedValue(null);
     const ctx = crearContext({ user, headers: { 'x-empresa-activa': '999' } });
-    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(user.empresa_id).toBe(1);
   });
 
   it('header no numérico, lanza BadRequest (R4)', async () => {

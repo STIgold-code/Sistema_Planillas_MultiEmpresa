@@ -2,7 +2,6 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -79,8 +78,11 @@ export class EmpresaActivaGuard implements CanActivate {
       },
     });
 
+    // La empresa activa indicada no existe (p. ej. fue eliminada): se ignora el
+    // header y se mantiene la empresa propia, en vez de romper toda la sesión.
+    // Es seguro: caer a la empresa propia nunca expone datos de otra.
     if (!empresa) {
-      throw new ForbiddenException('Empresa no encontrada o sin acceso');
+      return true;
     }
 
     // Sobrescribir la empresa activa: a partir de aquí, todos los módulos
