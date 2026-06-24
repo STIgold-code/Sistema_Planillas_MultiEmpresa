@@ -72,7 +72,7 @@ export function PhotocheckPreview({
   onOpenChange,
   empleado,
   empresaLogo,
-  empresaNombre = 'ERMIR',
+  empresaNombre = 'JJMM',
   empresaTelefono,
   centroControl,
   onGenerated,

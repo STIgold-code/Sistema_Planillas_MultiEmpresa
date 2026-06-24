@@ -24,7 +24,7 @@ export async function descargarErroresImportacionExcel(params: {
   if (!importPreview?.errores || importPreview.errores.length === 0) return;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'RRHH-Ermir';
+  workbook.creator = 'JJMM';
   workbook.created = new Date();
 
   const mesNombre = meses[periodo?.mes ? periodo.mes - 1 : 0];
@@ -47,7 +47,7 @@ export async function descargarErroresImportacionExcel(params: {
 
     sheetResumen.mergeCells('B2:C2');
     const titulo = sheetResumen.getCell('B2');
-    titulo.value = 'ERMIR - Reporte de Errores de Importación';
+    titulo.value = 'JJMM - Reporte de Errores de Importación';
     titulo.font = { size: 16, bold: true, color: { argb: 'FF1E40AF' } };
     titulo.alignment = { horizontal: 'center' };
 
