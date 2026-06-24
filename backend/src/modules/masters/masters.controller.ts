@@ -36,10 +36,8 @@ export class MastersController {
   // ==================== ÁREAS ====================
   @Get('areas')
   @RequirePermissions('maestros:leer')
-  findAllAreas(@Query('empresa_id') empresaId?: string) {
-    return this.mastersService.findAllAreas(
-      empresaId ? parseInt(empresaId, 10) : undefined,
-    );
+  findAllAreas(@CurrentUser() user: AuthenticatedUser) {
+    return this.mastersService.findAllAreas(user.empresa_id);
   }
 
   @Get('areas/:id')
@@ -82,10 +80,8 @@ export class MastersController {
   // ==================== CARGOS ====================
   @Get('cargos')
   @RequirePermissions('maestros:leer')
-  findAllCargos(@Query('empresa_id') empresaId?: string) {
-    return this.mastersService.findAllCargos(
-      empresaId ? parseInt(empresaId, 10) : undefined,
-    );
+  findAllCargos(@CurrentUser() user: AuthenticatedUser) {
+    return this.mastersService.findAllCargos(user.empresa_id);
   }
 
   @Get('cargos/:id')
@@ -306,10 +302,8 @@ export class MastersController {
   // ==================== SEDES ====================
   @Get('sedes')
   @RequirePermissions('maestros:leer')
-  findAllSedes(@Query('empresa_id') empresaId?: string) {
-    return this.mastersService.findAllSedes(
-      empresaId ? parseInt(empresaId, 10) : undefined,
-    );
+  findAllSedes(@CurrentUser() user: AuthenticatedUser) {
+    return this.mastersService.findAllSedes(user.empresa_id);
   }
 
   // ==================== TIPOS DE EVALUACIÓN ====================
@@ -374,10 +368,8 @@ export class MastersController {
   // ==================== TIPOS DE CESE ====================
   @Get('tipos-cese')
   @RequirePermissions('maestros:leer')
-  findAllTiposCese(@Query('empresa_id') empresaId?: string) {
-    return this.mastersService.findAllTiposCese(
-      empresaId ? parseInt(empresaId, 10) : undefined,
-    );
+  findAllTiposCese(@CurrentUser() user: AuthenticatedUser) {
+    return this.mastersService.findAllTiposCese(user.empresa_id);
   }
 
   @Get('tipos-cese/:id')
