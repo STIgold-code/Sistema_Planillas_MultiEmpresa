@@ -49,24 +49,26 @@ export function SidebarEmpresaActiva({ empresa }: SidebarEmpresaActivaProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-accent ring-1 ring-sidebar-border">
-        {logoUrl ? (
-          // logoUrl es un blob URL local resuelto por useAuthImage, no optimizable por next/image
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt={nombreEmpresa}
-            className="size-full object-contain"
-          />
-        ) : (
+      {logoUrl ? (
+        // Logo sin contenedor: se muestra limpio, sin recuadro de fondo.
+        // logoUrl es un blob URL local resuelto por useAuthImage, no optimizable por next/image
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={nombreEmpresa}
+          className="size-12 shrink-0 object-contain"
+        />
+      ) : (
+        // Solo el fallback de iniciales lleva fondo (lo necesita para contraste).
+        <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-accent ring-1 ring-sidebar-border">
           <span
             aria-hidden="true"
             className="text-base font-bold tracking-tight text-sidebar-accent-foreground"
           >
             {iniciales}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-col">
         <span
