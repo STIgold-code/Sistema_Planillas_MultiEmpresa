@@ -325,7 +325,7 @@ export function AppSidebar({ usuario }: AppSidebarProps) {
             alt="JJMM"
             width={36}
             height={36}
-            className="object-contain invert"
+            className="object-contain"
           />
           <div className="flex flex-col">
             <span className="font-bold text-lg">JJMM</span>
