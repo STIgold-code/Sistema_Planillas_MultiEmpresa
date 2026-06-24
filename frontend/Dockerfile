@@ -1,15 +1,14 @@
-# ─────────────────────────────────────────────────────────────
-# Dockerfile del frontend (Next.js 16 standalone).
-# El next.config ya usa output: "standalone".
-# ─────────────────────────────────────────────────────────────
+# Build desde la RAÍZ del repo (monorepo). Railway lo selecciona con la
+# variable RAILWAY_DOCKERFILE_PATH=frontend/Dockerfile, por eso los paths
+# llevan el prefijo frontend/. El next.config ya usa output: "standalone".
 
 FROM node:20-slim AS builder
 WORKDIR /app
 
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
 
-COPY . .
+COPY frontend/ .
 
 # NEXT_PUBLIC_* se inyecta en BUILD time. Railway pasa las service
 # variables como build args; por eso se declara como ARG aquí.
@@ -30,5 +29,4 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
-# El servidor standalone respeta el PORT que inyecta Railway.
 CMD ["node", "server.js"]
