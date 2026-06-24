@@ -74,6 +74,7 @@ async function bootstrap() {
       'Authorization',
       'Accept',
       'X-Requested-With',
+      'X-Empresa-Activa',
     ],
     credentials: true,
     exposedHeaders: ['Content-Disposition'],
