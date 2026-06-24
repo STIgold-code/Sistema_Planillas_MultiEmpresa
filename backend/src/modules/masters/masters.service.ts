@@ -27,8 +27,8 @@ export class MastersService {
   constructor(private prisma: PrismaService) {}
 
   // ==================== ÁREAS ====================
-  async findAllAreas(empresaId?: number) {
-    const where = empresaId ? { empresa_id: empresaId } : {};
+  async findAllAreas(empresaId: number) {
+    const where = { empresa_id: empresaId };
     return this.prisma.area.findMany({
       where,
       include: { empresa: true },
@@ -92,8 +92,8 @@ export class MastersService {
   }
 
   // ==================== CARGOS ====================
-  async findAllCargos(empresaId?: number) {
-    const where = empresaId ? { empresa_id: empresaId } : {};
+  async findAllCargos(empresaId: number) {
+    const where = { empresa_id: empresaId };
     return this.prisma.cargo.findMany({
       where,
       include: { empresa: true },
@@ -453,10 +453,8 @@ export class MastersService {
   }
 
   // ==================== SEDES ====================
-  async findAllSedes(empresaId?: number) {
-    const where = empresaId
-      ? { empresa_id: empresaId, activo: true }
-      : { activo: true };
+  async findAllSedes(empresaId: number) {
+    const where = { empresa_id: empresaId, activo: true };
     return this.prisma.sede.findMany({
       where,
       orderBy: { nombre: 'asc' },
@@ -560,8 +558,8 @@ export class MastersService {
   }
 
   // ==================== TIPOS DE CESE ====================
-  async findAllTiposCese(empresaId?: number) {
-    const where = empresaId ? { empresa_id: empresaId } : {};
+  async findAllTiposCese(empresaId: number) {
+    const where = { empresa_id: empresaId };
     return this.prisma.tipoCeseMaestro.findMany({
       where,
       include: { empresa: true },

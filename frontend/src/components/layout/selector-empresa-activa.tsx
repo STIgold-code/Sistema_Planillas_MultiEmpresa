@@ -62,7 +62,10 @@ export function SelectorEmpresaActiva({ usuario }: SelectorEmpresaActivaProps) {
   };
 
   // Valor controlado: la empresa activa guardada o, por defecto, la del usuario.
-  const valorActual = empresaActivaId ?? usuario?.empresa_id ?? undefined;
+  // Se normaliza a string para que coincida con el value de cada SelectItem.
+  const valorActual =
+    empresaActivaId ??
+    (usuario?.empresa_id != null ? String(usuario.empresa_id) : undefined);
 
   return (
     <Select value={valorActual} onValueChange={handleCambio} disabled={cargando}>
@@ -74,7 +77,7 @@ export function SelectorEmpresaActiva({ usuario }: SelectorEmpresaActivaProps) {
       </SelectTrigger>
       <SelectContent>
         {empresas.map((empresa) => (
-          <SelectItem key={empresa.id} value={empresa.id}>
+          <SelectItem key={empresa.id} value={String(empresa.id)}>
             {empresa.nombre_comercial || empresa.razon_social}
           </SelectItem>
         ))}
