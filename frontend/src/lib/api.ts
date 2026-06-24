@@ -1,6 +1,19 @@
 import { ApiError } from '@/types';
+import { getEmpresaActivaId } from '@/contexts/empresa-activa-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Nombre del header que el backend lee para cambiar la empresa activa (solo superadmins)
+const EMPRESA_ACTIVA_HEADER = 'X-Empresa-Activa';
+
+// Agrega el header de empresa activa si hay una seleccionada en localStorage.
+// Se lee directo de localStorage (igual que el token) para no acoplar al contexto de React.
+function aplicarEmpresaActiva(headers: Record<string, string>): void {
+  const empresaActivaId = getEmpresaActivaId();
+  if (empresaActivaId) {
+    headers[EMPRESA_ACTIVA_HEADER] = empresaActivaId;
+  }
+}
 
 if (!API_URL) {
   throw new Error('NEXT_PUBLIC_API_URL no está definida en las variables de entorno');
@@ -50,6 +63,8 @@ async function fetchApi<T>(
   if (accessToken) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
   }
+
+  aplicarEmpresaActiva(headers as Record<string, string>);
 
   const response = await fetch(url, {
     ...options,
@@ -133,10 +148,12 @@ async function fetchUpload<T>(endpoint: string, formData: FormData, method: stri
   const url = `${API_URL}${endpoint}`;
   const accessToken = getAccessToken();
 
-  const headers: HeadersInit = {};
+  const headers: Record<string, string> = {};
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
+
+  aplicarEmpresaActiva(headers);
 
   const response = await fetch(url, {
     method,
@@ -181,10 +198,12 @@ async function fetchBlob(endpoint: string): Promise<Blob> {
   const url = `${API_URL}${endpoint}`;
   const accessToken = getAccessToken();
 
-  const headers: HeadersInit = {};
+  const headers: Record<string, string> = {};
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
+
+  aplicarEmpresaActiva(headers);
 
   const response = await fetch(url, {
     method: 'GET',
@@ -272,9 +291,15 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append(fieldName, file);
 
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  aplicarEmpresaActiva(headers);
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    headers,
     body: formData,
   });
 

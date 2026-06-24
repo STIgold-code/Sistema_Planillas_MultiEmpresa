@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { isAuthenticated, getCurrentUser } from '@/lib/auth';
 import { UserProvider } from '@/contexts/user-context';
+import { EmpresaActivaProvider } from '@/contexts/empresa-activa-context';
 import { Usuario } from '@/types';
 import { Loader2 } from 'lucide-react';
 
@@ -68,6 +69,7 @@ export default function DashboardLayout({
 
   return (
     <UserProvider usuario={usuario}>
+      <EmpresaActivaProvider>
       <SidebarProvider>
         <AppSidebar usuario={usuario} />
         <SidebarInset className="flex min-h-screen flex-col min-w-0 overflow-x-hidden">
@@ -75,6 +77,7 @@ export default function DashboardLayout({
           <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 p-4 md:p-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
+      </EmpresaActivaProvider>
     </UserProvider>
   );
 }
