@@ -516,11 +516,10 @@ export class MovimientosPersonalService {
         orderBy: { fecha_cese: 'desc' },
         select: { fecha_cese: true },
       }),
-      // Último ingreso
+      // Último ingreso (fecha_ingreso es NOT NULL: no se filtra por not null)
       this.prisma.empleado.findFirst({
         where: {
           empresa_id: empresaId,
-          fecha_ingreso: { not: null },
         },
         orderBy: { fecha_ingreso: 'desc' },
         select: { fecha_ingreso: true },
