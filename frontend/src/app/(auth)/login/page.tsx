@@ -69,8 +69,8 @@ export default function LoginPage() {
         <CardHeader className="space-y-1 text-center px-4 md:px-6">
           <div className="flex justify-center mb-2">
             <Image
-              src="/images/logo-ermir.png"
-              alt="ERMIR Logo"
+              src="/images/logo-JJMM.png"
+              alt="JJMM"
               width={180}
               height={120}
               priority
@@ -78,7 +78,7 @@ export default function LoginPage() {
             />
           </div>
           <CardTitle className="text-lg md:text-xl font-bold text-primary">
-            Sistema de Recursos Humanos
+            Sistema de Planillas
           </CardTitle>
           <CardDescription className="text-sm">
             Ingrese sus credenciales para acceder al sistema

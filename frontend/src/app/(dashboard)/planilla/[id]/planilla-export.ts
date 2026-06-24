@@ -135,7 +135,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       const detalles = data.detalles;
 
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'Sistema RRHH ERMIR';
+      workbook.creator = 'JJMM - Sistema de Planillas';
       workbook.created = new Date();
 
       // ========================================
@@ -143,7 +143,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       // ========================================
       let logoImageId: number | null = null;
       try {
-        const logoResponse = await fetch('/images/logo-ermir-icon.png');
+        const logoResponse = await fetch('/images/logo-JJMM.png');
         if (logoResponse.ok) {
           const logoBlob = await logoResponse.blob();
           const logoBuffer = await logoBlob.arrayBuffer();
@@ -312,7 +312,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
 
       wsResumen.mergeCells(`B${resRow}:G${resRow}`);
       const empresaTitulo = wsResumen.getCell(`B${resRow}`);
-      empresaTitulo.value = 'ERMIR S.A.C.';
+      empresaTitulo.value = 'JJMM';
       empresaTitulo.font = { bold: true, size: 18, color: { argb: COLORES.HEADER_DARK } };
       empresaTitulo.alignment = { horizontal: 'center', vertical: 'middle' };
       resRow++;

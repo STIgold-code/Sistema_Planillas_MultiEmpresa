@@ -7,7 +7,7 @@ import Link from 'next/link';
 const maestros = [
   {
     titulo: 'Areas',
-    descripcion: 'Gestiona las areas internas de Ermir',
+    descripcion: 'Gestiona las areas internas de la empresa',
     icono: Building2,
     url: '/rrhh/maestros/areas',
     color: 'text-blue-500',

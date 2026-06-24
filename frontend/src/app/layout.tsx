@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "RRHH Ermir - Sistema de Recursos Humanos",
-  description: "Sistema de gestion de recursos humanos, asistencia y planilla",
+  title: "JJMM - Sistema de Planillas",
+  description: "Sistema de gestion de planillas multiempresa",
 };
 
 export default function RootLayout({

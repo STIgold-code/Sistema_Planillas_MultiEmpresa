@@ -321,16 +321,16 @@ export function AppSidebar({ usuario }: AppSidebarProps) {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-3">
           <Image
-            src="/images/logo-ermir-icon.png"
-            alt="ERMIR"
+            src="/images/logo-JJMM.png"
+            alt="JJMM"
             width={36}
             height={36}
             className="object-contain invert"
           />
           <div className="flex flex-col">
-            <span className="font-bold text-lg">ERMIR</span>
+            <span className="font-bold text-lg">JJMM</span>
             <span className="text-xs text-sidebar-foreground/70">
-              Sistema RRHH
+              Sistema de Planillas
             </span>
           </div>
         </div>
