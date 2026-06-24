@@ -51,13 +51,13 @@ import {
   ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Usuario } from "@/types";
 import { hasPermission, logout } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { SelectorEmpresaActiva } from "@/components/layout/selector-empresa-activa";
+import { SidebarEmpresaActiva } from "@/components/layout/sidebar-empresa-activa";
 
 interface AppSidebarProps {
   usuario: Usuario | null;
@@ -319,21 +319,7 @@ export function AppSidebar({ usuario }: AppSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/images/logo-JJMM.png"
-            alt="JJMM"
-            width={36}
-            height={36}
-            className="object-contain"
-          />
-          <div className="flex flex-col">
-            <span className="font-bold text-lg">JJMM</span>
-            <span className="text-xs text-sidebar-foreground/70">
-              Sistema de Planillas
-            </span>
-          </div>
-        </div>
+        <SidebarEmpresaActiva empresa={usuario?.empresa} />
 
         {/* Selector de empresa activa (solo visible para superadmins) */}
         <SelectorEmpresaActiva usuario={usuario} />
