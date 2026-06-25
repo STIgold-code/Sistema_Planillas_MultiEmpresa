@@ -214,6 +214,12 @@ const menuItems = [
     grupo: "Configuracion",
     items: [
       {
+        titulo: "Empresas",
+        url: "/configuracion/empresas",
+        icono: Building2,
+        permiso: "empresas:leer",
+      },
+      {
         titulo: "Empresa",
         url: "/configuracion/empresa",
         icono: Building2,
