@@ -72,7 +72,11 @@ const empresaSchema = z.object({
   razon_social: z.string().min(2, 'Mínimo 2 caracteres').max(200),
   nombre_comercial: z.string().max(200).optional().or(z.literal('')),
   direccion: z.string().max(300).optional().or(z.literal('')),
-  telefono: z.string().max(20).optional().or(z.literal('')),
+  telefono: z
+    .string()
+    .regex(/^\d{9}$/, 'El teléfono debe tener 9 dígitos')
+    .optional()
+    .or(z.literal('')),
   email: z.string().email('Correo electrónico inválido').optional().or(z.literal('')),
   regimen_laboral_default: z.enum(REGIMENES_LABORALES).optional().or(z.literal('')),
   activo: z.boolean(),
@@ -369,7 +373,12 @@ export default function EmpresasPage() {
                     <FormItem>
                       <FormLabel>Teléfono</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="01 234 5678" />
+                        <Input
+                          {...field}
+                          inputMode="numeric"
+                          maxLength={9}
+                          placeholder="987654321"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
