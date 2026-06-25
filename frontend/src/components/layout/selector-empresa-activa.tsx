@@ -104,7 +104,7 @@ export function SelectorEmpresaActiva({ usuario }: SelectorEmpresaActivaProps) {
           aria-expanded={abierto}
           aria-label="Empresa activa"
           disabled={cargando}
-          className="w-full justify-between font-normal"
+          className="w-full justify-between border-sidebar-border bg-sidebar-accent/40 font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <span className="flex min-w-0 items-center gap-2">
             <Building2 className="h-4 w-4 shrink-0" />
