@@ -5,14 +5,14 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
-  Length,
+  Matches,
 } from 'class-validator';
 import { RegimenLaboral } from '@prisma/client';
 
 export class CreateCompanyDto {
   @IsString()
   @IsNotEmpty({ message: 'El RUC es requerido' })
-  @Length(11, 11, { message: 'El RUC debe tener 11 dígitos' })
+  @Matches(/^\d{11}$/, { message: 'El RUC debe tener 11 dígitos numéricos' })
   ruc: string;
 
   @IsString()
@@ -29,6 +29,7 @@ export class CreateCompanyDto {
 
   @IsString()
   @IsOptional()
+  @Matches(/^\d{9}$/, { message: 'El teléfono debe tener 9 dígitos' })
   telefono?: string;
 
   @IsEmail({}, { message: 'Email inválido' })
