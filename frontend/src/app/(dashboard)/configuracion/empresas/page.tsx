@@ -291,9 +291,8 @@ export default function EmpresasPage() {
 
       <Card className="flex-1">
         <CardContent className="p-0">
-          <div className="relative max-h-[calc(100vh-320px)] overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card">
+          <Table containerClassName="max-h-[calc(100vh-320px)] overflow-y-auto">
+            <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead className="min-w-[110px] bg-card">RUC</TableHead>
                   <TableHead className="min-w-[180px] bg-card">Razón social</TableHead>
@@ -381,9 +380,8 @@ export default function EmpresasPage() {
                   );
                 })
               )}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
