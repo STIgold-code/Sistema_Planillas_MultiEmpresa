@@ -74,6 +74,13 @@ const menuItems = [
         icono: Home,
         permiso: "dashboard:leer",
       },
+      {
+        titulo: "Vista Consolidada",
+        url: "/consolidado",
+        icono: LayoutGrid,
+        // Solo superadmin: agrega datos de todas las empresas (cross-tenant).
+        permiso: "*",
+      },
     ],
   },
   {
