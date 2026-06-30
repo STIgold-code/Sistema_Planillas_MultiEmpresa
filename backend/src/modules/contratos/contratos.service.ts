@@ -355,6 +355,22 @@ export class ContratosService {
         });
       }
 
+      // Actualizar el cargo del empleado si se envió uno. El cargo vive en
+      // Empleado (el contrato no lo versiona); se valida que pertenezca a la
+      // empresa, igual que en la renovación.
+      if (dto.cargo_id) {
+        const cargo = await tx.cargo.findFirst({
+          where: { id: dto.cargo_id, empresa_id: empresaId },
+        });
+        if (!cargo) {
+          throw new BadRequestException('El cargo seleccionado no existe');
+        }
+        await tx.empleado.update({
+          where: { id: dto.empleado_id },
+          data: { cargo_id: dto.cargo_id },
+        });
+      }
+
       // Crear contrato dentro de la transacción
       const nuevoContrato = await tx.contrato.create({
         data: {
