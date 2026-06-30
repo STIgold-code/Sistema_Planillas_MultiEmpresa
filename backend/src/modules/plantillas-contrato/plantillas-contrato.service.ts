@@ -17,7 +17,7 @@ import {
   UpdatePlantillaContratoDto,
   FilterPlantillaContratoDto,
 } from './dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, RegimenLaboral } from '@prisma/client';
 import * as fs from 'fs';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -252,6 +252,7 @@ export class PlantillasContratoService {
         nombre: dto.nombre,
         descripcion: dto.descripcion,
         tipo_contrato: dto.tipo_contrato,
+        regimen_laboral: dto.regimen_laboral ?? null,
         contenido: dto.contenido,
         variables: dto.variables || [],
         archivo_base_url: archivoBaseUrl,
@@ -353,6 +354,7 @@ export class PlantillasContratoService {
         nombre,
         descripcion: plantilla.descripcion,
         tipo_contrato: plantilla.tipo_contrato,
+        regimen_laboral: plantilla.regimen_laboral,
         contenido: plantilla.contenido,
         variables: plantilla.variables || [],
         archivo_base_url: plantilla.archivo_base_url,
@@ -361,6 +363,48 @@ export class PlantillasContratoService {
         empresa_id: empresaId,
       },
     });
+  }
+
+  /**
+   * Resuelve la plantilla predeterminada de una empresa para un tipo de contrato,
+   * priorizando la que coincide con el régimen laboral indicado. Si no hay una
+   * predeterminada específica del régimen, cae a la predeterminada del tipo sin
+   * régimen asignado (aplica a cualquier régimen).
+   */
+  async resolverPredeterminada(
+    empresaId: number,
+    tipoContrato: string,
+    regimen?: RegimenLaboral,
+  ) {
+    const baseWhere = {
+      empresa_id: empresaId,
+      tipo_contrato: tipoContrato,
+      es_predeterminada: true,
+      activo: true,
+    };
+
+    if (regimen) {
+      const especifica = await this.prisma.plantillaContrato.findFirst({
+        where: { ...baseWhere, regimen_laboral: regimen },
+      });
+
+      if (especifica) {
+        return especifica;
+      }
+    }
+
+    // Fallback: predeterminada del tipo sin régimen (aplica a cualquiera).
+    const generica = await this.prisma.plantillaContrato.findFirst({
+      where: { ...baseWhere, regimen_laboral: null },
+    });
+
+    if (!generica) {
+      throw new NotFoundException(
+        'No se encontró una plantilla predeterminada para el tipo de contrato indicado',
+      );
+    }
+
+    return generica;
   }
 
   // Obtener variables disponibles

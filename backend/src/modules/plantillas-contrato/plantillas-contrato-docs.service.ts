@@ -150,6 +150,7 @@ export class PlantillasContratoDocsService {
         nombre: dto.nombre,
         descripcion: dto.descripcion,
         tipo_contrato: dto.tipo_contrato,
+        regimen_laboral: dto.regimen_laboral ?? null,
         contenido: '', // Vacío porque usamos archivo Word
         variables: variables,
         archivo_base_url: storedPath, // Guardamos el PATH, no la URL completa
