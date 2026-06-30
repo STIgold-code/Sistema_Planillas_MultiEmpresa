@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilePreviewModal } from '@/components/ui/file-preview-modal';
 import { EmpleadoContratos } from '@/components/empleados/EmpleadoContratos';
@@ -25,8 +27,29 @@ import { TabFamiliares } from './components/TabFamiliares';
 import { TabDocumentos } from './components/TabDocumentos';
 import { TabMovimientos } from './components/TabMovimientos';
 
+// Pestañas válidas de la ficha del empleado. Permite hacer deep-link a una
+// pestaña concreta (p. ej. ?tab=contratos) sin romper el comportamiento por
+// defecto (cuando no hay query param se abre "personal").
+const TABS_VALIDAS = [
+  'personal',
+  'laboral',
+  'bancario',
+  'familiares',
+  'documentos',
+  'contratos',
+  'ceses',
+  'movimientos',
+] as const;
+
 export default function EmpleadoDetailPage() {
   const state = useEmpleadoDetalle();
+  const searchParams = useSearchParams();
+  const tabSolicitado = searchParams.get('tab');
+  const tabInicial =
+    tabSolicitado && (TABS_VALIDAS as readonly string[]).includes(tabSolicitado)
+      ? tabSolicitado
+      : 'personal';
+  const [tabActiva, setTabActiva] = useState(tabInicial);
 
   if (state.loading) {
     return (
@@ -49,7 +72,7 @@ export default function EmpleadoDetailPage() {
         nombreCompleto={nombreCompleto}
       />
 
-      <Tabs defaultValue="personal" className="space-y-4">
+      <Tabs value={tabActiva} onValueChange={setTabActiva} className="space-y-4">
         {/* Tab list — horizontal scroll on mobile */}
         <div className="max-w-full overflow-x-auto pb-2">
           <TabsList className="inline-flex w-max h-auto p-1 gap-1">
