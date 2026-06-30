@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -42,7 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Pencil, Loader2, Building2 } from 'lucide-react';
+import { Plus, Pencil, Loader2, Building2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
 import {
@@ -101,6 +101,9 @@ export default function EmpresasPage() {
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState<Empresa | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+  // 'TODOS' = sin filtro; 'SIN_REGIMEN' = empresas sin régimen asignado.
+  const [filtroRegimen, setFiltroRegimen] = useState<string>('TODOS');
 
   const form = useForm<EmpresaFormValues>({
     resolver: zodResolver(empresaSchema),
@@ -179,6 +182,50 @@ export default function EmpresasPage() {
   const regimenSeleccionado = form.watch('regimen_laboral_default');
   const infoRegimen = obtenerRegimenInfo(regimenSeleccionado || null);
 
+  // Conteo de empresas por régimen (sobre el total, no afectado por la búsqueda),
+  // para responder "cuántas hay en X régimen" de un vistazo.
+  const conteoPorRegimen = useMemo(() => {
+    const conteo = new Map<string, number>();
+    for (const empresa of empresas) {
+      const clave = empresa.regimen_laboral_default ?? 'SIN_REGIMEN';
+      conteo.set(clave, (conteo.get(clave) ?? 0) + 1);
+    }
+    return conteo;
+  }, [empresas]);
+
+  // Chips de filtro por régimen: solo los que tienen al menos una empresa.
+  const chipsRegimen = useMemo(() => {
+    const chips: { value: string; label: string; cantidad: number }[] =
+      REGIMENES_LISTA.filter(
+        (regimen) => (conteoPorRegimen.get(regimen.value) ?? 0) > 0,
+      ).map((regimen) => ({
+        value: regimen.value,
+        label: obtenerRegimenInfo(regimen.value)?.labelCorto ?? regimen.label,
+        cantidad: conteoPorRegimen.get(regimen.value) ?? 0,
+      }));
+    const sinRegimen = conteoPorRegimen.get('SIN_REGIMEN') ?? 0;
+    if (sinRegimen > 0) {
+      chips.push({ value: 'SIN_REGIMEN', label: 'Sin régimen', cantidad: sinRegimen });
+    }
+    return chips;
+  }, [conteoPorRegimen]);
+
+  const empresasFiltradas = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    return empresas.filter((empresa) => {
+      const coincideTexto =
+        !texto ||
+        empresa.razon_social.toLowerCase().includes(texto) ||
+        empresa.ruc.includes(texto);
+      const coincideRegimen =
+        filtroRegimen === 'TODOS' ||
+        (filtroRegimen === 'SIN_REGIMEN'
+          ? empresa.regimen_laboral_default == null
+          : empresa.regimen_laboral_default === filtroRegimen);
+      return coincideTexto && coincideRegimen;
+    });
+  }, [empresas, busqueda, filtroRegimen]);
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 min-h-full">
       <div className="flex flex-col gap-2 md:gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -199,29 +246,76 @@ export default function EmpresasPage() {
         </Button>
       </div>
 
+      {/* Barra de filtros: búsqueda + chips de régimen con conteo */}
+      <div className="flex flex-col gap-3">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por razón social o RUC..."
+            className="pl-9"
+            aria-label="Buscar empresa"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltroRegimen('TODOS')}
+            aria-pressed={filtroRegimen === 'TODOS'}
+          >
+            <Badge
+              variant={filtroRegimen === 'TODOS' ? 'default' : 'outline'}
+              className="cursor-pointer"
+            >
+              Todas ({empresas.length})
+            </Badge>
+          </button>
+          {chipsRegimen.map((chip) => (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => setFiltroRegimen(chip.value)}
+              aria-pressed={filtroRegimen === chip.value}
+            >
+              <Badge
+                variant={filtroRegimen === chip.value ? 'default' : 'outline'}
+                className="cursor-pointer"
+              >
+                {chip.label} ({chip.cantidad})
+              </Badge>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Card className="flex-1">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[110px]">RUC</TableHead>
-                <TableHead className="min-w-[180px]">Razón social</TableHead>
-                <TableHead className="min-w-[160px]">Nombre comercial</TableHead>
-                <TableHead className="min-w-[180px]">Régimen por defecto</TableHead>
-                <TableHead className="min-w-[90px]">Estado</TableHead>
-                <TableHead className="w-[80px] text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <div className="relative max-h-[calc(100vh-320px)] overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                  </TableCell>
+                  <TableHead className="min-w-[110px] bg-card">RUC</TableHead>
+                  <TableHead className="min-w-[180px] bg-card">Razón social</TableHead>
+                  <TableHead className="min-w-[180px] bg-card">
+                    Régimen por defecto
+                  </TableHead>
+                  <TableHead className="min-w-[90px] bg-card">Estado</TableHead>
+                  <TableHead className="w-[80px] bg-card text-right">
+                    Acciones
+                  </TableHead>
                 </TableRow>
-              ) : empresas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-10">
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : empresas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-10">
                     <div className="flex flex-col items-center gap-2 text-center">
                       <Building2 className="h-8 w-8 text-muted-foreground/50" />
                       <p className="font-medium">No hay empresas registradas</p>
@@ -240,8 +334,17 @@ export default function EmpresasPage() {
                     </div>
                   </TableCell>
                 </TableRow>
+              ) : empresasFiltradas.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    No se encontraron empresas con esos filtros.
+                  </TableCell>
+                </TableRow>
               ) : (
-                empresas.map((empresa) => {
+                empresasFiltradas.map((empresa) => {
                   const regimen = obtenerRegimenInfo(empresa.regimen_laboral_default);
                   return (
                     <TableRow key={empresa.id}>
@@ -251,11 +354,6 @@ export default function EmpresasPage() {
                         title={empresa.razon_social}
                       >
                         <p className="font-medium truncate">{empresa.razon_social}</p>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
-                        <span className="truncate block">
-                          {empresa.nombre_comercial || '—'}
-                        </span>
                       </TableCell>
                       <TableCell className="text-sm">
                         {regimen ? (
@@ -283,8 +381,9 @@ export default function EmpresasPage() {
                   );
                 })
               )}
-            </TableBody>
-          </Table>
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
