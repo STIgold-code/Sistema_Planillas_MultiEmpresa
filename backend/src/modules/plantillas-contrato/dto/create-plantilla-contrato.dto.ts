@@ -3,9 +3,11 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsEnum,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { RegimenLaboral } from '@prisma/client';
 
 export class CreatePlantillaContratoDto {
   @IsString()
@@ -21,6 +23,10 @@ export class CreatePlantillaContratoDto {
   @IsString()
   @MaxLength(100)
   tipo_contrato: string;
+
+  @IsOptional()
+  @IsEnum(RegimenLaboral)
+  regimen_laboral?: RegimenLaboral;
 
   @IsString()
   @MinLength(10)

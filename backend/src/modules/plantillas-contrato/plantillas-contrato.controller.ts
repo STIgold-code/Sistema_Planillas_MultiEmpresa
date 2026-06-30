@@ -26,6 +26,7 @@ import { CurrentUser, RequirePermissions } from '../../common/decorators';
 import { multerOptions } from '../uploads/uploads.config';
 import { AuthenticatedUser } from '../../common/types/auth.types';
 import { ContratoDataPlantilla } from './plantillas-contrato-docs.service';
+import { RegimenLaboral } from '@prisma/client';
 
 @Controller('plantillas-contrato')
 export class PlantillasContratoController {
@@ -50,6 +51,29 @@ export class PlantillasContratoController {
   @RequirePermissions('contratos:leer')
   getTiposContrato(@CurrentUser() user: AuthenticatedUser) {
     return this.plantillasService.getTiposContrato(user.empresa_id);
+  }
+
+  @Get('predeterminada')
+  @RequirePermissions('contratos:leer')
+  resolverPredeterminada(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('tipo') tipo: string,
+    @Query('regimen') regimen?: string,
+  ) {
+    if (!tipo) {
+      throw new BadRequestException('El tipo de contrato es requerido');
+    }
+
+    const regimenLaboral =
+      regimen && (Object.values(RegimenLaboral) as string[]).includes(regimen)
+        ? (regimen as RegimenLaboral)
+        : undefined;
+
+    return this.plantillasService.resolverPredeterminada(
+      user.empresa_id,
+      tipo,
+      regimenLaboral,
+    );
   }
 
   @Get(':id')
@@ -152,6 +176,7 @@ export class PlantillasContratoController {
     @Body('nombre') nombre: string,
     @Body('descripcion') descripcion: string,
     @Body('tipo_contrato') tipo_contrato: string,
+    @Body('regimen_laboral') regimen_laboral: string,
     @Body('es_predeterminada') es_predeterminada: string,
     @Body('force_invalid_variables') forceInvalidVariables: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -191,10 +216,17 @@ export class PlantillasContratoController {
       });
     }
 
+    const regimenLaboral =
+      regimen_laboral &&
+      (Object.values(RegimenLaboral) as string[]).includes(regimen_laboral)
+        ? (regimen_laboral as RegimenLaboral)
+        : undefined;
+
     const dto: CreatePlantillaContratoDto = {
       nombre,
       descripcion,
       tipo_contrato,
+      regimen_laboral: regimenLaboral,
       contenido: '',
       es_predeterminada: es_predeterminada === 'true',
       activo: true,

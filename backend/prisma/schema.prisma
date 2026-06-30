@@ -633,9 +633,10 @@ model ParametroLegal {
 
 model PlantillaContrato {
   id                Int        @id @default(autoincrement())
-  nombre            String     @db.VarChar(200)
-  descripcion       String?    @db.VarChar(500)
-  tipo_contrato     String     @db.VarChar(100)
+  nombre            String           @db.VarChar(200)
+  descripcion       String?          @db.VarChar(500)
+  tipo_contrato     String           @db.VarChar(100)
+  regimen_laboral   RegimenLaboral?
   contenido         String
   variables         Json?
   archivo_base_url  String?    @db.VarChar(500)
@@ -651,6 +652,7 @@ model PlantillaContrato {
   @@index([empresa_id])
   @@index([tipo_contrato])
   @@index([activo])
+  @@index([empresa_id, regimen_laboral, tipo_contrato])
   @@map("plantillas_contrato")
 }
 
