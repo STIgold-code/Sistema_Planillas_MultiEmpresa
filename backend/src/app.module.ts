@@ -46,6 +46,7 @@ import { InventarioBajasModule } from './modules/inventario-bajas/inventario-baj
 import { InventarioRequerimientosModule } from './modules/inventario-requerimientos/inventario-requerimientos.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
 import { MovimientosPersonalModule } from './modules/movimientos-personal/movimientos-personal.module';
+import { ConsolidadoModule } from './modules/consolidado/consolidado.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { EmpresaActivaGuard } from './common/guards/empresa-activa.guard';
@@ -120,6 +121,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
     InventarioRequerimientosModule,
     ReportesModule,
     MovimientosPersonalModule,
+    ConsolidadoModule,
   ],
   controllers: [HealthController],
   providers: [
