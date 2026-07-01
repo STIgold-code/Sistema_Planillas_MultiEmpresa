@@ -28,10 +28,22 @@ import {
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
 import { AuthenticatedUser } from '../../common/types/auth.types';
 import { MAX_FILE_SIZE } from '../uploads/uploads.config';
+import { ApiPeruService } from '../../shared/apiperu/apiperu.service';
 
 @Controller('postulantes')
 export class PostulantesController {
-  constructor(private readonly postulantesService: PostulantesService) {}
+  constructor(
+    private readonly postulantesService: PostulantesService,
+    private readonly apiPeruService: ApiPeruService,
+  ) {}
+
+  // Consulta RENIEC por DNI para autocompletar el alta de postulante.
+  // Antes de :id para que no colisione con esa ruta.
+  @Get('consultar-dni/:dni')
+  @RequirePermissions('seleccion:crear')
+  consultarDni(@Param('dni') dni: string) {
+    return this.apiPeruService.consultarDni(dni);
+  }
 
   @Get()
   @RequirePermissions('seleccion:leer')

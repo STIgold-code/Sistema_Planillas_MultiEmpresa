@@ -7,9 +7,10 @@ import { PostulanteConversionService } from './postulante-conversion.service';
 import { PostulanteDocumentosService } from './postulante-documentos.service';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { ApiPeruModule } from '../../shared/apiperu/apiperu.module';
 
 @Module({
-  imports: [OnboardingModule, UploadsModule],
+  imports: [OnboardingModule, UploadsModule, ApiPeruModule],
   controllers: [VacantesController, PostulantesController],
   providers: [
     VacantesService,

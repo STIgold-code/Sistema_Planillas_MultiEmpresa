@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
+import { toast } from 'sonner';
 import { Vacante, Procedencia } from '@/types';
 import { PostulanteFormValues } from '../hooks/usePostulantes';
+import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -28,7 +32,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
+
+interface DniConsultaResult {
+  numero_documento: string;
+  nombres: string;
+  apellido_paterno: string;
+  apellido_materno: string;
+  nombre_completo: string;
+}
 
 interface NuevoPostulanteDialogProps {
   open: boolean;
@@ -50,6 +62,36 @@ export function NuevoPostulanteDialog({
   procedencias,
   onClose,
 }: NuevoPostulanteDialogProps) {
+  const [consultandoDni, setConsultandoDni] = useState(false);
+  const esDni = form.watch('tipo_documento') === 'DNI';
+
+  // Autocompleta nombres y apellidos desde RENIEC según el DNI ingresado.
+  const handleConsultarDni = async () => {
+    const dni = form.getValues('numero_documento');
+    if (!/^\d{8}$/.test(dni)) {
+      toast.error('Ingresa un DNI de 8 dígitos para consultar.');
+      return;
+    }
+    setConsultandoDni(true);
+    try {
+      const data = await api.get<DniConsultaResult>(
+        `/postulantes/consultar-dni/${dni}`,
+      );
+      form.setValue('apellido_paterno', data.apellido_paterno, {
+        shouldValidate: true,
+      });
+      form.setValue('apellido_materno', data.apellido_materno, {
+        shouldValidate: true,
+      });
+      form.setValue('nombres', data.nombres, { shouldValidate: true });
+      toast.success('Datos de RENIEC cargados.');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'No se pudo consultar el DNI.'));
+    } finally {
+      setConsultandoDni(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -139,9 +181,28 @@ export function NuevoPostulanteDialog({
                 render={({ field }) => (
                   <FormItem className="min-w-0">
                     <FormLabel>Numero *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="12345678" />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input {...field} placeholder="12345678" />
+                      </FormControl>
+                      {esDni && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleConsultarDni}
+                          disabled={consultandoDni}
+                          aria-label="Buscar datos por DNI en RENIEC"
+                          className="shrink-0"
+                        >
+                          {consultandoDni ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
