@@ -16,15 +16,27 @@ import { RequirePermissions, CurrentUser } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { AuthenticatedUser } from '../../common/types/auth.types';
+import { ApiPeruService } from '../../shared/apiperu/apiperu.service';
 
 @Controller('companies')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CompaniesController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(
+    private readonly companiesService: CompaniesService,
+    private readonly apiPeruService: ApiPeruService,
+  ) {}
 
   @Get('me')
   getMyCompany(@CurrentUser() user: AuthenticatedUser) {
     return this.companiesService.findOne(user.empresa_id);
+  }
+
+  // Consulta SUNAT por RUC para autocompletar el alta/edición de empresa.
+  // Antes de :id para que no colisione con esa ruta.
+  @Get('consultar-ruc/:ruc')
+  @RequirePermissions('empresas:crear')
+  consultarRuc(@Param('ruc') ruc: string) {
+    return this.apiPeruService.consultarRuc(ruc);
   }
 
   @Get()

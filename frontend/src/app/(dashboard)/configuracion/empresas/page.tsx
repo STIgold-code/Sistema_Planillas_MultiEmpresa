@@ -64,6 +64,14 @@ interface Empresa {
   activo: boolean;
 }
 
+interface RucConsultaResult {
+  ruc: string;
+  razon_social: string;
+  direccion: string | null;
+  estado: string | null;
+  condicion: string | null;
+}
+
 const empresaSchema = z.object({
   ruc: z
     .string()
@@ -104,6 +112,7 @@ export default function EmpresasPage() {
   const [busqueda, setBusqueda] = useState('');
   // 'TODOS' = sin filtro; 'SIN_REGIMEN' = empresas sin régimen asignado.
   const [filtroRegimen, setFiltroRegimen] = useState<string>('TODOS');
+  const [consultandoRuc, setConsultandoRuc] = useState(false);
 
   const form = useForm<EmpresaFormValues>({
     resolver: zodResolver(empresaSchema),
@@ -145,6 +154,30 @@ export default function EmpresasPage() {
       activo: empresa.activo,
     });
     setDialogOpen(true);
+  };
+
+  // Autocompleta razón social y dirección desde SUNAT según el RUC ingresado.
+  const handleConsultarRuc = async () => {
+    const ruc = form.getValues('ruc');
+    if (!/^\d{11}$/.test(ruc)) {
+      toast.error('Ingresa un RUC de 11 dígitos para consultar.');
+      return;
+    }
+    setConsultandoRuc(true);
+    try {
+      const data = await api.get<RucConsultaResult>(
+        `/companies/consultar-ruc/${ruc}`,
+      );
+      form.setValue('razon_social', data.razon_social, { shouldValidate: true });
+      if (data.direccion) {
+        form.setValue('direccion', data.direccion, { shouldValidate: true });
+      }
+      toast.success('Datos de SUNAT cargados.');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'No se pudo consultar el RUC.'));
+    } finally {
+      setConsultandoRuc(false);
+    }
   };
 
   const onSubmit = async (data: EmpresaFormValues) => {
@@ -407,14 +440,31 @@ export default function EmpresasPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>RUC *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          inputMode="numeric"
-                          maxLength={11}
-                          placeholder="20123456789"
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            inputMode="numeric"
+                            maxLength={11}
+                            placeholder="20123456789"
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleConsultarRuc}
+                          disabled={consultandoRuc}
+                          aria-label="Buscar datos por RUC en SUNAT"
+                          className="shrink-0"
+                        >
+                          {consultandoRuc ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
