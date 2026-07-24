@@ -117,6 +117,11 @@ export interface EntradaCalculo {
   acumuladoRenta?: number;
   retencionesPreviasRenta?: number;
   /**
+   * Condición fiscal del trabajador para IR 5ta (Art. 54/76 LIR). Omitido →
+   * domiciliado (cálculo progresivo). false → retención plana 30% mensual.
+   */
+  trabajadorDomiciliado?: boolean;
+  /**
    * Régimen AGRARIO: selecciona el sistema de prorrateo (Ley 31110) en el que
    * grati/CTS se incorporan al jornal diario. Se propaga al `ContextoCalculo`.
    * Omitido/false → sistema separado. Ignorado por el resto de régimenes.

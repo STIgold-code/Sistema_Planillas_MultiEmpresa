@@ -194,6 +194,7 @@ export function calcularDetalleCompleto(
     params.tramosIR(fecha),
     entrada.acumuladoRenta,
     entrada.retencionesPreviasRenta,
+    entrada.trabajadorDomiciliado,
   );
   const valorMinuto = hayDiasTrabajados
     ? redondear2(sueldoBase / 30 / 8 / 60)

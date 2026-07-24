@@ -407,6 +407,8 @@ model Empleado {
   cuspp                          String?                        @db.VarChar(20)
   asignacion_familiar            Boolean                        @default(false)
   sctr                           Boolean                        @default(false)
+  // Condición fiscal IR 5ta (Art. 54/76 LIR): false = no domiciliado (30% plano).
+  domiciliado                    Boolean                        @default(true)
   es_mype                        Boolean                        @default(false)
   bono_productividad             Decimal?                       @db.Decimal(10, 2)
   bono_desempeno                 Decimal?                       @db.Decimal(10, 2)

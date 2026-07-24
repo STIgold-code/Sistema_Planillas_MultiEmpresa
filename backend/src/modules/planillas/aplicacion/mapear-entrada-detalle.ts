@@ -51,6 +51,8 @@ export interface EmpleadoParaDetalle {
   fecha_cese: Date | string | null;
   asignacion_familiar: boolean | null;
   sctr: boolean | null;
+  /** Condición fiscal IR 5ta. null/undefined → domiciliado. */
+  domiciliado?: boolean | null;
   regimen_pensionario: RegimenPensionarioDetalle | null;
   contratos: ContratoDetalle[];
   tareos: { detalles: DetalleTareoDetalle[] }[];
@@ -292,6 +294,7 @@ export function mapearEntradaDetalle(
     tieneAsignacionFamiliar: !!empleado.asignacion_familiar,
     tieneSctr: !!empleado.sctr,
     empresaAportaSenati: !!params.empresaAportaSenati,
+    trabajadorDomiciliado: empleado.domiciliado ?? true,
     mesesGratificacion: resolverMesesGratificacion(
       mes,
       anio,

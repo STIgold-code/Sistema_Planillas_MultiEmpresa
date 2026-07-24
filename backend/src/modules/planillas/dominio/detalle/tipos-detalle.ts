@@ -70,6 +70,8 @@ export interface EntradaDetalle {
   tieneSctr: boolean;
   /** True si la EMPRESA aporta SENATI (Ley 26272, industriales >20 trab.). */
   empresaAportaSenati: boolean;
+  /** Condición fiscal IR 5ta: false → no domiciliado (30% plano, Art. 54/76 LIR). */
+  trabajadorDomiciliado: boolean;
   /** Meses completos del semestre para gratificación (resuelto en el borde). */
   mesesGratificacion: number;
   /** Meses completos del semestre para CTS (resuelto en el borde). */

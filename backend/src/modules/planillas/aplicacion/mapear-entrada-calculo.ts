@@ -68,6 +68,8 @@ export interface RegimenPensionarioParaMapeo {
 export interface EmpleadoParaMapeo {
   sueldo_base: unknown;
   asignacion_familiar: boolean | null;
+  /** Condición fiscal IR 5ta. null/undefined → domiciliado. */
+  domiciliado?: boolean | null;
   regimen_pensionario: RegimenPensionarioParaMapeo | null;
   contratos: ContratoConRegimen[];
   tareos: { detalles: DetalleTareoParaMapeo[] }[];
@@ -170,5 +172,6 @@ export function mapearEntradaCalculo(
     tareo,
     acumuladoRenta: params.acumuladoRenta ?? 0,
     retencionesPreviasRenta: params.retencionesPreviasRenta ?? 0,
+    trabajadorDomiciliado: params.empleado.domiciliado ?? true,
   };
 }

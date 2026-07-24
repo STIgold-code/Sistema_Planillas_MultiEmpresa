@@ -295,6 +295,19 @@ export function TabLaboral({
 
           <FormField
             control={form.control}
+            name="domiciliado"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel className="!mt-0">Domiciliado (renta 5ta)</FormLabel>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="es_mype"
             render={({ field }) => (
               <FormItem className="flex items-center gap-2">

@@ -113,6 +113,10 @@ export function TabLaboral({ empleado, formatDate, formatCurrency }: TabLaboralP
                 <dd className="font-medium">{empleado.sctr ? 'Si' : 'No'}</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-2">
+                <dt className="text-xs sm:text-sm text-muted-foreground shrink-0 sm:w-32">Domiciliado:</dt>
+                <dd className="font-medium">{empleado.domiciliado === false ? 'No' : 'Si'}</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-2">
                 <dt className="text-xs sm:text-sm text-muted-foreground shrink-0 sm:w-32">Es MYPE:</dt>
                 <dd className="font-medium">{empleado.es_mype ? 'Si' : 'No'}</dd>
               </div>

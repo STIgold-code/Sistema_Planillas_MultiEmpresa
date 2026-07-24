@@ -95,6 +95,7 @@ export const empleadoSchema = z.object({
   // Beneficios
   asignacion_familiar: z.boolean(),
   sctr: z.boolean(),
+  domiciliado: z.boolean(),
   es_mype: z.boolean(),
   // Bancos
   banco_haberes_id: z.string().optional(),
@@ -205,6 +206,7 @@ export function useEmpleadoNuevo() {
       cuspp: '',
       asignacion_familiar: false,
       sctr: false,
+      domiciliado: true,
       es_mype: false,
       banco_haberes_id: '',
       nro_cuenta_haberes: '',
