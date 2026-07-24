@@ -131,6 +131,45 @@ describe('calcularDetalleEmpleado — aporte SENATI (configuración por empresa)
   });
 });
 
+describe('calcularDetalleEmpleado — trabajador no domiciliado (IR 5ta 30% plano)', () => {
+  const escenario = ESCENARIOS_GENERAL[0];
+
+  const calcular = (domiciliado: boolean | undefined) =>
+    calcularDetalleEmpleado({
+      empleado: {
+        ...(escenario.empleado as object),
+        ...(domiciliado === undefined ? {} : { domiciliado }),
+      } as unknown as EmpleadoParaMapeo & EmpleadoParaDetalle,
+      empresa: { regimen_laboral_default: 'GENERAL' },
+      mes: escenario.mes,
+      anio: escenario.anio,
+      acumuladoRenta: escenario.acumuladoRemuneracion,
+      retencionesPreviasRenta: escenario.acumuladoRetenciones,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+      parametros,
+    });
+
+  const redondear2 = (v: number) => Math.round(v * 100) / 100;
+
+  it('retiene 30% plano de la remuneración afecta cuando NO es domiciliado', () => {
+    const dto = calcular(false);
+    const esperado = redondear2(Number(dto.total_ingresos_afectos) * 0.3);
+    expect(esperado).toBeGreaterThan(0);
+    expect(dto.renta_5ta).toBe(esperado);
+  });
+
+  it('mantiene el cálculo progresivo cuando es domiciliado (default)', () => {
+    const conFlagTrue = calcular(true);
+    const sinFlag = calcular(undefined);
+    expect(conFlagTrue.renta_5ta).toBe(sinFlag.renta_5ta);
+  });
+});
+
 describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', () => {
   const escenario = ESCENARIOS_GENERAL[0];
 

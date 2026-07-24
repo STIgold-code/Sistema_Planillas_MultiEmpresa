@@ -158,6 +158,7 @@ export function calcularBoleta(
     params,
     entrada.acumuladoRenta ?? 0,
     entrada.retencionesPreviasRenta ?? 0,
+    entrada.trabajadorDomiciliado ?? true,
   );
 
   // 6. Consolidar y totalizar. La bonificación 30334 se inserta junto a la

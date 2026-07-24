@@ -22,6 +22,13 @@ export const CLAVE_RENTA_5TA = 'renta_5ta';
 /** Deducción fija para trabajadores dependientes (en UITs). */
 const DEDUCCION_UIT = 7;
 
+/**
+ * Tasa plana para trabajadores NO DOMICILIADOS (Art. 54 inc. f y Art. 76 LIR):
+ * retención mensual definitiva del 30% sobre la renta, SIN deducción de 7 UIT
+ * y SIN proyección anual por tramos.
+ */
+const TASA_NO_DOMICILIADO = 0.3;
+
 const redondear2 = (v: number): number => {
   const r = Math.round(v * 100) / 100;
   return Number.isNaN(r) ? 0 : r;
@@ -56,8 +63,24 @@ export function calcularRentaQuinta(
   params: ParametrosLegales,
   acumuladoAnterior = 0,
   retencionesPrevias = 0,
+  domiciliado = true,
 ): ResultadoConcepto {
   if (remuneracionMensual <= 0) return { conceptos: [] };
+
+  // NO DOMICILIADO: retención mensual definitiva del 30% sobre la renta del
+  // mes, sin deducción ni proyección (Art. 54 inc. f y Art. 76 LIR).
+  if (!domiciliado) {
+    return {
+      conceptos: [
+        {
+          clave: CLAVE_RENTA_5TA,
+          descripcion: 'Retención IR 5ta categoría (no domiciliado 30%)',
+          tipo: 'descuento',
+          monto: redondear2(remuneracionMensual * TASA_NO_DOMICILIADO),
+        },
+      ],
+    };
+  }
 
   const uit = params.uit(fecha);
   const tramos = params.tramosIR(fecha);

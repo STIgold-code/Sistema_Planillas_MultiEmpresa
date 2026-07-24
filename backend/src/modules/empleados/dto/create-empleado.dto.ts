@@ -234,6 +234,11 @@ export class CreateEmpleadoDto {
   @IsOptional()
   sctr?: boolean;
 
+  // Condición fiscal para IR 5ta: false = no domiciliado (retención 30% plana).
+  @IsBoolean()
+  @IsOptional()
+  domiciliado?: boolean;
+
   @IsBoolean()
   @IsOptional()
   es_mype?: boolean;

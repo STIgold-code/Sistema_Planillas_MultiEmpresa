@@ -173,6 +173,7 @@ export interface Empleado {
   // Beneficios
   asignacion_familiar: boolean;
   sctr: boolean;
+  domiciliado: boolean;
   es_mype: boolean;
   // Datos bancarios - Haberes
   banco_haberes_id?: number;

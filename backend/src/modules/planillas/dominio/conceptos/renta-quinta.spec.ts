@@ -57,3 +57,44 @@ describe('renta-quinta (IR 5ta categoría)', () => {
     expect(conUit3000).toBeGreaterThan(conUit5500);
   });
 });
+
+describe('renta-quinta — trabajador NO DOMICILIADO (Art. 54/76 LIR)', () => {
+  const fecha = new Date('2026-03-31');
+
+  it('retiene 30% plano sobre la remuneración mensual, sin deducción de 7 UIT', () => {
+    // Con 2000 mensuales un domiciliado no retiene (no supera 7 UIT); un no
+    // domiciliado retiene 30% directo desde el primer sol.
+    const r = calcularRentaQuinta(
+      2000,
+      3,
+      fecha,
+      params(5500, TRAMOS),
+      0,
+      0,
+      false,
+    );
+    expect(monto(r)).toBe(600);
+  });
+
+  it('no proyecta anualmente: la retención es mensual y definitiva', () => {
+    // Mismo sueldo en meses distintos → misma retención (sin proyección).
+    const enero = monto(
+      calcularRentaQuinta(4000, 1, fecha, params(5500, TRAMOS), 0, 0, false),
+    );
+    const noviembre = monto(
+      calcularRentaQuinta(4000, 11, fecha, params(5500, TRAMOS), 0, 0, false),
+    );
+    expect(enero).toBe(1200);
+    expect(noviembre).toBe(1200);
+  });
+
+  it('domiciliado por defecto: la firma sin el flag mantiene el cálculo progresivo', () => {
+    const implicito = monto(
+      calcularRentaQuinta(15000, 1, fecha, params(5500, TRAMOS)),
+    );
+    const explicito = monto(
+      calcularRentaQuinta(15000, 1, fecha, params(5500, TRAMOS), 0, 0, true),
+    );
+    expect(implicito).toBe(explicito);
+  });
+});

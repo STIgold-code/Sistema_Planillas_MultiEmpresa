@@ -8,6 +8,9 @@ import { TramoIR } from '../tipos';
 
 const DEDUCCION_UIT = 7;
 
+/** Tasa plana no domiciliados (Art. 54 inc. f y Art. 76 LIR). */
+const TASA_NO_DOMICILIADO = 0.3;
+
 export function calcularRentaQuintaDetalle(
   remuneracionMensual: number,
   mes: number,
@@ -15,8 +18,14 @@ export function calcularRentaQuintaDetalle(
   tramos: TramoIR[],
   acumuladoAnterior: number,
   retencionesPrevias: number,
+  domiciliado = true,
 ): number {
   if (remuneracionMensual <= 0) return 0;
+
+  // NO DOMICILIADO: 30% mensual definitivo, sin deducción ni proyección.
+  if (!domiciliado) {
+    return Math.round(remuneracionMensual * TASA_NO_DOMICILIADO * 100) / 100;
+  }
 
   const mesesRestantes = 12 - mes + 1;
   const rentaProyectada =
