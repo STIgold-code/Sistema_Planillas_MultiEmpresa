@@ -94,6 +94,16 @@ export const SCTR_PENSION_TASA =
   Number(process.env.PLANILLA_SCTR_PENSION_TASA) || SCTR_NIVEL_II;
 
 // =============================================
+// SENATI - Ley 26272
+// =============================================
+// Contribución del empleador para empresas que desarrollan actividades
+// industriales (categoría D CIIU) con más de 20 trabajadores. Se activa por
+// empresa (Empresa.aporta_senati); las demás no la pagan.
+
+/** SENATI - Tasa de contribución mensual sobre la remuneración afecta */
+export const SENATI_TASA = Number(process.env.PLANILLA_SENATI_TASA) || 0.0075; // 0.75%
+
+// =============================================
 // CONSTANTES DEPRECADAS (mantener por compatibilidad)
 // =============================================
 

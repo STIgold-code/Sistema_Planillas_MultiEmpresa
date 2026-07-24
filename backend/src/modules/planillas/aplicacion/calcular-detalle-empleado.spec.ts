@@ -75,6 +75,62 @@ describe('calcularDetalleEmpleado — paridad del DTO real (motor puro + overlay
   );
 });
 
+describe('calcularDetalleEmpleado — aporte SENATI (configuración por empresa)', () => {
+  const escenario = ESCENARIOS_GENERAL[0];
+
+  const calcular = (aportaSenati: boolean | undefined) =>
+    calcularDetalleEmpleado({
+      empleado: escenario.empleado as unknown as EmpleadoParaMapeo &
+        EmpleadoParaDetalle,
+      empresa: {
+        regimen_laboral_default: 'GENERAL',
+        ...(aportaSenati === undefined ? {} : { aporta_senati: aportaSenati }),
+      },
+      mes: escenario.mes,
+      anio: escenario.anio,
+      acumuladoRenta: escenario.acumuladoRemuneracion,
+      retencionesPreviasRenta: escenario.acumuladoRetenciones,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+      parametros,
+    });
+
+  const redondear2 = (v: number) => Math.round(v * 100) / 100;
+
+  it('calcula SENATI sobre la remuneración afecta cuando la empresa lo aporta', () => {
+    const dto = calcular(true);
+    const fecha = new Date(escenario.anio, escenario.mes - 1, 1);
+    const esperado = redondear2(
+      Number(dto.total_ingresos_afectos) * parametros.senatiTasa(fecha),
+    );
+    expect(esperado).toBeGreaterThan(0);
+    expect(dto.senati_empleador).toBe(esperado);
+  });
+
+  it('incluye el SENATI en el total de aportes del empleador', () => {
+    const sinSenati = calcular(false);
+    const conSenati = calcular(true);
+    expect(
+      redondear2(
+        Number(conSenati.total_aportes_empleador) -
+          Number(sinSenati.total_aportes_empleador),
+      ),
+    ).toBe(Number(conSenati.senati_empleador));
+  });
+
+  it('no aporta SENATI cuando la empresa no lo tiene activado', () => {
+    expect(calcular(false).senati_empleador).toBe(0);
+  });
+
+  it('no aporta SENATI por defecto (empresa sin el flag)', () => {
+    expect(calcular(undefined).senati_empleador).toBe(0);
+  });
+});
+
 describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', () => {
   const escenario = ESCENARIOS_GENERAL[0];
 

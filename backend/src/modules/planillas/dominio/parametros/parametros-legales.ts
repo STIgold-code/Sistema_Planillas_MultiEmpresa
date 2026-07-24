@@ -98,6 +98,12 @@ export interface ParametrosLegales {
   sctrPension(fecha: Date): number;
   /** Tasa de prima Vida Ley del empleador (fracción) vigente en `fecha` (D.U. 044-2019). */
   vidaLeyTasa(fecha: Date): number;
+  /**
+   * Tasa de contribución SENATI del empleador (fracción) vigente en `fecha`
+   * (Ley 26272). Solo aplica a empresas industriales que la tienen activada
+   * (Empresa.aporta_senati); la activación es configuración, la tasa es ley.
+   */
+  senatiTasa(fecha: Date): number;
   /** Parámetros del régimen agrario (Ley 31110) vigentes en `fecha`. */
   agrario(fecha: Date): ParametrosAgrario;
   /**

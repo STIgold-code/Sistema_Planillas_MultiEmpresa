@@ -71,6 +71,7 @@ const params: ParametrosLegales = {
   sctrSalud: () => 0,
   sctrPension: () => 0,
   vidaLeyTasa: () => 0,
+  senatiTasa: () => 0,
   agrario: (): ParametrosAgrario => AGRARIO_STUB,
   construccionCivil: (): ParametrosConstruccionCivil => CC_STUB,
 };

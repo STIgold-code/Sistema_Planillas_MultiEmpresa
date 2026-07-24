@@ -47,4 +47,9 @@ export class CreateCompanyDto {
   })
   @IsOptional()
   regimen_laboral_default?: RegimenLaboral;
+
+  // SENATI (Ley 26272): solo empresas industriales con más de 20 trabajadores.
+  @IsBoolean()
+  @IsOptional()
+  aporta_senati?: boolean;
 }

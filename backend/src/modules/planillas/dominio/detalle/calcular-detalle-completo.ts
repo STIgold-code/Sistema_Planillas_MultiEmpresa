@@ -230,11 +230,16 @@ export function calcularDetalleCompleto(
   const vidaLeyEmpleador = redondear2(
     remuneracionAfecta * params.vidaLeyTasa(fecha),
   );
+  // SENATI (Ley 26272): solo si la empresa lo tiene activado (industriales).
+  const senatiEmpleador = entrada.empresaAportaSenati
+    ? redondear2(remuneracionAfecta * params.senatiTasa(fecha))
+    : 0;
   const totalAportesEmpleador = redondear2(
     essaludEmpleador +
       sctrSaludEmpleador +
       sctrPensionEmpleador +
-      vidaLeyEmpleador,
+      vidaLeyEmpleador +
+      senatiEmpleador,
   );
 
   // --- Remuneraciones computables ---
@@ -393,6 +398,7 @@ export function calcularDetalleCompleto(
     sctr_salud_empleador: redondear2(sctrSaludEmpleador),
     sctr_pension_empleador: redondear2(sctrPensionEmpleador),
     vida_ley_empleador: redondear2(vidaLeyEmpleador),
+    senati_empleador: redondear2(senatiEmpleador),
     total_aportes_empleador: redondear2(totalAportesEmpleador),
 
     rem_computable_vacaciones: redondear2(sueldoBase),

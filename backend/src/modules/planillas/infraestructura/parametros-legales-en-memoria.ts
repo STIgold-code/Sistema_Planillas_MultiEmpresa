@@ -29,6 +29,7 @@ import {
   SCTR_SALUD_TASA,
   SCTR_PENSION_TASA,
   VIDA_LEY_TASA,
+  SENATI_TASA,
   TRAMOS_IR_5TA,
 } from '../planillas.config';
 
@@ -52,6 +53,7 @@ export interface SemillaParametros {
   sctrSalud?: ValorVigente<number>[];
   sctrPension?: ValorVigente<number>[];
   vidaLeyTasa?: ValorVigente<number>[];
+  senatiTasa?: ValorVigente<number>[];
   /** Tabla agraria (Ley 31110) versionada por vigencia anual. */
   agrario?: ValorVigente<ParametrosAgrario>[];
   /** Tabla construcción civil versionada por vigencia, una serie por categoría. */
@@ -163,6 +165,7 @@ function semillaPorDefecto(): Required<SemillaParametros> {
     sctrSalud: uno(SCTR_SALUD_TASA),
     sctrPension: uno(SCTR_PENSION_TASA),
     vidaLeyTasa: uno(VIDA_LEY_TASA),
+    senatiTasa: uno(SENATI_TASA),
     agrario: [
       {
         valor: AGRARIO_2026,
@@ -218,6 +221,9 @@ export class ParametrosLegalesEnMemoria implements ParametrosLegales {
   }
   vidaLeyTasa(fecha: Date): number {
     return this.resolver('vidaLeyTasa', this.semilla.vidaLeyTasa, fecha);
+  }
+  senatiTasa(fecha: Date): number {
+    return this.resolver('senatiTasa', this.semilla.senatiTasa, fecha);
   }
   agrario(fecha: Date): ParametrosAgrario {
     return this.resolver('agrario', this.semilla.agrario, fecha);

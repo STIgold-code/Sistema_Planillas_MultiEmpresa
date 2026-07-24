@@ -22,6 +22,8 @@ export interface ContratoConRegimen {
 /** Subset de campos requeridos de la empresa para resolver el régimen. */
 export interface EmpresaConRegimenDefault {
   regimen_laboral_default: RegimenLaboralPrisma;
+  /** True si la empresa aporta SENATI (Ley 26272). Config por empresa. */
+  aporta_senati?: boolean | null;
 }
 
 /**

@@ -26,9 +26,12 @@ const ASIGNACION_FAMILIAR = Number(process.env.PLANILLA_ASIG_FAMILIAR) || 113;
 const ESSALUD_TASA = Number(process.env.PLANILLA_ESSALUD_PCT) || 0.09;
 const ESSALUD_MINIMO = Number(process.env.PLANILLA_ESSALUD_MIN) || 101.7;
 const SCTR_NIVEL_II = 0.0123;
-const SCTR_SALUD = Number(process.env.PLANILLA_SCTR_SALUD_TASA) || SCTR_NIVEL_II;
+const SCTR_SALUD =
+  Number(process.env.PLANILLA_SCTR_SALUD_TASA) || SCTR_NIVEL_II;
 const SCTR_PENSION =
   Number(process.env.PLANILLA_SCTR_PENSION_TASA) || SCTR_NIVEL_II;
+const VIDA_LEY_TASA = Number(process.env.PLANILLA_VIDA_LEY_TASA) || 0.0053;
+const SENATI_TASA = Number(process.env.PLANILLA_SENATI_TASA) || 0.0075;
 /** Placeholder espejo del in-memory (SIS microempresa). */
 const SIS_MICROEMPRESA = 15;
 
@@ -77,6 +80,16 @@ const PARAMETROS_ESCALARES: SemillaEscalar[] = [
     valor: SCTR_PENSION,
     descripcion: 'Tasa SCTR Pensión (fracción)',
   },
+  {
+    clave: 'vidaLeyTasa',
+    valor: VIDA_LEY_TASA,
+    descripcion: 'Tasa prima Vida Ley del empleador (D.U. 044-2019)',
+  },
+  {
+    clave: 'senatiTasa',
+    valor: SENATI_TASA,
+    descripcion: 'Tasa contribución SENATI del empleador (Ley 26272)',
+  },
 ];
 
 /**
@@ -117,12 +130,14 @@ export async function seedParametrosLegales(
 /** Permite ejecutar el seeder de parámetros de forma standalone. */
 async function main() {
   // Cargar variables de entorno (DATABASE_URL) al ejecutar standalone.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   require('dotenv').config();
   const prisma = new PrismaClient();
   try {
     const n = await seedParametrosLegales(prisma);
-    console.log(`parametros_legales: ${n} filas escalares sembradas (idempotente)`);
+    console.log(
+      `parametros_legales: ${n} filas escalares sembradas (idempotente)`,
+    );
   } finally {
     await prisma.$disconnect();
   }
