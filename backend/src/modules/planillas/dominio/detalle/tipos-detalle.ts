@@ -68,6 +68,8 @@ export interface EntradaDetalle {
   tieneAsignacionFamiliar: boolean;
   /** True si el empleado tiene SCTR activo (aportes del empleador). */
   tieneSctr: boolean;
+  /** True si la EMPRESA aporta SENATI (Ley 26272, industriales >20 trab.). */
+  empresaAportaSenati: boolean;
   /** Meses completos del semestre para gratificación (resuelto en el borde). */
   mesesGratificacion: number;
   /** Meses completos del semestre para CTS (resuelto en el borde). */
@@ -216,6 +218,7 @@ export interface DetalleCompleto {
   sctr_salud_empleador: number;
   sctr_pension_empleador: number;
   vida_ley_empleador: number;
+  senati_empleador: number;
   total_aportes_empleador: number;
   // Remuneración computable
   rem_computable_vacaciones: number;

@@ -88,10 +88,11 @@ export class PlanillasCalcularService {
 
     const empresa = await this.prisma.empresa.findUnique({
       where: { id: empresaId },
-      select: { regimen_laboral_default: true },
+      select: { regimen_laboral_default: true, aporta_senati: true },
     });
     const empresaParaRegimen = {
       regimen_laboral_default: empresa?.regimen_laboral_default ?? 'GENERAL',
+      aporta_senati: empresa?.aporta_senati ?? false,
     } as const;
 
     // Parámetros legales: adapter Prisma (tabla parametros_legales) con fallback

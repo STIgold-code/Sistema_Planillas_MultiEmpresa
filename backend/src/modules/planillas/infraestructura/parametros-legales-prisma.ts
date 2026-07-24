@@ -39,7 +39,9 @@ export type ClaveEscalar =
   | 'essaludMinimo'
   | 'sisMicroempresa'
   | 'sctrSalud'
-  | 'sctrPension';
+  | 'sctrPension'
+  | 'vidaLeyTasa'
+  | 'senatiTasa';
 
 const aNumero = (valor: unknown): number => {
   const n = Number(valor);
@@ -89,14 +91,22 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
     return this.escalar('sctrPension', fecha);
   }
 
-  // --- Claves estructuradas y no seedeadas: delegadas al fallback (DIP intacto) ---
+  // Tasas seedeadas recientemente: si la tabla del entorno todavía no tiene la
+  // fila (seed no corrido), caen al fallback in-memory en vez de reventar.
+  vidaLeyTasa(fecha: Date): number {
+    return this.escalarConFallback('vidaLeyTasa', fecha, () =>
+      this.fallback.vidaLeyTasa(fecha),
+    );
+  }
+  senatiTasa(fecha: Date): number {
+    return this.escalarConFallback('senatiTasa', fecha, () =>
+      this.fallback.senatiTasa(fecha),
+    );
+  }
+
+  // --- Claves estructuradas: delegadas al fallback (DIP intacto) ---
   tramosIR(fecha: Date): TramoIR[] {
     return this.fallback.tramosIR(fecha);
-  }
-  // vidaLeyTasa no se seedea aún en `parametros_legales`; se delega al fallback
-  // in-memory (planillas.config) para no romper entornos sin esa fila.
-  vidaLeyTasa(fecha: Date): number {
-    return this.fallback.vidaLeyTasa(fecha);
   }
   agrario(fecha: Date): ParametrosAgrario {
     return this.fallback.agrario(fecha);
@@ -106,6 +116,19 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
     categoria: CategoriaConstruccion,
   ): ParametrosConstruccionCivil {
     return this.fallback.construccionCivil(fecha, categoria);
+  }
+
+  private escalarConFallback(
+    clave: ClaveEscalar,
+    fecha: Date,
+    respaldo: () => number,
+  ): number {
+    try {
+      return this.escalar(clave, fecha);
+    } catch (error) {
+      if (error instanceof ParametroLegalNoVigenteError) return respaldo();
+      throw error;
+    }
   }
 
   private escalar(clave: ClaveEscalar, fecha: Date): number {

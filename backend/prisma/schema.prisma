@@ -65,6 +65,8 @@ model Empresa {
   logo_url                       String?                      @db.VarChar(500)
   firma_representante_url        String?                      @db.VarChar(500)
   regimen_laboral_default        RegimenLaboral               @default(GENERAL)
+  // SENATI (Ley 26272): solo empresas industriales >20 trabajadores lo aportan.
+  aporta_senati                  Boolean                      @default(false)
   activo                         Boolean                      @default(true)
   created_at                     DateTime                     @default(now())
   updated_at                     DateTime                     @updatedAt
@@ -1186,6 +1188,7 @@ model PlanillaDetalle {
   sctr_salud_empleador         Decimal  @default(0) @db.Decimal(10, 2)
   sctr_pension_empleador       Decimal  @default(0) @db.Decimal(10, 2)
   vida_ley_empleador           Decimal  @default(0) @db.Decimal(10, 2)
+  senati_empleador             Decimal  @default(0) @db.Decimal(10, 2)
   total_aportes_empleador      Decimal  @default(0) @db.Decimal(10, 2)
   rem_computable_vacaciones    Decimal  @default(0) @db.Decimal(10, 2)
   rem_computable_gratificacion Decimal  @default(0) @db.Decimal(10, 2)

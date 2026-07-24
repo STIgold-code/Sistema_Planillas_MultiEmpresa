@@ -82,6 +82,7 @@ export function calcularDetalleEmpleado(
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
     promedios: params.promedios,
+    empresaAportaSenati: !!empresa.aporta_senati,
   });
   const detalleCompleto = calcularDetalleCompleto(
     entradaDetalle,

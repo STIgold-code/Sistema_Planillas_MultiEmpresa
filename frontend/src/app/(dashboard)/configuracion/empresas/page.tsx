@@ -61,6 +61,7 @@ interface Empresa {
   telefono: string | null;
   email: string | null;
   regimen_laboral_default: RegimenLaboral | null;
+  aporta_senati: boolean;
   activo: boolean;
 }
 
@@ -87,6 +88,7 @@ const empresaSchema = z.object({
     .or(z.literal('')),
   email: z.string().email('Correo electrónico inválido').optional().or(z.literal('')),
   regimen_laboral_default: z.enum(REGIMENES_LABORALES).optional().or(z.literal('')),
+  aporta_senati: z.boolean(),
   activo: z.boolean(),
 });
 
@@ -100,6 +102,7 @@ const VALORES_INICIALES: EmpresaFormValues = {
   telefono: '',
   email: '',
   regimen_laboral_default: '',
+  aporta_senati: false,
   activo: true,
 };
 
@@ -151,6 +154,7 @@ export default function EmpresasPage() {
       telefono: empresa.telefono ?? '',
       email: empresa.email ?? '',
       regimen_laboral_default: empresa.regimen_laboral_default ?? '',
+      aporta_senati: empresa.aporta_senati ?? false,
       activo: empresa.activo,
     });
     setDialogOpen(true);
@@ -193,6 +197,7 @@ export default function EmpresasPage() {
         telefono: data.telefono || undefined,
         email: data.email || undefined,
         regimen_laboral_default: data.regimen_laboral_default || undefined,
+        aporta_senati: data.aporta_senati,
         activo: data.activo,
       };
 
@@ -579,6 +584,30 @@ export default function EmpresasPage() {
                         : 'Régimen aplicado por defecto a los contratos de esta empresa. El contrato puede sobrescribirlo.'}
                     </FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="aporta_senati"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Aporta SENATI</FormLabel>
+                      <FormDescription>
+                        Solo empresas industriales con más de 20 trabajadores
+                        (Ley 26272). Agrega el aporte del 0.75% al costo del
+                        empleador.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        aria-label="Aporta SENATI"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

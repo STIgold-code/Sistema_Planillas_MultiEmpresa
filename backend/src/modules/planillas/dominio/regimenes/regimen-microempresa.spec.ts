@@ -32,6 +32,7 @@ const params: ParametrosLegales = {
   sctrSalud: () => 0,
   sctrPension: () => 0,
   vidaLeyTasa: () => 0,
+  senatiTasa: () => 0,
   ...stubParametrosRegimenes,
 };
 

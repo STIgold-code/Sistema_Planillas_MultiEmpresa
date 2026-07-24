@@ -63,6 +63,8 @@ export interface ParametrosMapeoDetalle {
   acumuladoRenta: number;
   retencionesPreviasRenta: number;
   promedios: PromediosDetalle;
+  /** True si la empresa del período aporta SENATI (config por empresa). */
+  empresaAportaSenati?: boolean;
 }
 
 const aNumero = (valor: unknown): number => {
@@ -289,6 +291,7 @@ export function mapearEntradaDetalle(
     tieneFechaIngreso: !!empleado.fecha_ingreso,
     tieneAsignacionFamiliar: !!empleado.asignacion_familiar,
     tieneSctr: !!empleado.sctr,
+    empresaAportaSenati: !!params.empresaAportaSenati,
     mesesGratificacion: resolverMesesGratificacion(
       mes,
       anio,
