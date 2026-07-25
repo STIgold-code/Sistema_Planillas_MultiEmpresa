@@ -275,7 +275,7 @@ describe('PlanillasService.calcularEmpleado', () => {
       expect(r.dias_falta).toBe(2);
     });
 
-    it('genera descuento cuando hay faltas', () => {
+    it('las faltas reducen el haber devengado (sin descuento aparte)', () => {
       const con = calcular(
         crearEmpleado({
           sueldo_base: 3000,
@@ -288,7 +288,10 @@ describe('PlanillasService.calcularEmpleado', () => {
           tareos: crearTareoAsistenciaCompleta(30),
         }),
       );
-      expect(con.descuento_faltas).toBeGreaterThan(0);
+      // La falta no devenga: el haber se prorratea (3000/30 × 28) y ya no hay
+      // descuento aparte (sería doble castigo). Cotizaciones sobre lo devengado.
+      expect(con.haber_mensual).toBe(2800);
+      expect(con.descuento_faltas).toBe(0);
       expect(con.neto_pagar).toBeLessThan(sin.neto_pagar);
     });
   });

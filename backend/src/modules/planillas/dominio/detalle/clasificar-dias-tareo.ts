@@ -16,7 +16,12 @@ const HE_TRAMO_25 = 2;
 
 /**
  * Códigos que NO cuentan como día laborable aunque la nomenclatura los marque
- * `es_laborable=true`. Idéntico a `CODIGOS_NO_LABORABLES` del legacy.
+ * `es_laborable=true`. Base idéntica al `CODIGOS_NO_LABORABLES` del legacy MÁS
+ * las ausencias sin goce (F, S/SUS, LSG): el legacy pagaba el mes completo y
+ * descontaba la falta aparte, cotizando sobre una base inflada. Lo correcto (y
+ * lo que hace la planilla real del contador) es que el día no devengado no
+ * entre a la base: la remuneración se prorratea y las cotizaciones se calculan
+ * sobre lo DEVENGADO.
  */
 const CODIGOS_NO_LABORABLES = new Set([
   'DL',
@@ -31,6 +36,11 @@ const CODIGOS_NO_LABORABLES = new Set([
   'VAC',
   'V',
   'H',
+  // Ausencias sin goce: no devengan.
+  'F',
+  'S',
+  'SUS',
+  'LSG',
 ]);
 
 /** Resultado de clasificar todos los días del tareo. */
