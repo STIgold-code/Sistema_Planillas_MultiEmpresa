@@ -104,8 +104,14 @@ export class RegimenHogar implements CalculadoraRegimen {
     ctx: ContextoCalculo,
     params: ParametrosLegales,
   ): ResultadoConcepto {
+    // La asignación familiar es remuneración afecta (Ley 25129): entra a la
+    // base de EsSalud junto con la afecta que armó el orquestador.
+    const asignacionFamiliar = this.asignacionFamiliar(
+      ctx,
+      params,
+    ).conceptos.reduce((acc, c) => acc + c.monto, 0);
     return calcularSaludEmpleador({
-      remuneracionAfecta: ctx.remuneracionAfecta,
+      remuneracionAfecta: ctx.remuneracionAfecta + asignacionFamiliar,
       rmv: params.rmv(ctx.periodo.fecha),
       essaludTasa: params.essaludTasa(ctx.periodo.fecha),
       essaludMinimo: params.essaludMinimo(ctx.periodo.fecha),

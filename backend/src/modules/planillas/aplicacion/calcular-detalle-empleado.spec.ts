@@ -248,6 +248,76 @@ describe('calcularDetalleEmpleado — faltas reducen la base devengada (cuadre B
   });
 });
 
+describe('calcularDetalleEmpleado — la asignación familiar cotiza (base afecta completa)', () => {
+  const dia8h = () => ({
+    horas: 8,
+    tipo_marcacion: {
+      codigo: 'A',
+      es_laborable: true,
+      es_feriado_trabajado: false,
+      horas_diurnas: 8,
+      horas_nocturnas: 0,
+      horas_default: 8,
+    },
+  });
+
+  const empleado = (conAsignacion: boolean) =>
+    ({
+      sueldo_base: 2600,
+      fecha_ingreso: null,
+      fecha_cese: null,
+      asignacion_familiar: conAsignacion,
+      sctr: false,
+      regimen_pensionario: {
+        tipo: 'ONP',
+        aporte_obligatorio: 13,
+        prima_seguro: 0,
+        comision_flujo: 0,
+      },
+      contratos: [
+        {
+          fecha_inicio: new Date(Date.UTC(2020, 0, 1)),
+          fecha_fin: null,
+          regimen_laboral: null,
+        },
+      ],
+      tareos: [{ detalles: Array.from({ length: 30 }, () => dia8h()) }],
+    }) as unknown as EmpleadoParaMapeo & EmpleadoParaDetalle;
+
+  const calcular = (conAsignacion: boolean) =>
+    calcularDetalleEmpleado({
+      empleado: empleado(conAsignacion),
+      empresa: { regimen_laboral_default: 'GENERAL' },
+      mes: 5,
+      anio: 2026,
+      acumuladoRenta: 0,
+      retencionesPreviasRenta: 0,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+      parametros,
+    });
+
+  // Caso real: fila 85 del Excel de BM (CABRERA, sueldo 2600, mes completo,
+  // con asignación familiar). Base afecta = 2600 + 113 = 2713.
+  it('EsSalud cotiza sobre sueldo + asignación familiar (celda CN del Excel)', () => {
+    expect(calcular(true).essalud_empleador).toBe(244.17); // 2713 × 9%
+  });
+
+  it('ONP cotiza sobre sueldo + asignación familiar (celda BE del Excel)', () => {
+    expect(calcular(true).onp).toBe(352.69); // 2713 × 13%
+  });
+
+  it('sin asignación familiar la base no cambia (sin regresión)', () => {
+    const dto = calcular(false);
+    expect(dto.essalud_empleador).toBe(234); // 2600 × 9%
+    expect(dto.onp).toBe(338); // 2600 × 13%
+  });
+});
+
 describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', () => {
   const escenario = ESCENARIOS_GENERAL[0];
 
