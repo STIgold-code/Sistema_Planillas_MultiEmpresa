@@ -36,6 +36,7 @@ import { calcularJornadaNocturna } from '../conceptos/jornada-nocturna';
 import { calcularSistemaPensionario } from '../conceptos/sistema-pensionario';
 import { calcularRentaQuinta } from '../conceptos/renta-quinta';
 import { calcularBonificacionExtraordinaria } from '../conceptos/bonificacion-extraordinaria';
+import { CLAVE_ASIGNACION_FAMILIAR } from '../conceptos/asignacion-familiar';
 
 const redondear2 = (v: number): number => {
   const r = Math.round(v * 100) / 100;
@@ -146,13 +147,26 @@ export function calcularBoleta(
     params.essaludTasa(fecha),
   );
 
-  // 5. Descuentos: pensión y renta 5ta.
+  // La asignación familiar que el régimen emitió es REMUNERACIÓN AFECTA
+  // (Ley 25129: es computable): entra a la base de pensión y renta. Se extrae
+  // por la clave del concepto compartido — el orquestador sigue sin conocer
+  // ningún régimen concreto (micro no la emite y su base no cambia).
+  const asignacionFamiliarMonto = conceptosRegimen
+    .filter(
+      (c) => c.clave === CLAVE_ASIGNACION_FAMILIAR && c.tipo === 'ingreso',
+    )
+    .reduce((acc, c) => acc + c.monto, 0);
+  const baseCotizacion = redondear2(
+    remuneracionAfecta + asignacionFamiliarMonto,
+  );
+
+  // 5. Descuentos: pensión y renta 5ta (sobre la base afecta completa).
   const pension = calcularSistemaPensionario(
-    remuneracionAfecta,
+    baseCotizacion,
     entrada.afiliacion,
   );
   const rentaQuinta = calcularRentaQuinta(
-    remuneracionAfecta,
+    baseCotizacion,
     entrada.periodo.mes,
     fecha,
     params,
