@@ -44,11 +44,21 @@ const aNumero = (valor: unknown): number => {
 
 /** Subset de la nomenclatura (tipo_marcacion) que el mapeo de tareo lee. */
 export interface TipoMarcacionParaMapeo {
+  /** Código de la nomenclatura (A, F, LSG…). Opcional por compatibilidad. */
+  codigo?: string;
   es_laborable: boolean;
   horas_diurnas: number;
   horas_nocturnas: number;
   horas_default: number | null;
 }
+
+/**
+ * Ausencias SIN GOCE: días laborables que el trabajador no devengó (falta,
+ * suspensión, licencia sin goce). NO cuentan como asistencia: la remuneración
+ * del período se prorratea sin ellos, y las cotizaciones (EsSalud, pensión,
+ * renta) se calculan sobre lo DEVENGADO — igual que la planilla del contador.
+ */
+const AUSENCIAS_SIN_GOCE = new Set(['F', 'S', 'SUS', 'LSG']);
 
 /** Subset del detalle de tareo que el mapeo lee. */
 export interface DetalleTareoParaMapeo {
@@ -108,7 +118,8 @@ function mapearDetalleTareo(detalle: DetalleTareoParaMapeo): DetalleTareo {
     horasExtras,
     esNocturno: aNumero(tm?.horas_nocturnas) > 0,
     esFeriado: false,
-    asistio: tm?.es_laborable ?? false,
+    asistio:
+      (tm?.es_laborable ?? false) && !AUSENCIAS_SIN_GOCE.has(tm?.codigo ?? ''),
   };
 }
 

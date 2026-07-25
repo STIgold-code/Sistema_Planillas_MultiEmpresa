@@ -170,6 +170,84 @@ describe('calcularDetalleEmpleado — trabajador no domiciliado (IR 5ta 30% plan
   });
 });
 
+describe('calcularDetalleEmpleado — faltas reducen la base devengada (cuadre BM)', () => {
+  const dia = (codigo: string, horas: number) => ({
+    horas,
+    tipo_marcacion: {
+      codigo,
+      es_laborable: true,
+      es_feriado_trabajado: false,
+      horas_diurnas: horas,
+      horas_nocturnas: 0,
+      horas_default: 8,
+    },
+  });
+
+  const empleadoConFaltas = {
+    sueldo_base: 2700,
+    fecha_ingreso: null,
+    fecha_cese: null,
+    asignacion_familiar: false,
+    sctr: false,
+    regimen_pensionario: {
+      tipo: 'ONP',
+      aporte_obligatorio: 13,
+      prima_seguro: 0,
+      comision_flujo: 0,
+    },
+    contratos: [
+      {
+        fecha_inicio: new Date(Date.UTC(2020, 0, 1)),
+        fecha_fin: null,
+        regimen_laboral: null,
+      },
+    ],
+    // 28 días asistidos + 2 faltas: mes de 30 con 2 'F'.
+    tareos: [
+      {
+        detalles: [
+          ...Array.from({ length: 28 }, () => dia('A', 8)),
+          dia('F', 0),
+          dia('F', 0),
+        ],
+      },
+    ],
+  } as unknown as EmpleadoParaMapeo & EmpleadoParaDetalle;
+
+  const calcular = () =>
+    calcularDetalleEmpleado({
+      empleado: empleadoConFaltas,
+      empresa: { regimen_laboral_default: 'GENERAL' },
+      mes: 5,
+      anio: 2026,
+      acumuladoRenta: 0,
+      retencionesPreviasRenta: 0,
+      promedios: {
+        promedioHorasExtras: 0,
+        promedioComisiones: 0,
+        promedioBonificaciones: 0,
+        ultimaGratificacion: 0,
+      },
+      parametros,
+    });
+
+  it('el haber mensual es el devengado: sueldo/30 × 28 días (no el mes completo)', () => {
+    expect(calcular().haber_mensual).toBe(2520);
+  });
+
+  it('EsSalud y ONP cotizan sobre la base devengada, no la completa', () => {
+    const dto = calcular();
+    expect(dto.essalud_empleador).toBe(226.8); // 2520 × 9%
+    expect(dto.onp).toBe(327.6); // 2520 × 13%
+  });
+
+  it('la falta ya no se descuenta aparte (evita el doble castigo)', () => {
+    const dto = calcular();
+    expect(dto.dias_falta).toBe(2); // informativo, se conserva
+    expect(dto.descuento_faltas).toBe(0); // la base devengada ya la excluye
+  });
+});
+
 describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', () => {
   const escenario = ESCENARIOS_GENERAL[0];
 

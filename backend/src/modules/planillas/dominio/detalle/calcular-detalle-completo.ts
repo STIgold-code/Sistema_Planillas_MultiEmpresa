@@ -199,9 +199,11 @@ export function calcularDetalleCompleto(
   const valorMinuto = hayDiasTrabajados
     ? redondear2(sueldoBase / 30 / 8 / 60)
     : 0;
-  const descuentoFaltas = hayDiasTrabajados
-    ? redondear2((sueldoBase / 30) * c.diasFalta)
-    : 0;
+  // Las faltas ya NO se descuentan aparte: al ser ausencias sin goce quedaron
+  // fuera de `diasLaborables`, así que el haber devengado (sueldo/30 × días)
+  // ya las excluye. Descontarlas además sería un doble castigo al trabajador.
+  // Se conserva el campo (en 0) por compatibilidad del DTO.
+  const descuentoFaltas = 0;
   const descuentoPermisos = hayDiasTrabajados
     ? redondear2((sueldoBase / 30) * c.diasPermiso)
     : 0;

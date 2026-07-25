@@ -48,7 +48,10 @@ describe('clasificarDiasTareo', () => {
       dia({ codigo: 'F', horasDetalle: 0, horasDiurnas: 0, esLaborable: true }),
     ]);
     expect(c.diasFalta).toBe(1);
-    expect(c.diasLaborables).toBe(1); // F con es_laborable=true sí cuenta como laborable en el legacy
+    // La falta es ausencia SIN GOCE: no devenga, así que NO cuenta como día
+    // laborable (el haber se prorratea sin ella y las cotizaciones se calculan
+    // sobre lo devengado). El legacy la contaba y cotizaba sobre base inflada.
+    expect(c.diasLaborables).toBe(0);
   });
 
   it('excluye códigos NO_LABORABLE aunque es_laborable sea true', () => {
