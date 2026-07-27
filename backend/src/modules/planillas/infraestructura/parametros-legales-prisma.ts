@@ -50,19 +50,29 @@ const aNumero = (valor: unknown): number => {
 
 export class ParametrosLegalesPrisma implements ParametrosLegales {
   private readonly porClave = new Map<string, FilaParametroLegal[]>();
+  private readonly porClaveEmpresa = new Map<string, FilaParametroLegal[]>();
 
   /**
-   * @param filas Snapshot de `parametros_legales` (todas las claves escalares).
+   * @param filas Snapshot de `parametros_legales` (valores NACIONALES).
    * @param fallback Adapter de respaldo para las claves estructuradas.
+   * @param filasEmpresa Overrides de la EMPRESA activa (`parametros_empresa`),
+   *   versionados por vigencia igual que los nacionales. Resolución en cascada:
+   *   valor propio vigente → nacional vigente → fallback (donde aplique).
    */
   constructor(
     filas: FilaParametroLegal[],
     private readonly fallback: ParametrosLegales,
+    filasEmpresa: FilaParametroLegal[] = [],
   ) {
     for (const fila of filas) {
       const lista = this.porClave.get(fila.clave) ?? [];
       lista.push(fila);
       this.porClave.set(fila.clave, lista);
+    }
+    for (const fila of filasEmpresa) {
+      const lista = this.porClaveEmpresa.get(fila.clave) ?? [];
+      lista.push(fila);
+      this.porClaveEmpresa.set(fila.clave, lista);
     }
   }
 
@@ -131,13 +141,12 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
     }
   }
 
-  private escalar(clave: ClaveEscalar, fecha: Date): number {
-    const filas = this.porClave.get(clave) ?? [];
-    // Resolución determinista ante vigencias solapadas: tomar la fila vigente
-    // para la fecha con `vigencia_desde` MÁS RECIENTE (no la primera por orden
-    // de inserción). Empate por la misma fecha es imposible: la BD impone
-    // UNIQUE(clave, vigencia_desde).
-    const vigente = filas
+  /** Fila vigente para la fecha en una lista (vigencia_desde más reciente gana). */
+  private vigenteEn(
+    filas: FilaParametroLegal[],
+    fecha: Date,
+  ): FilaParametroLegal | undefined {
+    return filas
       .filter(
         (f) =>
           fecha >= f.vigencia_desde &&
@@ -146,6 +155,19 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
       .sort(
         (a, b) => b.vigencia_desde.getTime() - a.vigencia_desde.getTime(),
       )[0];
+  }
+
+  private escalar(clave: ClaveEscalar, fecha: Date): number {
+    // Cascada: override de la EMPRESA vigente → valor NACIONAL vigente.
+    // Un override fuera de su vigencia (póliza vencida) NO aplica: cae al
+    // nacional; y recalcular un período pasado usa la fila que regía entonces.
+    const propio = this.vigenteEn(this.porClaveEmpresa.get(clave) ?? [], fecha);
+    if (propio) return aNumero(propio.valor);
+
+    // Resolución determinista ante vigencias solapadas: la fila vigente con
+    // `vigencia_desde` MÁS RECIENTE gana. Empate imposible: la BD impone
+    // UNIQUE(clave, vigencia_desde).
+    const vigente = this.vigenteEn(this.porClave.get(clave) ?? [], fecha);
     if (!vigente) throw new ParametroLegalNoVigenteError(clave, fecha);
     return aNumero(vigente.valor);
   }

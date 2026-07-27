@@ -97,7 +97,7 @@ export class PlanillasCalcularService {
 
     // Parámetros legales: adapter Prisma (tabla parametros_legales) con fallback
     // in-memory para las claves estructuradas. El dominio solo ve el puerto.
-    const parametrosLegales = await this.parametros.cargar();
+    const parametrosLegales = await this.parametros.cargar(empresaId);
 
     const acumuladosPorEmpleado = await this.carga.cargarAcumuladosIR(
       empleados.map((e) => e.id),

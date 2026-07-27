@@ -11,7 +11,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { CompaniesService } from './companies.service';
-import { CreateCompanyDto, UpdateCompanyDto } from './dto';
+import {
+  CreateCompanyDto,
+  UpdateCompanyDto,
+  CreateParametroEmpresaDto,
+} from './dto';
 import { RequirePermissions, CurrentUser } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -81,6 +85,46 @@ export class CompaniesController {
       throw new ForbiddenException('No puede modificar otra empresa');
     }
     return this.companiesService.update(id, updateCompanyDto);
+  }
+
+  // ============ Parámetros propios (tasas de póliza, versionadas) ============
+
+  @Get(':id/parametros')
+  @RequirePermissions('empresas:leer')
+  listarParametros(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
+      throw new ForbiddenException('No puede acceder a otra empresa');
+    }
+    return this.companiesService.listarParametros(id);
+  }
+
+  @Post(':id/parametros')
+  @RequirePermissions('empresas:editar')
+  crearParametro(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateParametroEmpresaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
+      throw new ForbiddenException('No puede modificar otra empresa');
+    }
+    return this.companiesService.crearParametro(id, dto);
+  }
+
+  @Delete(':id/parametros/:parametroId')
+  @RequirePermissions('empresas:editar')
+  eliminarParametro(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('parametroId', ParseIntPipe) parametroId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (id !== user.empresa_id && !user.rol?.permisos?.includes('*')) {
+      throw new ForbiddenException('No puede modificar otra empresa');
+    }
+    return this.companiesService.eliminarParametro(id, parametroId);
   }
 
   @Delete(':id')

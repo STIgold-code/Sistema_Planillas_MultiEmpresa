@@ -5,7 +5,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCompanyDto, UpdateCompanyDto } from './dto';
+import {
+  CreateCompanyDto,
+  UpdateCompanyDto,
+  CreateParametroEmpresaDto,
+} from './dto';
 import { UploadsService } from '../uploads/uploads.service';
 import { CATEGORIA_ARCHIVO } from '../uploads/archivo.constants';
 
@@ -168,5 +172,62 @@ export class CompaniesService {
     });
 
     return { message: 'Empresa eliminada correctamente' };
+  }
+
+  // ==================== PARÁMETROS PROPIOS DE LA EMPRESA ====================
+  // Tasas de póliza/contrato (SCTR, Vida Ley) versionadas por vigencia. El
+  // motor las resuelve en cascada: propio vigente → nacional → default.
+
+  listarParametros(empresaId: number) {
+    return this.prisma.parametroEmpresa.findMany({
+      where: { empresa_id: empresaId },
+      orderBy: [{ clave: 'asc' }, { vigencia_desde: 'desc' }],
+    });
+  }
+
+  async crearParametro(empresaId: number, dto: CreateParametroEmpresaDto) {
+    const desde = new Date(dto.vigencia_desde);
+    const hasta = dto.vigencia_hasta ? new Date(dto.vigencia_hasta) : null;
+    if (hasta && hasta < desde) {
+      throw new BadRequestException(
+        'La vigencia hasta no puede ser anterior a la vigencia desde',
+      );
+    }
+
+    // Upsert por (empresa, clave, vigencia_desde): corregir un valor de la
+    // misma vigencia lo actualiza; una vigencia nueva agrega historia.
+    return this.prisma.parametroEmpresa.upsert({
+      where: {
+        empresa_id_clave_vigencia_desde: {
+          empresa_id: empresaId,
+          clave: dto.clave,
+          vigencia_desde: desde,
+        },
+      },
+      update: {
+        valor: dto.valor,
+        vigencia_hasta: hasta,
+        descripcion: dto.descripcion ?? null,
+      },
+      create: {
+        empresa_id: empresaId,
+        clave: dto.clave,
+        valor: dto.valor,
+        vigencia_desde: desde,
+        vigencia_hasta: hasta,
+        descripcion: dto.descripcion ?? null,
+      },
+    });
+  }
+
+  async eliminarParametro(empresaId: number, parametroId: number) {
+    const fila = await this.prisma.parametroEmpresa.findFirst({
+      where: { id: parametroId, empresa_id: empresaId },
+    });
+    if (!fila) {
+      throw new NotFoundException('Parámetro no encontrado');
+    }
+    await this.prisma.parametroEmpresa.delete({ where: { id: parametroId } });
+    return { message: 'Parámetro eliminado' };
   }
 }
