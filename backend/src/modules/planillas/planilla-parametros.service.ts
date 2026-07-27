@@ -23,28 +23,60 @@ import {
 export class PlanillaParametrosService {
   constructor(private prisma: PrismaService) {}
 
-  async cargar(): Promise<ParametrosLegales> {
+  /**
+   * @param empresaId Empresa del período: sus filas de `parametros_empresa`
+   *   (tasas propias de póliza/contrato, versionadas) se superponen a los
+   *   valores nacionales. Omitido → solo nacionales (comportamiento previo).
+   */
+  async cargar(empresaId?: number): Promise<ParametrosLegales> {
     const fallback = new ParametrosLegalesEnMemoria();
 
-    const filas = await this.prisma.parametroLegal.findMany({
-      select: {
-        clave: true,
-        valor: true,
-        vigencia_desde: true,
-        vigencia_hasta: true,
-      },
-    });
+    const seleccion = {
+      clave: true,
+      valor: true,
+      vigencia_desde: true,
+      vigencia_hasta: true,
+    } as const;
+
+    type FilaCruda = {
+      clave: string;
+      valor: unknown;
+      vigencia_desde: Date;
+      vigencia_hasta: Date | null;
+    };
+
+    const [filas, filasEmpresa] = await Promise.all([
+      this.prisma.parametroLegal.findMany({ select: seleccion }),
+      empresaId
+        ? this.prisma.parametroEmpresa.findMany({
+            where: { empresa_id: empresaId },
+            select: seleccion,
+          })
+        : Promise.resolve<FilaCruda[]>([]),
+    ]);
 
     // Sin seed → usar el in-memory completo (no romper entornos sin parámetros).
     if (filas.length === 0) return fallback;
 
-    const filasAdapter: FilaParametroLegal[] = filas.map((f) => ({
-      clave: f.clave,
-      valor: f.valor,
-      vigencia_desde: f.vigencia_desde,
-      vigencia_hasta: f.vigencia_hasta,
-    }));
+    const aAdapter = (
+      lista: {
+        clave: string;
+        valor: unknown;
+        vigencia_desde: Date;
+        vigencia_hasta: Date | null;
+      }[],
+    ): FilaParametroLegal[] =>
+      lista.map((f) => ({
+        clave: f.clave,
+        valor: f.valor,
+        vigencia_desde: f.vigencia_desde,
+        vigencia_hasta: f.vigencia_hasta,
+      }));
 
-    return new ParametrosLegalesPrisma(filasAdapter, fallback);
+    return new ParametrosLegalesPrisma(
+      aAdapter(filas),
+      fallback,
+      aAdapter(filasEmpresa),
+    );
   }
 }

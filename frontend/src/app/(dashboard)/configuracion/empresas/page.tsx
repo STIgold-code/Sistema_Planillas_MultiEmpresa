@@ -51,6 +51,7 @@ import {
   obtenerRegimenInfo,
   type RegimenLaboral,
 } from '@/lib/regimenes';
+import { ParametrosEmpresaSection } from './components/parametros-empresa-section';
 
 interface Empresa {
   id: number;
@@ -587,6 +588,10 @@ export default function EmpresasPage() {
                   </FormItem>
                 )}
               />
+
+              {empresaSeleccionada && (
+                <ParametrosEmpresaSection empresaId={empresaSeleccionada.id} />
+              )}
 
               <FormField
                 control={form.control}

@@ -77,6 +77,7 @@ model Empresa {
   cargos                         Cargo[]
   clientes                       Cliente[]
   configuracion_tareo            ConfiguracionTareo?
+  parametros                     ParametroEmpresa[]
   configuracion_vacaciones       ConfiguracionVacaciones?
   empleados                      Empleado[]
   movimientos_vacacionales       MovimientoVacacional[]
@@ -614,6 +615,29 @@ model Contrato {
   @@index([vinculo_laboral_id])
   @@index([estado, fecha_fin])
   @@map("contratos")
+}
+
+// Parámetros PROPIOS de una empresa, versionados por vigencia: tasas que no son
+// ley nacional sino contrato/póliza de cada empresa (SCTR según su nivel de
+// riesgo, prima Vida Ley de su aseguradora, crédito EPS...). Resolución en
+// cascada por fecha del período: valor propio vigente → nacional
+// (parametros_legales) → default del sistema. Renovar una póliza = fila nueva
+// con su vigencia; recalcular un mes pasado usa la tasa que regía entonces.
+model ParametroEmpresa {
+  id             Int       @id @default(autoincrement())
+  empresa_id     Int
+  clave          String    @db.VarChar(50)
+  valor          Decimal   @db.Decimal(14, 6)
+  descripcion    String?   @db.VarChar(200)
+  vigencia_desde DateTime  @db.Date
+  vigencia_hasta DateTime? @db.Date
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  empresa        Empresa   @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+
+  @@unique([empresa_id, clave, vigencia_desde])
+  @@index([empresa_id])
+  @@map("parametros_empresa")
 }
 
 // Parámetros legales versionados por fecha de vigencia (RMV, UIT, topes, tasas).
