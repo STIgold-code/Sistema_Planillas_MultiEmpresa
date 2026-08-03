@@ -15,6 +15,7 @@ import { Planilla, PlanillaDetalle } from '@/types';
 import { formatDateSafe } from '@/lib/utils';
 import { IndicadorTasasSBS } from '@/components/planilla/IndicadorTasasSBS';
 import { RegimenBadge } from '@/components/RegimenBadge';
+import { TablaConScrollSuperior } from '@/components/TablaConScrollSuperior';
 
 interface PlanillaTablaProps {
   planilla: Planilla;
@@ -46,7 +47,7 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-auto relative max-h-[70vh] border rounded-md">
+        <TablaConScrollSuperior className="overflow-auto relative max-h-[70vh] border rounded-md">
           <Table className="min-w-[7500px] text-xs">
             <TableHeader className="sticky top-0 z-40 bg-white shadow-sm">
               {/* Fila de grupos */}
@@ -330,7 +331,7 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
               )}
             </TableBody>
           </Table>
-        </div>
+        </TablaConScrollSuperior>
 
         {/* Indicador de tasas SBS */}
         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
