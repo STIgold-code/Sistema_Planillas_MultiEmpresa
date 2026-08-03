@@ -48,7 +48,10 @@ export function PlanillaTabla({ planilla, canEdit, getNombreCompleto, onOpenEdit
       </CardHeader>
       <CardContent className="p-0">
         <TablaConScrollSuperior className="overflow-auto relative max-h-[70vh] border rounded-md">
-          <Table className="min-w-[7500px] text-xs">
+          {/* overflow-x-visible: anula el scroll interno del wrapper de shadcn para que
+              el único contenedor de scroll sea el de TablaConScrollSuperior (barra espejo
+              y encabezados sticky comparten el mismo contexto). */}
+          <Table containerClassName="overflow-x-visible" className="min-w-[7500px] text-xs">
             <TableHeader className="sticky top-0 z-40 bg-white shadow-sm">
               {/* Fila de grupos */}
               <TableRow className="border-b-0 bg-white">
