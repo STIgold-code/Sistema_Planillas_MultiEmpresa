@@ -255,7 +255,12 @@ export class EmpleadoDocumentosService {
     motivo?: string,
   ) {
     const documento = await this.prisma.empleadoDocumento.findFirst({
-      where: { id: documentoId, empleado_id: empleadoId, eliminado: false },
+      where: {
+        id: documentoId,
+        empleado_id: empleadoId,
+        eliminado: false,
+        empleado: { empresa_id: empresaId },
+      },
     });
 
     if (!documento) {

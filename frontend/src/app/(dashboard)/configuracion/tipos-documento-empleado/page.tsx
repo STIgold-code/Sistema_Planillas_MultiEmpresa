@@ -5,7 +5,6 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { api } from '@/lib/api';
-import { useEmpresa } from '@/hooks/useEmpresa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -85,7 +84,6 @@ export default function TiposDocumentoEmpleadoPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoDocumentoEmpleado | null>(null);
-  const { empresa } = useEmpresa();
 
   const form = useForm<TipoDocFormValues>({
     resolver: zodResolver(tipoDocSchema),
@@ -161,15 +159,11 @@ export default function TiposDocumentoEmpleadoPage() {
   };
 
   const onSubmit = async (data: TipoDocFormValues) => {
-    if (!empresa) {
-      toast.error('Error: No se pudo obtener la información de la empresa');
-      return;
-    }
     setSaving(true);
     try {
+      // La empresa la resuelve el backend desde el contexto (empresa activa).
       const payload = {
         ...data,
-        empresa_id: empresa.id,
         // Limpiar dias_alerta si no es CON_VENCIMIENTO
         dias_alerta: data.tipo_vigencia === 'CON_VENCIMIENTO' ? data.dias_alerta : null,
       };

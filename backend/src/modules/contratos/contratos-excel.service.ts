@@ -393,6 +393,23 @@ export class ContratosExcelService {
           contrato.accion === 'ACTUALIZAR' &&
           contrato.contrato_existente_id
         ) {
+          // El id del contrato viene del cliente: verificar que pertenezca al
+          // empleado (ya validado contra la empresa) antes de tocarlo.
+          const contratoExistente = await this.prisma.contrato.findFirst({
+            where: {
+              id: contrato.contrato_existente_id,
+              empleado_id: contrato.empleado_id,
+            },
+            select: { id: true },
+          });
+
+          if (!contratoExistente) {
+            errores.push(
+              `DNI ${contrato.dni}: El contrato a actualizar no corresponde al empleado`,
+            );
+            continue;
+          }
+
           // Actualizar contrato existente
           await this.prisma.contrato.update({
             where: { id: contrato.contrato_existente_id },
