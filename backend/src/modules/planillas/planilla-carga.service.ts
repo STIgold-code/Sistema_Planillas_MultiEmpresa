@@ -2,7 +2,13 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CalculoWarning } from './planillas-calcular.service';
-import { VentanaPeriodo, ventanaDePeriodo } from '../tareo/ventana-periodo';
+import {
+  VentanaPeriodo,
+  diasDelPeriodo,
+  esPeriodoCalendario,
+  etiquetaDiaMes,
+  ventanaDePeriodo,
+} from '../tareo/ventana-periodo';
 
 /**
  * Carga Prisma y validaciones de advertencia para el cálculo de planilla.
@@ -220,11 +226,28 @@ export class PlanillaCargaService {
       tipo_marcacion_id: number | null;
       tipo_marcacion: { es_laborable: boolean } | null;
     }[],
-    /** Días que debería tener el tareo: N de la ventana del período. */
-    diasPeriodo: number,
+    /** Ventana real del período: define cuántos días debería tener el tareo. */
+    ventana: VentanaPeriodo,
     warnings: CalculoWarning[],
   ): void {
     const nombreEmpleado = `${empleado.nombres} ${empleado.apellido_paterno}`;
+    const diasPeriodo = diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
+
+    // En un período calendario el ordinal ES el día del mes, así que se enumera
+    // igual que siempre. Con día de corte el ordinal no le dice nada al usuario:
+    // se enumeran las fechas reales (dd/mm).
+    const esCalendario = esPeriodoCalendario(
+      ventana.fechaInicio,
+      ventana.fechaFin,
+    );
+    const enumerarDias = (dias: { dia: number }[]): string =>
+      dias
+        .map((d) =>
+          esCalendario
+            ? String(d.dia)
+            : etiquetaDiaMes(ventana.fechaInicio, d.dia),
+        )
+        .join(', ');
 
     if (!empleado.regimen_pensionario) {
       warnings.push({
@@ -259,7 +282,7 @@ export class PlanillaCargaService {
       (d) => !d.tipo_marcacion_id && !d.tipo_marcacion,
     );
     if (diasSinMarcacion.length > 0) {
-      const diasAfectados = diasSinMarcacion.map((d) => d.dia).join(', ');
+      const diasAfectados = enumerarDias(diasSinMarcacion);
       warnings.push({
         empleadoId: empleado.id,
         empleadoNombre: nombreEmpleado,
@@ -274,7 +297,7 @@ export class PlanillaCargaService {
         (d.horas === null || Number(d.horas) === 0),
     );
     if (diasLaborablesSinHoras.length > 0) {
-      const diasAfectados = diasLaborablesSinHoras.map((d) => d.dia).join(', ');
+      const diasAfectados = enumerarDias(diasLaborablesSinHoras);
       warnings.push({
         empleadoId: empleado.id,
         empleadoNombre: nombreEmpleado,

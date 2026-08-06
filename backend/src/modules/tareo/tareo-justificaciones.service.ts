@@ -111,8 +111,17 @@ export class TareoJustificacionesService {
           },
           tareo: {
             include: {
+              // fecha_inicio/fecha_fin: la ventana real del período. El cliente
+              // la necesita para traducir los ordinales dia_inicio/dia_fin a
+              // fechas reales cuando la empresa usa día de corte.
               periodo: {
-                select: { id: true, anio: true, mes: true },
+                select: {
+                  id: true,
+                  anio: true,
+                  mes: true,
+                  fecha_inicio: true,
+                  fecha_fin: true,
+                },
               },
               empleado: {
                 select: {
@@ -178,7 +187,13 @@ export class TareoJustificacionesService {
         tareo: {
           include: {
             periodo: {
-              select: { id: true, anio: true, mes: true },
+              select: {
+                id: true,
+                anio: true,
+                mes: true,
+                fecha_inicio: true,
+                fecha_fin: true,
+              },
             },
             empleado: {
               select: {
@@ -231,7 +246,13 @@ export class TareoJustificacionesService {
         tareo: {
           include: {
             periodo: {
-              select: { id: true, anio: true, mes: true },
+              select: {
+                id: true,
+                anio: true,
+                mes: true,
+                fecha_inicio: true,
+                fecha_fin: true,
+              },
             },
             empleado: {
               select: {

@@ -11,6 +11,7 @@ import {
 import { TareoJustificacionesService } from './tareo-justificaciones.service';
 import { TareoGrillaService } from './tareo-grilla.service';
 import { TareoEdicionService } from './tareo-edicion.service';
+import { fechaDeDiaIso, ventanaDePeriodo } from './ventana-periodo';
 
 @Injectable()
 export class TareoService {
@@ -81,7 +82,17 @@ export class TareoService {
       throw new NotFoundException('Tareo no encontrado');
     }
 
-    return tareo;
+    // `dia` es ORDINAL dentro del período; se expone además la fecha real
+    // (date-only) derivada de la ventana persistida, sin alterar el shape previo.
+    const ventana = ventanaDePeriodo(tareo.periodo);
+
+    return {
+      ...tareo,
+      detalles: tareo.detalles.map((detalle) => ({
+        ...detalle,
+        fecha: fechaDeDiaIso(ventana.fechaInicio, detalle.dia),
+      })),
+    };
   }
 
   /**
@@ -191,10 +202,14 @@ export class TareoService {
       },
     });
 
+    // Fecha real del día ordinal, derivada de la ventana del período del tareo.
+    const ventana = ventanaDePeriodo(detalle.tareo.periodo);
+
     return {
       detalle: {
         id: detalle.id,
         dia: detalle.dia,
+        fecha: fechaDeDiaIso(ventana.fechaInicio, detalle.dia),
         empleado: `${detalle.tareo.empleado.apellido_paterno} ${detalle.tareo.empleado.apellido_materno}`,
       },
       historial: audits,

@@ -40,7 +40,15 @@ export interface TareoJustificacion {
   archivos: TareoJustificacionArchivo[];
   tareo?: {
     id: number;
-    periodo: { id: number; anio: number; mes: number };
+    // fecha_inicio/fecha_fin: ventana real del periodo. dia_inicio/dia_fin son
+    // ordinales (1..N) dentro de esa ventana, no dias del mes.
+    periodo: {
+      id: number;
+      anio: number;
+      mes: number;
+      fecha_inicio: string;
+      fecha_fin: string;
+    };
     empleado: {
       id: number;
       numero_documento: string;

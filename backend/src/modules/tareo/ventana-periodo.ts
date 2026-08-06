@@ -91,6 +91,36 @@ export function diaDeFecha(
   return dia;
 }
 
+/** Fecha real del día ordinal `dia` en formato date-only "YYYY-MM-DD". */
+export function fechaDeDiaIso(fechaInicio: Date, dia: number): string {
+  const fecha = fechaDeDia(fechaInicio, dia);
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const diaMes = String(fecha.getDate()).padStart(2, '0');
+  return `${fecha.getFullYear()}-${mes}-${diaMes}`;
+}
+
+/**
+ * Etiqueta corta "dd/mm" de la fecha real del día ordinal `dia`. Se usa para
+ * enumerar días en reportes y advertencias cuando el período NO es calendario:
+ * ahí el ordinal por sí solo no le dice nada al usuario.
+ */
+export function etiquetaDiaMes(fechaInicio: Date, dia: number): string {
+  const fecha = fechaDeDia(fechaInicio, dia);
+  const diaMes = String(fecha.getDate()).padStart(2, '0');
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  return `${diaMes}/${mes}`;
+}
+
+/**
+ * Convierte una fecha de calendario al valor que Prisma persiste en un campo
+ * `@db.Date` (medianoche UTC), para poder compararla en queries contra
+ * `fecha_inicio` / `fecha_fin` de un período sin desfases de zona horaria.
+ */
+export function fechaComoDbDate(fecha: Date | string): Date {
+  const dt = leerFechaPrisma(fecha);
+  return new Date(Date.UTC(dt.year, dt.month - 1, dt.day));
+}
+
 /**
  * Convierte una fecha `@db.Date` de Prisma (que llega como medianoche UTC) al
  * espacio de componentes locales en el que operan estos helpers, preservando el
@@ -112,6 +142,46 @@ export function ventanaDePeriodo(periodo: PeriodoConVentana): VentanaPeriodo {
     fechaInicio: fechaCalendarioLocal(periodo.fecha_inicio),
     fechaFin: fechaCalendarioLocal(periodo.fecha_fin),
   };
+}
+
+/** Rango de días ordinales (ambos extremos inclusive) dentro de un período. */
+export interface RangoOrdinal {
+  desde: number;
+  hasta: number;
+}
+
+/**
+ * Intersección entre la ventana del período y un rango de fechas reales,
+ * expresada en días ORDINALES del período. Devuelve null si no hay solape.
+ *
+ * Es la traducción canónica "rango de fechas → rango de `TareoDetalle.dia`":
+ * sin ella, filtrar detalles por fechas obliga a asumir que el ordinal es el día
+ * del mes, lo que solo vale en períodos calendario.
+ */
+export function rangoOrdinalEnPeriodo(
+  ventana: VentanaPeriodo,
+  fechaInicio: Date | string,
+  fechaFin: Date | string,
+): RangoOrdinal | null {
+  const inicioRango = fechaCalendarioLocal(fechaInicio);
+  const finRango = fechaCalendarioLocal(fechaFin);
+  if (inicioRango > ventana.fechaFin || finRango < ventana.fechaInicio) {
+    return null;
+  }
+
+  const inicioEfectivo =
+    inicioRango > ventana.fechaInicio ? inicioRango : ventana.fechaInicio;
+  const finEfectivo = finRango < ventana.fechaFin ? finRango : ventana.fechaFin;
+
+  const desde = diaDeFecha(
+    ventana.fechaInicio,
+    ventana.fechaFin,
+    inicioEfectivo,
+  );
+  const hasta = diaDeFecha(ventana.fechaInicio, ventana.fechaFin, finEfectivo);
+  if (desde === null || hasta === null) return null;
+
+  return { desde, hasta };
 }
 
 /**
