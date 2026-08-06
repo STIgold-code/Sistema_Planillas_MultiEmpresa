@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
@@ -55,33 +55,11 @@ export function useContratosCrud({
 
   const generarDocumentoParaContrato = async (contratoData: Record<string, unknown>, plantillaId: string) => {
     try {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/${plantillaId}/generar`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            empleado_id: empleadoId,
-            contrato: contratoData,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Error al generar documento');
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'contrato.docx';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.postBlob(`/plantillas-contrato/${plantillaId}/generar`, {
+        empleado_id: empleadoId,
+        contrato: contratoData,
+      });
+      const filename = 'contrato.docx';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

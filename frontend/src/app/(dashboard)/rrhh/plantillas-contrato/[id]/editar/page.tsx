@@ -25,7 +25,6 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getAccessToken } from '@/lib/api';
 
 const plantillaSchema = z.object({
   nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(200),
@@ -42,6 +41,11 @@ interface VariableValidation {
   invalid: Array<{ variable: string; suggestion: string | null }>;
   hasErrors: boolean;
   summary: string;
+}
+
+interface ExtraccionVariables {
+  variables?: string[];
+  validation?: VariableValidation;
 }
 
 const TIPOS_CONTRATO = [
@@ -136,20 +140,10 @@ export default function EditarPlantillaPage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/extract-variables`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al extraer variables');
-      }
-
-      const data = await response.json();
+      const data = await api.upload<ExtraccionVariables>(
+        '/plantillas-contrato/extract-variables',
+        formData
+      );
       setExtractedVariables(data.variables || []);
       if (data.validation) {
         setValidation(data.validation);
@@ -189,24 +183,11 @@ export default function EditarPlantillaPage() {
         formData.append('force_invalid_variables', 'true');
       }
 
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/${plantillaId}/upload`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        }
+      const updatedPlantilla = await api.upload<PlantillaContrato>(
+        `/plantillas-contrato/${plantillaId}/upload`,
+        formData,
+        'PATCH'
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al subir archivo');
-      }
-
-      const updatedPlantilla = await response.json();
       setPlantilla(updatedPlantilla);
       setNewFile(null);
       setValidation(null);

@@ -14,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDateSafe } from '@/lib/utils';
-import { getAccessToken } from '@/lib/api';
+import { obtenerBlobArchivo } from '@/lib/archivos';
 import { descargarArchivo } from '../../shared/descargar-archivo';
 import {
   ESTADO_ITEM_LABELS,
@@ -49,12 +49,7 @@ export function IngresoDetalleDialog({ ingreso, onClose }: Props) {
     if (!ingreso.archivo_url) return;
     setAbriendoArchivo(true);
     try {
-      const token = getAccessToken();
-      const res = await fetch(ingreso.archivo_url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('No se pudo abrir el archivo');
-      const blob = await res.blob();
+      const blob = await obtenerBlobArchivo(ingreso.archivo_url);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       // Liberar el objeto tras un margen para que el navegador alcance a abrirlo.

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Planilla, PlanillaDetalle } from '@/types';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
@@ -150,25 +150,8 @@ export function usePlanillaDetalle() {
   const handleDescargarBoletas = async () => {
     setDownloadingBoletas(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/boletas/planilla/${id}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})) as { message?: string };
-        throw new Error(errorData.message || 'Error al descargar boletas');
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const boletasCount = response.headers.get('X-Boletas-Count');
-      let filename = 'boletas.pdf';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.getBlob(`/boletas/planilla/${id}/pdf`);
+      const filename = 'boletas.pdf';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -179,7 +162,7 @@ export function usePlanillaDetalle() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast.success(`PDF descargado con ${boletasCount || 'todas las'} boletas`);
+      toast.success('PDF descargado con todas las boletas');
     } catch (error: unknown) {
       console.error('Error downloading boletas:', error);
       toast.error(getApiErrorMessage(error, 'Error al descargar las boletas'));

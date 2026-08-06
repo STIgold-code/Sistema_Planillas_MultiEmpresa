@@ -5,7 +5,7 @@ import { Upload, X, FileText, Image as ImageIcon, File, Loader2, Eye } from 'luc
 import { Button } from './button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { FilePreviewModal } from './file-preview-modal';
 
 export interface UploadedFile {
@@ -13,6 +13,11 @@ export interface UploadedFile {
   archivo_nombre: string;
   archivo_tipo: string;
   archivo_size: number;
+}
+
+interface RespuestaUploadDocumento {
+  file: { url: string };
+  mimetype?: string;
 }
 
 interface FileUploadProps {
@@ -87,22 +92,10 @@ export function FileUpload({
           const formData = new FormData();
           formData.append('file', file);
 
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/uploads/documentos`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${getAccessToken()}`,
-              },
-              body: formData,
-            }
+          const data = await api.upload<RespuestaUploadDocumento>(
+            '/uploads/documentos',
+            formData
           );
-
-          if (!response.ok) {
-            throw new Error(`Error al subir ${file.name}`);
-          }
-
-          const data = await response.json();
           // Si la URL ya es absoluta (empieza con http), usarla directamente
           // Si es relativa, concatenar con la base URL
           const fileUrl = data.file.url.startsWith('http')
