@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CalculoWarning } from './planillas-calcular.service';
+import { VentanaPeriodo, ventanaDePeriodo } from '../tareo/ventana-periodo';
 
 /**
  * Carga Prisma y validaciones de advertencia para el cálculo de planilla.
@@ -14,12 +15,27 @@ import { CalculoWarning } from './planillas-calcular.service';
 export class PlanillaCargaService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Resuelve el período de tareo de la planilla y devuelve su VENTANA real
+   * (`ventana`), que es la fuente de verdad del rango del período. Si la planilla
+   * no tiene período de tareo asociado, `ventana` es null y quien llama debe caer
+   * al mes calendario.
+   */
   async resolverPeriodoTareo(
     planilla: { periodo_tareo_id: number | null; anio: number; mes: number },
     empresaId: number,
-  ): Promise<{ periodoTareoId: number | null; warningsPlanilla: string[] }> {
+  ): Promise<{
+    periodoTareoId: number | null;
+    ventana: VentanaPeriodo | null;
+    warningsPlanilla: string[];
+  }> {
     let periodoTareoId = planilla.periodo_tareo_id;
-    let periodoTareo: { id: number; estado: string } | null = null;
+    let periodoTareo: {
+      id: number;
+      estado: string;
+      fecha_inicio: Date;
+      fecha_fin: Date;
+    } | null = null;
 
     if (!periodoTareoId) {
       periodoTareo = await this.prisma.periodoTareo.findFirst({
@@ -59,9 +75,18 @@ export class PlanillaCargaService {
       );
     }
 
-    return { periodoTareoId, warningsPlanilla };
+    return {
+      periodoTareoId,
+      ventana: periodoTareo ? ventanaDePeriodo(periodoTareo) : null,
+      warningsPlanilla,
+    };
   }
 
+  /**
+   * Carga los empleados con contrato vigente en el período. El rango
+   * `fechaInicioPeriodo`/`fechaFinPeriodo` DEBE salir de la ventana del período
+   * de tareo (fallback: mes calendario si la planilla no tiene período asociado).
+   */
   cargarEmpleados(
     empresaId: number,
     periodoTareoId: number | null,
@@ -195,7 +220,8 @@ export class PlanillaCargaService {
       tipo_marcacion_id: number | null;
       tipo_marcacion: { es_laborable: boolean } | null;
     }[],
-    planilla: { anio: number; mes: number },
+    /** Días que debería tener el tareo: N de la ventana del período. */
+    diasPeriodo: number,
     warnings: CalculoWarning[],
   ): void {
     const nombreEmpleado = `${empleado.nombres} ${empleado.apellido_paterno}`;
@@ -218,15 +244,14 @@ export class PlanillaCargaService {
       });
     }
 
-    const diasDelMesActual = new Date(planilla.anio, planilla.mes, 0).getDate();
     const diasConDetalle = detallesTareo.length;
-    if (diasConDetalle < diasDelMesActual) {
-      const diasFaltantes = diasDelMesActual - diasConDetalle;
+    if (diasConDetalle < diasPeriodo) {
+      const diasFaltantes = diasPeriodo - diasConDetalle;
       warnings.push({
         empleadoId: empleado.id,
         empleadoNombre: nombreEmpleado,
         tipo: 'TAREO_INCOMPLETO',
-        mensaje: `Tareo incompleto: tiene ${diasConDetalle} días de ${diasDelMesActual}. Faltan ${diasFaltantes} días por marcar.`,
+        mensaje: `Tareo incompleto: tiene ${diasConDetalle} días de ${diasPeriodo}. Faltan ${diasFaltantes} días por marcar.`,
       });
     }
 

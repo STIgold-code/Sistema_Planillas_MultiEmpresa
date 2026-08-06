@@ -109,6 +109,11 @@ export interface TareoGrillaResponse {
     anio: number;
     mes: number;
     estado: EstadoPeriodoTareo;
+    /** Fecha real del dia ordinal 1 del periodo (ISO date, ej. "2026-06-26"). */
+    fecha_inicio: string;
+    /** Fecha real del ultimo dia del periodo (ISO date). */
+    fecha_fin: string;
+    /** Total de dias del periodo (N). Los dias van de 1 a N. */
     dias_mes: number;
   };
   tipos_marcacion: TipoMarcacion[];

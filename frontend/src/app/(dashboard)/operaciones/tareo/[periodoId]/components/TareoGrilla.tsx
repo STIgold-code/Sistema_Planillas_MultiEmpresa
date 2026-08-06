@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { formatDateSafe } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { esPeriodoCalendario, etiquetaDiaMes, etiquetaFechaCompleta, fechaDeDia } from '@/lib/ventana-periodo';
 import { TareoGrillaEmpleado, TareoGrillaResponse, DiasConJustificacion } from '@/types';
 import type { CeldaModificada, CeldaPos, RangoRectangular } from '../useTareoDetalle';
 
@@ -49,6 +50,7 @@ export function TareoGrilla({
   onVerHistorial,
 }: TareoGrillaProps) {
   const isReadonly = data.periodo.estado === 'CERRADO' || data.periodo.estado === 'ANULADO';
+  const esCalendario = esPeriodoCalendario(data.periodo.fecha_inicio);
 
   const renderCelda = (empleado: TareoGrillaEmpleado, dia: number, empleadoIndex: number) => {
     const diaData = empleado.dias.find(d => d.dia === dia);
@@ -186,20 +188,28 @@ export function TareoGrilla({
           <div className="flex-shrink-0 border-r px-2 py-1 text-left text-sm font-medium bg-background" style={{ width: '120px' }}>Sede</div>
           <div className="flex-shrink-0 border-r px-2 py-1 text-left text-sm font-medium bg-background" style={{ width: '80px' }}>Inicio</div>
           <div className="flex-shrink-0 border-r px-2 py-1 text-left text-sm font-medium bg-background" style={{ width: '80px' }}>Fin</div>
-          {diasFiltrados.map(dia => (
-            <div
-              key={dia}
-              className={cn(
-                'flex-shrink-0 border-r px-1 py-1 text-center text-xs font-medium bg-background cursor-pointer hover:bg-blue-50 transition-colors',
-                isReadonly ? 'cursor-not-allowed' : ''
-              )}
-              style={{ width: '32px' }}
-              onClick={() => onColumnHeaderClick(dia)}
-              title={`Click para seleccionar día ${dia} en todos los empleados`}
-            >
-              {dia}
-            </div>
-          ))}
+          {diasFiltrados.map(dia => {
+            const fecha = esCalendario ? null : fechaDeDia(data.periodo.fecha_inicio, dia);
+            return (
+              <div
+                key={dia}
+                className={cn(
+                  'flex-shrink-0 border-r py-1 text-center font-medium bg-background cursor-pointer hover:bg-blue-50 transition-colors',
+                  fecha ? 'px-0.5 text-[10px]' : 'px-1 text-xs',
+                  isReadonly ? 'cursor-not-allowed' : ''
+                )}
+                style={{ width: '32px' }}
+                onClick={() => onColumnHeaderClick(dia)}
+                title={
+                  fecha
+                    ? `${etiquetaFechaCompleta(fecha)} - click para seleccionar el día en todos los empleados`
+                    : `Click para seleccionar día ${dia} en todos los empleados`
+                }
+              >
+                {fecha ? etiquetaDiaMes(fecha) : dia}
+              </div>
+            );
+          })}
           <div className="flex-shrink-0 border-r px-2 py-1 text-center text-xs font-medium bg-green-50" style={{ width: '40px' }} title="Días Trabajados">DT</div>
           <div className="flex-shrink-0 border-r px-2 py-1 text-center text-xs font-medium bg-red-50" style={{ width: '40px' }} title="Faltas">F</div>
           <div className="flex-shrink-0 px-2 py-1 text-center text-xs font-medium bg-yellow-50" style={{ width: '40px' }} title="Descansos">DL</div>

@@ -56,6 +56,13 @@ export interface EntradaDetalle {
   promedios: PromediosDetalle;
   acumuladoRenta: number;
   retencionesPreviasRenta: number;
+  /**
+   * Fecha de referencia para resolver los parámetros legales versionados (RMV,
+   * UIT, tasas): fin de la ventana del período. Se resuelve en el borde porque
+   * el dominio no conoce la política de día de corte de la empresa. Con período
+   * calendario coincide con el último día del mes.
+   */
+  fechaReferenciaParametros: Date;
   /** Días previos al ingreso (contrato/empleado inicia a mitad de mes). */
   diasNuevoNoLab: number;
   /** Días posteriores al cese (contrato/empleado termina a mitad de mes). */

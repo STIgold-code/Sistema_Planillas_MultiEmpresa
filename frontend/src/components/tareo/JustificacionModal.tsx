@@ -49,7 +49,8 @@ import {
   Hash,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, parseDateLocal } from '@/lib/utils';
+import { diaDeFecha, fechaDeDia } from '@/lib/ventana-periodo';
 
 // Configuración de tipos de justificación
 const TIPOS_JUSTIFICACION: {
@@ -74,9 +75,10 @@ interface JustificacionModalProps {
   onOpenChange: (open: boolean) => void;
   tareoId: number;
   empleadoNombre: string;
-  mes: number; // 1-12
-  anio: number;
-  diasDelMes: number;
+  /** Fecha real del día 1 del período (ISO date). Puede no ser el día 1 del mes. */
+  fechaInicioPeriodo: string;
+  /** Fecha real del último día del período (ISO date). */
+  fechaFinPeriodo: string;
   diaInicial?: number;
   diaFinal?: number;
   justificacionExistente?: TareoJustificacion;
@@ -88,9 +90,8 @@ export function JustificacionModal({
   onOpenChange,
   tareoId,
   empleadoNombre,
-  mes,
-  anio,
-  diasDelMes,
+  fechaInicioPeriodo,
+  fechaFinPeriodo,
   diaInicial,
   diaFinal,
   justificacionExistente,
@@ -113,15 +114,16 @@ export function JustificacionModal({
 
   const isEditing = !!justificacionExistente;
 
-  // Calcular límites del calendario (solo el mes del período)
+  // Calcular límites del calendario (el rango real del período, no el mes calendario)
   const { minDate, maxDate } = useMemo(() => {
-    const min = new Date(anio, mes - 1, 1);
-    const max = new Date(anio, mes - 1, diasDelMes);
-    return { minDate: min, maxDate: max };
-  }, [anio, mes, diasDelMes]);
+    return {
+      minDate: parseDateLocal(fechaInicioPeriodo),
+      maxDate: parseDateLocal(fechaFinPeriodo),
+    };
+  }, [fechaInicioPeriodo, fechaFinPeriodo]);
 
-  // Helper para crear fecha desde día
-  const createDateFromDay = (dia: number) => new Date(anio, mes - 1, dia);
+  // Helper para crear fecha real desde el día ordinal del período
+  const createDateFromDay = (dia: number) => fechaDeDia(fechaInicioPeriodo, dia);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -152,7 +154,7 @@ export function JustificacionModal({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, justificacionExistente, diaInicial, diaFinal, anio, mes]);
+  }, [open, justificacionExistente, diaInicial, diaFinal, fechaInicioPeriodo]);
 
   const handleSubmit = async () => {
     // Validar fechas
@@ -161,8 +163,9 @@ export function JustificacionModal({
       return;
     }
 
-    const diaInicio = fechaInicio.getDate();
-    const diaFin = fechaFin.getDate();
+    // El backend espera el día ORDINAL dentro del período (1..N), no el día del mes
+    const diaInicio = diaDeFecha(fechaInicioPeriodo, fechaInicio);
+    const diaFin = diaDeFecha(fechaInicioPeriodo, fechaFin);
 
     if (diaFin < diaInicio) {
       toast.error('La fecha de fin debe ser mayor o igual a la fecha de inicio');

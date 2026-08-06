@@ -34,6 +34,7 @@ import {
 } from './mapear-entrada-detalle';
 import { extraerMontosLoadBearing } from './mapear-resultado-detalle';
 import { EmpresaConRegimenDefault } from './resolver-regimen-laboral';
+import { VentanaPeriodo } from '../../tareo/ventana-periodo';
 
 /** DTO de salida (mismo shape de ~130 campos que persiste el servicio). */
 export type DetalleLegacy = Record<string, unknown>;
@@ -43,6 +44,11 @@ export interface ParametrosCalculoDetalle {
   empresa: EmpresaConRegimenDefault;
   mes: number;
   anio: number;
+  /**
+   * Ventana real del período de tareo asociado a la planilla. Si se omite (la
+   * planilla no tiene período), se usa el mes calendario de `mes`/`anio`.
+   */
+  ventanaPeriodo?: VentanaPeriodo;
   acumuladoRenta: number;
   retencionesPreviasRenta: number;
   promedios: PromediosDetalle;
@@ -66,6 +72,7 @@ export function calcularDetalleEmpleado(
     empresa,
     mes,
     anio,
+    ventanaPeriodo: params.ventanaPeriodo,
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
   });
@@ -79,6 +86,7 @@ export function calcularDetalleEmpleado(
     empleado,
     mes,
     anio,
+    ventanaPeriodo: params.ventanaPeriodo,
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
     promedios: params.promedios,

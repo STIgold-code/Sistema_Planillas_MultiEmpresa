@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { formatDateSafe, toDateString } from '@/lib/utils';
+import { esPeriodoCalendario, fechaDeDia } from '@/lib/ventana-periodo';
 import { TareoJustificacion } from '@/types';
 import { getTipoJustificacionInfo } from './JustificacionModal';
 import {
@@ -43,7 +45,8 @@ interface JustificacionesDrawerProps {
   empleadoId: number;
   empleadoNombre: string;
   tareoId: number;
-  periodoInfo: { mes: number; anio: number };
+  /** `fecha_inicio` es la fecha real del día 1 del período abierto (ISO date). */
+  periodoInfo: { mes: number; anio: number; fecha_inicio: string };
   onNuevaJustificacion: () => void;
   onEditarJustificacion: (justificacion: TareoJustificacion) => void;
   onJustificacionDeleted: () => void;
@@ -59,6 +62,7 @@ export function JustificacionesDrawer({
   onOpenChange,
   empleadoId,
   empleadoNombre,
+  tareoId,
   periodoInfo,
   onNuevaJustificacion,
   onEditarJustificacion,
@@ -122,9 +126,20 @@ export function JustificacionesDrawer({
     return acc;
   }, {} as Record<number, TareoJustificacion[]>);
 
-  const formatDias = (diaInicio: number, diaFin: number) => {
-    if (diaInicio === diaFin) return `Día ${diaInicio}`;
-    return `Días ${diaInicio} - ${diaFin}`;
+  // Los días guardados son ordinales del período. Solo se pueden traducir a fechas
+  // reales las justificaciones del período abierto, del que conocemos su fecha_inicio.
+  const formatDias = (j: TareoJustificacion) => {
+    const mostrarFechas = !esPeriodoCalendario(periodoInfo.fecha_inicio) && j.tareo_id === tareoId;
+
+    if (!mostrarFechas) {
+      if (j.dia_inicio === j.dia_fin) return `Día ${j.dia_inicio}`;
+      return `Días ${j.dia_inicio} - ${j.dia_fin}`;
+    }
+
+    const inicio = formatDateSafe(toDateString(fechaDeDia(periodoInfo.fecha_inicio, j.dia_inicio)));
+    if (j.dia_inicio === j.dia_fin) return inicio;
+    const fin = formatDateSafe(toDateString(fechaDeDia(periodoInfo.fecha_inicio, j.dia_fin)));
+    return `${inicio} - ${fin}`;
   };
 
   return (
@@ -207,7 +222,7 @@ export function JustificacionesDrawer({
                                 <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                                   <div className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    <span>{formatDias(j.dia_inicio, j.dia_fin)}</span>
+                                    <span>{formatDias(j)}</span>
                                   </div>
                                   {/* Mostrar tipo de documento y código para certificados médicos */}
                                   {(j.tipo === 'CERTIFICADO_MEDICO' || j.tipo === 'DESCANSO_MEDICO') && j.tipo_documento && j.tipo_documento !== 'OTROS' && (

@@ -2,8 +2,12 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { TareoExcelExportService } from './tareo-excel-export.service';
-
-const CODIGO_SIN_CONTRATO = 'SC';
+import {
+  etiquetaColumnaDia,
+  isCodigoPermitidoFueraContrato,
+  isDiaEnContrato,
+} from './tareo-excel-helpers';
+import { diasDelPeriodo, ventanaDePeriodo } from './ventana-periodo';
 
 @Injectable()
 export class TareoExcelService {
@@ -47,35 +51,6 @@ export class TareoExcelService {
       return value.richText.map((r) => r.text).join('');
     }
     return undefined;
-  }
-
-  private isDiaEnContrato(
-    dia: number,
-    mes: number,
-    anio: number,
-    fechaInicioContrato: Date | null,
-    fechaFinContrato: Date | null,
-  ): boolean {
-    if (!fechaInicioContrato) return false;
-
-    const fechaDia = new Date(anio, mes - 1, dia);
-    fechaDia.setHours(0, 0, 0, 0);
-    const inicioContrato = new Date(fechaInicioContrato);
-    inicioContrato.setHours(0, 0, 0, 0);
-
-    if (fechaDia < inicioContrato) return false;
-
-    if (fechaFinContrato) {
-      const finContrato = new Date(fechaFinContrato);
-      finContrato.setHours(23, 59, 59, 999);
-      if (fechaDia > finContrato) return false;
-    }
-
-    return true;
-  }
-
-  private isCodigoPermitidoFueraContrato(codigo: string | null): boolean {
-    return codigo === null || codigo === CODIGO_SIN_CONTRATO;
   }
 
   // ========================================
@@ -184,19 +159,38 @@ export class TareoExcelService {
       );
     }
 
+    // Ventana real del período: el mapeo columna→ordinal es posicional a partir
+    // de la primera columna de día, así que solo hace falta saber su rótulo y N.
+    const ventana = ventanaDePeriodo(periodo);
+    const diasPeriodo = diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
+    const etiquetaPrimerDia = etiquetaColumnaDia(
+      1,
+      ventana.fechaInicio,
+      ventana.fechaFin,
+    );
+
     const headerRow = sheet.getRow(1);
     let dniColIndex = -1;
-    let primerDiaColIndex = -1;
+    // Se aceptan dos rótulos para la primera columna de día: el de la ventana
+    // (ej. "26/06") y el número "1" de las plantillas de período calendario.
+    let colEtiquetaVentana = -1;
+    let colNumeroUno = -1;
 
     headerRow.eachCell((cell, colNumber) => {
       const value = this.cellToString(cell.value)?.toUpperCase().trim();
       if (value === 'DNI' || value === 'DOCUMENTO') {
         dniColIndex = colNumber;
       }
-      if (value === '1' && primerDiaColIndex === -1) {
-        primerDiaColIndex = colNumber;
+      if (value === etiquetaPrimerDia && colEtiquetaVentana === -1) {
+        colEtiquetaVentana = colNumber;
+      }
+      if (value === '1' && colNumeroUno === -1) {
+        colNumeroUno = colNumber;
       }
     });
+
+    const primerDiaColIndex =
+      colEtiquetaVentana !== -1 ? colEtiquetaVentana : colNumeroUno;
 
     if (dniColIndex === -1) {
       throw new BadRequestException('No se encontró la columna DNI');
@@ -204,8 +198,6 @@ export class TareoExcelService {
     if (primerDiaColIndex === -1) {
       throw new BadRequestException('No se encontraron las columnas de días');
     }
-
-    const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
 
     const cambios: Array<{
       empleado_id: number;
@@ -317,7 +309,7 @@ export class TareoExcelService {
       const detallesMap = new Map(tareo.detalles.map((d) => [d.dia, d]));
       const contrato = empleadoToContrato.get(tareo.empleado.id);
 
-      for (let dia = 1; dia <= diasDelMes; dia++) {
+      for (let dia = 1; dia <= diasPeriodo; dia++) {
         const colIndex = primerDiaColIndex + dia - 1;
         const cell = row.getCell(colIndex);
         const columna = getColumnLetter(colIndex);
@@ -326,10 +318,9 @@ export class TareoExcelService {
         const valorOriginal = this.cellToString(cell.value)?.trim() || '';
 
         // Validar si el día está fuera del contrato
-        const diaEnContrato = this.isDiaEnContrato(
+        const diaEnContrato = isDiaEnContrato(
           dia,
-          periodo.mes,
-          periodo.anio,
+          ventana.fechaInicio,
           contrato?.fecha_inicio || null,
           contrato?.fecha_fin || null,
         );
@@ -337,7 +328,7 @@ export class TareoExcelService {
         if (
           !diaEnContrato &&
           codigoNuevo &&
-          !this.isCodigoPermitidoFueraContrato(codigoNuevo)
+          !isCodigoPermitidoFueraContrato(codigoNuevo)
         ) {
           errores.push({
             fila: rowNumber,
@@ -422,6 +413,9 @@ export class TareoExcelService {
         'No se puede importar a un periodo anulado',
       );
     }
+
+    // Ventana real del período: la fecha de cada día ordinal sale de aquí.
+    const ventana = ventanaDePeriodo(periodo);
 
     const tiposMarcacion = await this.prisma.tipoMarcacion.findMany();
     const codigoToId = new Map(
@@ -509,19 +503,16 @@ export class TareoExcelService {
       }
 
       const contrato = empleadoToContrato.get(cambio.empleado_id);
-      const diaEnContrato = this.isDiaEnContrato(
+      const diaEnContrato = isDiaEnContrato(
         cambio.dia,
-        periodo.mes,
-        periodo.anio,
+        ventana.fechaInicio,
         contrato?.fecha_inicio || null,
         contrato?.fecha_fin || null,
       );
 
       if (
         !diaEnContrato &&
-        !this.isCodigoPermitidoFueraContrato(
-          cambio.codigo?.toUpperCase() || null,
-        )
+        !isCodigoPermitidoFueraContrato(cambio.codigo?.toUpperCase() || null)
       ) {
         errores++;
         continue;

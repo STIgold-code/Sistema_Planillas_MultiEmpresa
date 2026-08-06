@@ -15,7 +15,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Search, ChevronLeft, ChevronRight, ChevronDown, Filter, Calendar, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDateSafe } from '@/lib/utils';
+import { esPeriodoCalendario } from '@/lib/ventana-periodo';
 import type { TareoGrillaResponse } from '@/types';
 
 interface TareoFiltersProps {
@@ -128,8 +129,15 @@ export function TareoFilters({
             </SelectContent>
           </Select>
 
-          {/* Filtro de rango de días */}
-          <div className="flex items-center gap-2 bg-muted/50 rounded-md px-2 py-1">
+          {/* Filtro de rango de días (ordinales del período: 1 = fecha de inicio) */}
+          <div
+            className="flex items-center gap-2 bg-muted/50 rounded-md px-2 py-1"
+            title={
+              esPeriodoCalendario(data.periodo.fecha_inicio)
+                ? undefined
+                : `Días del período: 1 = ${formatDateSafe(data.periodo.fecha_inicio)}, ${data.periodo.dias_mes} = ${formatDateSafe(data.periodo.fecha_fin)}`
+            }
+          >
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-sm text-muted-foreground shrink-0">Días:</span>
             <Input

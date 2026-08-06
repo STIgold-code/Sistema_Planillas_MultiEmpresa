@@ -32,6 +32,10 @@ import {
   EmpresaConRegimenDefault,
   resolverRegimenLaboral,
 } from './resolver-regimen-laboral';
+import {
+  calcularVentanaPeriodo,
+  VentanaPeriodo,
+} from '../../tareo/ventana-periodo';
 
 /** Jornada legal máxima diaria (D.S. 007-2002-TR). */
 const JORNADA_MAXIMA_DIARIA = 8;
@@ -90,6 +94,11 @@ export interface ParametrosMapeoEntrada {
   empresa: EmpresaConRegimenDefault;
   mes: number;
   anio: number;
+  /**
+   * Ventana real del período de tareo (con día de corte puede no ser el mes
+   * calendario). Si se omite, se usa el mes calendario de `mes`/`anio`.
+   */
+  ventanaPeriodo?: VentanaPeriodo;
   acumuladoRenta?: number;
   retencionesPreviasRenta?: number;
 }
@@ -156,6 +165,8 @@ export function mapearEntradaCalculo(
   params: ParametrosMapeoEntrada,
 ): EntradaCalculo {
   const { empleado, empresa, mes, anio } = params;
+  const ventana =
+    params.ventanaPeriodo ?? calcularVentanaPeriodo(anio, mes, null);
   const contratoPeriodo = empleado.contratos?.[0] ?? null;
   const regimenLaboral = resolverRegimenLaboral(contratoPeriodo, empresa);
 
@@ -177,8 +188,9 @@ export function mapearEntradaCalculo(
     periodo: {
       anio,
       mes,
-      // Fecha de referencia = último día del mes para resolver parámetros legales.
-      fecha: new Date(anio, mes, 0),
+      // Fecha de referencia para resolver parámetros legales = fin de la ventana
+      // del período (con período calendario, el último día del mes).
+      fecha: ventana.fechaFin,
     },
     tareo,
     acumuladoRenta: params.acumuladoRenta ?? 0,

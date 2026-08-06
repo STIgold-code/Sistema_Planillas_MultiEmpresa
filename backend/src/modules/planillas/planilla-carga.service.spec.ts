@@ -18,14 +18,22 @@ describe('PlanillaCargaService.resolverPeriodoTareo — IDOR cross-tenant (C-5)'
   }
 
   it('scopea por empresa_id al resolver un periodo_tareo_id explícito', async () => {
-    const { service, findFirst } = build({ id: 99, estado: 'CERRADO' });
-    await service.resolverPeriodoTareo(
+    const { service, findFirst } = build({
+      id: 99,
+      estado: 'CERRADO',
+      fecha_inicio: new Date(Date.UTC(2026, 1, 26)),
+      fecha_fin: new Date(Date.UTC(2026, 2, 25)),
+    });
+    const resultado = await service.resolverPeriodoTareo(
       { periodo_tareo_id: 99, anio: 2026, mes: 3 },
       7,
     );
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 99, empresa_id: 7 },
     });
+    // Devuelve la VENTANA real del período (aquí, con día de corte 25).
+    expect(resultado.ventana?.fechaInicio.getDate()).toBe(26);
+    expect(resultado.ventana?.fechaFin.getDate()).toBe(25);
   });
 
   it('aborta si el período pertenece a otra empresa (findFirst → null)', async () => {
