@@ -22,7 +22,10 @@ import {
 } from '../conceptos/gratificacion';
 import { calcularCts } from '../conceptos/cts';
 import { calcularVacaciones } from '../conceptos/vacaciones';
-import { calcularAsignacionFamiliar } from '../conceptos/asignacion-familiar';
+import {
+  calcularAsignacionFamiliar,
+  computableConAsignacionFamiliar,
+} from '../conceptos/asignacion-familiar';
 import { calcularSaludEmpleador } from '../conceptos/salud-empleador';
 
 /** Factor REMYPE pequeña: medio beneficio respecto al régimen general. */
@@ -38,8 +41,8 @@ export class RegimenPequenaEmpresa implements CalculadoraRegimen {
   ): ResultadoConcepto {
     return {
       conceptos: [
-        ...this.gratificacion(ctx).conceptos,
-        ...this.cts(ctx).conceptos,
+        ...this.gratificacion(ctx, params).conceptos,
+        ...this.cts(ctx, params).conceptos,
         ...this.vacaciones(ctx).conceptos,
         ...this.asignacionFamiliar(ctx, params).conceptos,
         ...this.saludEmpleador(ctx, params).conceptos,
@@ -55,11 +58,29 @@ export class RegimenPequenaEmpresa implements CalculadoraRegimen {
     return [CLAVE_GRATIFICACION];
   }
 
-  gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
+  /**
+   * Remuneración computable de gratificación y CTS: la remuneración regular del
+   * período. La asignación familiar es remuneración regular (Ley 25129), por lo
+   * que INTEGRA esta base — mismo criterio ya aplicado a la base de EsSalud.
+   */
+  private computableBeneficios(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): number {
+    return computableConAsignacionFamiliar(
+      ctx.remuneracionComputable,
+      this.asignacionFamiliar(ctx, params),
+    );
+  }
+
+  gratificacion(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto {
     return calcularGratificacion(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: ctx.remuneracionComputable,
+        remuneracionComputable: this.computableBeneficios(ctx, params),
         mesesTrabajados: ctx.devengados.mesesGratificacion,
         resumenTareo: ctx.resumenTareo,
       },
@@ -67,11 +88,11 @@ export class RegimenPequenaEmpresa implements CalculadoraRegimen {
     );
   }
 
-  cts(ctx: ContextoCalculo): ResultadoConcepto {
+  cts(ctx: ContextoCalculo, params: ParametrosLegales): ResultadoConcepto {
     return calcularCts(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: ctx.remuneracionComputable,
+        remuneracionComputable: this.computableBeneficios(ctx, params),
         sextoGratificacion: ctx.devengados.sextoGratificacion,
         mesesCts: ctx.devengados.mesesCts,
         diasCts: ctx.devengados.diasCts,

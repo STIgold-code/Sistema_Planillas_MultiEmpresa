@@ -187,6 +187,10 @@ export class PlanillaDetalleService {
     );
     const bonificaciones = getVal(dto.bonificaciones, detalle.bonificaciones);
     const otrosIngresos = getVal(dto.otros_ingresos, detalle.otros_ingresos);
+    // No editable por DTO: se conserva el valor calculado de la fila. El cálculo
+    // completo sí lo suma a los afectos, así que este recálculo debe sumarlo
+    // también para que ambos caminos den el MISMO total.
+    const descansoTrabajadoMonto = safeNumber(detalle.descanso_trabajado_monto);
 
     const totalIngresosAfectos =
       haberMensual +
@@ -195,6 +199,7 @@ export class PlanillaDetalleService {
       horasExtras25 +
       horasExtras35 +
       feriadoTrabajado +
+      descansoTrabajadoMonto +
       descansoMedicoMonto +
       subsidioIncapacidad +
       subsidioMaternidad +
@@ -258,12 +263,19 @@ export class PlanillaDetalleService {
       dto.venta_vacaciones,
       detalle.venta_vacaciones,
     );
+    // Bonificación extraordinaria (Ley 30334): es ingreso SOLO cuando el período
+    // paga gratificación. Fuera de julio/diciembre el campo guarda un valor de
+    // referencia (9% de la base) que no se paga, por eso no se suma — es la
+    // misma regla que aplica el cálculo completo de la planilla.
+    const bonifExtraordinaria =
+      gratificacionMonto > 0 ? safeNumber(detalle.bonif_extraordinaria) : 0;
 
     const totalIngresosNoAfectos =
       remuneracionVacacional +
       compensacionVacacional +
       ctsMonto +
       gratificacionMonto +
+      bonifExtraordinaria +
       movilidad +
       refrigerio +
       bonoDesempenoMonto +

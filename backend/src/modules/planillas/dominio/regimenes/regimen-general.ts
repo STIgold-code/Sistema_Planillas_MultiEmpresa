@@ -5,6 +5,8 @@
  * con los factores del régimen general:
  *   - Gratificación: 1 sueldo completo por semestre (factor 1).
  *   - CTS: 1 sueldo por semestre, incluye 1/6 de gratificación (factor 1).
+ *   - Computable de gratificación y CTS: remuneración básica + asignación
+ *     familiar, que es remuneración regular (Ley 25129).
  *   - Vacaciones: valoriza los días gozados del período (derecho 30 días/año).
  *   - Asignación familiar: 10% RMV si tiene hijos.
  *   - Salud: EsSalud 9% con piso RMV.
@@ -22,7 +24,10 @@ import {
 } from '../conceptos/gratificacion';
 import { calcularCts } from '../conceptos/cts';
 import { calcularVacaciones } from '../conceptos/vacaciones';
-import { calcularAsignacionFamiliar } from '../conceptos/asignacion-familiar';
+import {
+  calcularAsignacionFamiliar,
+  computableConAsignacionFamiliar,
+} from '../conceptos/asignacion-familiar';
 import { calcularSaludEmpleador } from '../conceptos/salud-empleador';
 
 export class RegimenGeneral implements CalculadoraRegimen {
@@ -35,8 +40,8 @@ export class RegimenGeneral implements CalculadoraRegimen {
   ): ResultadoConcepto {
     return {
       conceptos: [
-        ...this.gratificacion(ctx).conceptos,
-        ...this.cts(ctx).conceptos,
+        ...this.gratificacion(ctx, params).conceptos,
+        ...this.cts(ctx, params).conceptos,
         ...this.vacaciones(ctx).conceptos,
         ...this.asignacionFamiliar(ctx, params).conceptos,
         ...this.saludEmpleador(ctx, params).conceptos,
@@ -52,11 +57,29 @@ export class RegimenGeneral implements CalculadoraRegimen {
     return [CLAVE_GRATIFICACION];
   }
 
-  gratificacion(ctx: ContextoCalculo): ResultadoConcepto {
+  /**
+   * Remuneración computable de gratificación y CTS: la remuneración regular del
+   * período. La asignación familiar es remuneración regular (Ley 25129), por lo
+   * que INTEGRA esta base — mismo criterio ya aplicado a la base de EsSalud.
+   */
+  private computableBeneficios(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): number {
+    return computableConAsignacionFamiliar(
+      ctx.remuneracionComputable,
+      this.asignacionFamiliar(ctx, params),
+    );
+  }
+
+  gratificacion(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): ResultadoConcepto {
     return calcularGratificacion(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: ctx.remuneracionComputable,
+        remuneracionComputable: this.computableBeneficios(ctx, params),
         mesesTrabajados: ctx.devengados.mesesGratificacion,
         resumenTareo: ctx.resumenTareo,
       },
@@ -64,11 +87,11 @@ export class RegimenGeneral implements CalculadoraRegimen {
     );
   }
 
-  cts(ctx: ContextoCalculo): ResultadoConcepto {
+  cts(ctx: ContextoCalculo, params: ParametrosLegales): ResultadoConcepto {
     return calcularCts(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: ctx.remuneracionComputable,
+        remuneracionComputable: this.computableBeneficios(ctx, params),
         sextoGratificacion: ctx.devengados.sextoGratificacion,
         mesesCts: ctx.devengados.mesesCts,
         diasCts: ctx.devengados.diasCts,

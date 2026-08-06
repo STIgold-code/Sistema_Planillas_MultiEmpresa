@@ -12,11 +12,12 @@
  * (días de ingreso/cese, meses del semestre) se resuelven en el borde y se
  * inyectan vía `EntradaDetalle`.
  *
- * NOTA DE PARIDAD (brecha legal heredada conscientemente): el legacy fija
+ * NOTA DE PARIDAD (brecha legal ya CORREGIDA): el legacy fijaba
  * `asignacion_familiar = 0` ("no viene del tareo") y, en consecuencia, las bases
- * de gratificación/CTS/vacaciones NO incluyen asignación familiar. Se hereda esa
- * brecha A PROPÓSITO para no mover el cálculo. Habilitarla es un cambio de
- * comportamiento separado que actualizará los golden conscientemente.
+ * de gratificación y CTS no la incluían. Como la asignación familiar es
+ * remuneración regular (Ley 25129), hoy INTEGRA la computable de gratificación
+ * (Ley 27735) y la de CTS (D.S. 001-97-TR). Los golden GENERAL usan trabajadores
+ * sin asignación familiar, por lo que su salida no cambia.
  */
 import { ParametrosLegales } from '../parametros/parametros-legales';
 import { DetalleCompleto, EntradaDetalle } from './tipos-detalle';
@@ -135,8 +136,14 @@ export function calcularDetalleCompleto(
   const remuneracionAfecta = totalIngresosAfectos;
 
   // --- Beneficios periódicos (grati, CTS) ---
+  // La asignación familiar es remuneración REGULAR (Ley 25129): integra la
+  // computable de gratificación (Ley 27735) y la de CTS (D.S. 001-97-TR). Se
+  // gatea por días trabajados igual que el resto de bases de la estructura.
+  const asigFamBase = hayDiasTrabajados ? asignacionFamiliar : 0;
+
   const remComputableGratificacion =
     gratBase +
+    asigFamBase +
     entrada.promedios.promedioHorasExtras +
     entrada.promedios.promedioComisiones +
     entrada.promedios.promedioBonificaciones;
@@ -153,6 +160,7 @@ export function calcularDetalleCompleto(
       : redondear2(gratBase / 6);
   const remComputableCts =
     ctsBase +
+    asigFamBase +
     sextoGratificacion +
     entrada.promedios.promedioHorasExtras +
     entrada.promedios.promedioComisiones;

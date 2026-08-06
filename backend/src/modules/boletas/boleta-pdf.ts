@@ -692,20 +692,58 @@ export function dibujarBoletaA4(
       monto: Number(detalle.otros_descuentos),
     });
 
+  // Altura REAL de cada renglón: una etiqueta larga ("SUELDO PROPORCIONAL",
+  // "BONIF. EXTRAORD. GRAT.") envuelve a 2 líneas dentro de su columna. Si la
+  // fila avanzara siempre una altura fija, la segunda línea se imprimiría encima
+  // del concepto siguiente. Se mide el alto real del texto con el ancho de
+  // columna disponible y la fila crece en múltiplos del renglón base.
+  const altoLineaConcepto = doc
+    .font(normalFont)
+    .fontSize(7)
+    .currentLineHeight(true);
+
+  const lineasEtiqueta = (item?: { concepto: string }): number => {
+    if (!item) return 1;
+    const alto = doc
+      .font(normalFont)
+      .fontSize(7)
+      .heightOfString(item.concepto, { width: conceptColW - 6 });
+    return Math.max(1, Math.round(alto / altoLineaConcepto));
+  };
+
   // Calcular filas disponibles para 3 columnas
   const espacioRestante = altoTotal - (y - startY) - 90;
-  const filasDisponibles = Math.floor(espacioRestante / conceptRowH);
-  const maxFilas = Math.min(
-    Math.max(10, ingresos.length, afpOnp.length, descuentos.length),
-    filasDisponibles,
+  const filasCandidatas = Math.max(
+    10,
+    ingresos.length,
+    afpOnp.length,
+    descuentos.length,
   );
 
+  // La altura de una fila es la mayor de sus 3 columnas, para que la grilla no
+  // se desalinee. Se descartan las filas que ya no entran en el espacio libre.
+  const altosFila: number[] = [];
+  let altoAcumulado = 0;
+  for (let i = 0; i < filasCandidatas; i++) {
+    const alto =
+      conceptRowH *
+      Math.max(
+        lineasEtiqueta(ingresos[i]),
+        lineasEtiqueta(afpOnp[i]),
+        lineasEtiqueta(descuentos[i]),
+      );
+    if (altoAcumulado + alto > espacioRestante) break;
+    altosFila.push(alto);
+    altoAcumulado += alto;
+  }
+
   // Dibujar filas de conceptos (3 columnas)
-  for (let i = 0; i < maxFilas; i++) {
+  for (let i = 0; i < altosFila.length; i++) {
+    const filaH = altosFila[i];
     doc.strokeColor(COLOR_GRIS);
-    doc.rect(startX, y, col3W, conceptRowH).stroke();
-    doc.rect(startX + col3W, y, col3W, conceptRowH).stroke();
-    doc.rect(startX + col3W * 2, y, col3W, conceptRowH).stroke();
+    doc.rect(startX, y, col3W, filaH).stroke();
+    doc.rect(startX + col3W, y, col3W, filaH).stroke();
+    doc.rect(startX + col3W * 2, y, col3W, filaH).stroke();
 
     // Columna INGRESOS
     if (ingresos[i]) {
@@ -752,7 +790,7 @@ export function dibujarBoletaA4(
       );
     }
 
-    y += conceptRowH;
+    y += filaH;
   }
 
   // =============================================

@@ -30,3 +30,26 @@ export function calcularAsignacionFamiliar(
   };
   return { conceptos: [concepto] };
 }
+
+/**
+ * Remuneración computable de BENEFICIOS (gratificación Ley 27735 y CTS
+ * D.S. 001-97-TR) = remuneración básica MÁS la asignación familiar.
+ *
+ * La asignación familiar es remuneración REGULAR y permanente (Ley 25129), por
+ * lo que integra la base de cálculo de ambos beneficios. Es el mismo criterio
+ * que ya se aplica a la base de cotización (EsSalud, pensión y renta de 5ta).
+ *
+ * Recibe el RESULTADO del concepto (no el flag) para que cada estrategia decida
+ * si otorga la asignación: los régimenes que no la emiten (microempresa) o los
+ * que calculan sus beneficios sobre otra base legal (agrario, construcción
+ * civil) no ven alterada su computable.
+ */
+export function computableConAsignacionFamiliar(
+  remuneracionComputable: number,
+  asignacionFamiliar: ResultadoConcepto,
+): number {
+  const monto = asignacionFamiliar.conceptos
+    .filter((c) => c.clave === CLAVE_ASIGNACION_FAMILIAR)
+    .reduce((acc, c) => acc + c.monto, 0);
+  return Math.round((remuneracionComputable + monto) * 100) / 100;
+}
