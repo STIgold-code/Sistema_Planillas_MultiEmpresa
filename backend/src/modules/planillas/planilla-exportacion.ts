@@ -21,6 +21,9 @@ export async function exportarPlanilla(
       total_bruto: true,
       total_descuentos: true,
       total_neto: true,
+      empresa: {
+        select: { razon_social: true, nombre_comercial: true, ruc: true },
+      },
       periodo_tareo: {
         select: { id: true, mes: true, anio: true },
       },
@@ -193,6 +196,11 @@ export async function exportarPlanilla(
   return {
     cabecera: {
       periodo: `${planilla.mes}/${planilla.anio}`,
+      empresa: {
+        razon_social: planilla.empresa.razon_social,
+        nombre_comercial: planilla.empresa.nombre_comercial,
+        ruc: planilla.empresa.ruc,
+      },
       anio: planilla.anio,
       mes: planilla.mes,
       fecha_proceso: ahoraPeru().toJSDate(),

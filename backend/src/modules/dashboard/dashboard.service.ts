@@ -62,11 +62,21 @@ export class DashboardService {
       this.prisma.planilla.findFirst({
         where: { empresa_id: empresaId, estado: { not: 'BORRADOR' } },
         orderBy: [{ anio: 'desc' }, { mes: 'desc' }],
-        select: { total_neto: true },
+        select: { total_neto: true, anio: true, mes: true },
       }),
     ]);
 
+    // Etiqueta con el período REAL de la planilla mostrada (puede no ser el mes
+    // corriente si aún no se generó la del mes).
+    const planillaPeriodo = ultimaPlanilla
+      ? new Date(ultimaPlanilla.anio, ultimaPlanilla.mes - 1, 1).toLocaleString(
+          'es-PE',
+          { month: 'long', year: 'numeric' },
+        )
+      : null;
+
     return {
+      planillaPeriodo,
       totalEmpleados,
       empleadosCesados,
       empleadosPendientes,
