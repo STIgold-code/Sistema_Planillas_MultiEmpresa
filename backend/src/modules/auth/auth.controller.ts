@@ -10,6 +10,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto } from './dto';
 import { Public, CurrentUser } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/types/auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -58,7 +59,9 @@ export class AuthController {
   }
 
   @Get('me')
-  async getMe(@CurrentUser('id') userId: number) {
-    return this.authService.getMe(userId);
+  async getMe(@CurrentUser() user: AuthenticatedUser) {
+    // empresa_id ya viene resuelto por EmpresaActivaGuard (empresa activa
+    // para superadmin con X-Empresa-Activa; la propia en el resto).
+    return this.authService.getMe(user.id, user.empresa_id);
   }
 }

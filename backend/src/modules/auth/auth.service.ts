@@ -136,7 +136,7 @@ export class AuthService {
     }
   }
 
-  async getMe(userId: number) {
+  async getMe(userId: number, empresaActivaId?: number) {
     const user = await this.prisma.usuario.findUnique({
       where: { id: userId },
       include: {
@@ -151,6 +151,22 @@ export class AuthService {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _pass3, ...userWithoutPassword } = user;
+
+    // La identidad visible (sidebar, header) debe reflejar la empresa ACTIVA,
+    // no la de pertenencia del usuario. Para no-superadmin son la misma.
+    if (empresaActivaId && empresaActivaId !== user.empresa_id) {
+      const empresaActiva = await this.prisma.empresa.findUnique({
+        where: { id: empresaActivaId },
+      });
+      if (empresaActiva) {
+        return {
+          ...userWithoutPassword,
+          empresa_id: empresaActiva.id,
+          empresa: empresaActiva,
+        };
+      }
+    }
+
     return userWithoutPassword;
   }
 

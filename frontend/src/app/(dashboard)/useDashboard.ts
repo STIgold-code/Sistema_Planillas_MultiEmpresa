@@ -54,6 +54,8 @@ export interface DashboardStats {
   ausenciasHoy: number;
   ausenciasMes: number;
   planillaMes: number;
+  /** Período real de la planilla mostrada en el KPI (ej. "julio de 2026"). */
+  planillaPeriodo: string | null;
   solicitudesCesePendientes: number;
   mesActual: string;
 }

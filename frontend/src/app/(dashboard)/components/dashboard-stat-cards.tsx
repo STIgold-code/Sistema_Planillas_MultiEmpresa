@@ -75,7 +75,7 @@ export function DashboardStatCards({ stats }: Props) {
       titulo: 'Planilla Mes',
       valor: stats.planillaMes ?? null,
       valorStr: stats.planillaMes != null ? formatCurrency(stats.planillaMes) : '-',
-      descripcion: stats.mesActual || '',
+      descripcion: stats.planillaPeriodo || stats.mesActual || '',
       icono: DollarSign,
       color: 'text-purple-600',
       bg: 'bg-purple-100',

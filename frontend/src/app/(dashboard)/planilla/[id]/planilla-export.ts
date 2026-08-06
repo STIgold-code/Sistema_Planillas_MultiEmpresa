@@ -16,6 +16,11 @@ interface CabeceraExportacion {
   total_bruto: number;
   total_neto: number;
   total_descuentos: number;
+  empresa?: {
+    razon_social: string;
+    nombre_comercial?: string | null;
+    ruc: string;
+  };
 }
 interface DetalleExportacion {
   documento: string;
@@ -135,26 +140,8 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       const detalles = data.detalles;
 
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'JJMM - Sistema de Planillas';
+      workbook.creator = 'Sistema de Planillas';
       workbook.created = new Date();
-
-      // ========================================
-      // CARGAR LOGO
-      // ========================================
-      let logoImageId: number | null = null;
-      try {
-        const logoResponse = await fetch('/images/logo-JJMM.png');
-        if (logoResponse.ok) {
-          const logoBlob = await logoResponse.blob();
-          const logoBuffer = await logoBlob.arrayBuffer();
-          logoImageId = workbook.addImage({
-            buffer: logoBuffer,
-            extension: 'png',
-          });
-        }
-      } catch {
-        // Si no se puede cargar el logo, continuar sin él
-      }
 
       // ========================================
       // CALCULAR ESTADÍSTICAS
@@ -304,21 +291,15 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
 
       let resRow = 1;
 
-      if (logoImageId !== null) {
-        wsResumen.addImage(logoImageId, { tl: { col: 0.2, row: 0.2 }, ext: { width: 70, height: 70 } });
-        wsResumen.getRow(1).height = 35;
-        wsResumen.getRow(2).height = 35;
-      }
-
       wsResumen.mergeCells(`B${resRow}:G${resRow}`);
       const empresaTitulo = wsResumen.getCell(`B${resRow}`);
-      empresaTitulo.value = 'JJMM';
+      empresaTitulo.value = cab.empresa?.razon_social ?? '';
       empresaTitulo.font = { bold: true, size: 18, color: { argb: COLORES.HEADER_DARK } };
       empresaTitulo.alignment = { horizontal: 'center', vertical: 'middle' };
       resRow++;
 
       wsResumen.mergeCells(`B${resRow}:G${resRow}`);
-      wsResumen.getCell(`B${resRow}`).value = 'RUC: 20100123456';
+      wsResumen.getCell(`B${resRow}`).value = cab.empresa ? `RUC: ${cab.empresa.ruc}` : '';
       wsResumen.getCell(`B${resRow}`).font = { size: 11, color: { argb: COLORES.TEXT_GRAY } };
       wsResumen.getCell(`B${resRow}`).alignment = { horizontal: 'center' };
       resRow += 2;
@@ -459,13 +440,11 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
         properties: { tabColor: { argb: COLORES.DATOS } },
       });
 
-      if (logoImageId !== null) {
-        ws.addImage(logoImageId, { tl: { col: 0, row: 0 }, ext: { width: 50, height: 50 } });
-      }
-
       ws.mergeCells('B1:K1');
       const titleCell = ws.getCell('B1');
-      titleCell.value = 'PLANILLA DE REMUNERACIONES';
+      titleCell.value = cab.empresa
+        ? `PLANILLA DE REMUNERACIONES — ${cab.empresa.razon_social}`
+        : 'PLANILLA DE REMUNERACIONES';
       Object.assign(titleCell, styles.titulo);
       ws.getRow(1).height = 30;
 

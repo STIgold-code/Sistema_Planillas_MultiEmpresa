@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Building2 } from "lucide-react";
 import { useDashboard, type SolicitudCesePendiente } from "./useDashboard";
+import { useEmpresa } from "@/hooks/useEmpresa";
 import { DashboardSkeleton } from "./components/dashboard-skeleton";
 import { DashboardStatCards } from "./components/dashboard-stat-cards";
 import { DashboardEmpleadosPendientes } from "./components/dashboard-empleados-pendientes";
@@ -46,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function DashboardPage() {
   const db = useDashboard();
+  const { empresa } = useEmpresa();
   const [solicitudDetalle, setSolicitudDetalle] =
     useState<SolicitudCesePendiente | null>(null);
   const [solicitudAnulacionDetalle, setSolicitudAnulacionDetalle] =
@@ -86,6 +88,17 @@ export default function DashboardPage() {
         <p className="text-sm md:text-base text-muted-foreground capitalize">
           {db.formattedDate}
         </p>
+        {empresa && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Building2 className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+            <span className="text-base md:text-lg font-semibold">
+              {empresa.razon_social}
+            </span>
+            <span className="text-xs md:text-sm text-muted-foreground">
+              RUC {empresa.ruc}
+            </span>
+          </div>
+        )}
       </div>
 
       {db.stats && <DashboardStatCards stats={db.stats} />}
