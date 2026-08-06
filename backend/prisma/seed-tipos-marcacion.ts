@@ -20,6 +20,13 @@ interface TipoMarcacionSeed {
   es_laborable: boolean;
   genera_pago: boolean;
   horas_default: number;
+  /** Horas de la jornada pactada; el motor genera extras sobre las 8. */
+  horas_diurnas?: number;
+  horas_nocturnas?: number;
+  /** Al marcar la celda, rellena TareoDetalle.horas con la jornada pactada. */
+  requiere_calculo?: boolean;
+  /** Feriado laborado: paga valorDía × 2 además del día devengado. */
+  es_feriado_trabajado?: boolean;
 }
 
 const TIPOS: TipoMarcacionSeed[] = [
@@ -93,6 +100,44 @@ const TIPOS: TipoMarcacionSeed[] = [
     cuenta_como: 'LICENCIA',
     es_laborable: false,
     genera_pago: false,
+    horas_default: 8,
+  },
+  // Destaque a mina (política BM validada con el PO): jornada diurna de
+  // 8h + 4 extras fijas; el motor genera 2h al 25% y 2h al 35% por día.
+  {
+    codigo: 'MINA',
+    descripcion: 'Destaque a mina (8h + 4 extras)',
+    color: '#16a34a',
+    cuenta_como: 'DIA_TRABAJADO',
+    es_laborable: true,
+    genera_pago: true,
+    horas_default: 12,
+    horas_diurnas: 12,
+    horas_nocturnas: 0,
+    requiere_calculo: true,
+  },
+  {
+    codigo: 'MINA-F',
+    descripcion: 'Destaque a mina en feriado',
+    color: '#a855f7',
+    cuenta_como: 'FERIADO_TRABAJADO',
+    es_laborable: true,
+    genera_pago: true,
+    horas_default: 12,
+    horas_diurnas: 12,
+    horas_nocturnas: 0,
+    requiere_calculo: true,
+    es_feriado_trabajado: true,
+  },
+  // Descanso semanal trabajado al 100% (a elección del trabajador): además
+  // del día devengado, el motor paga valorDía × 2 por el descanso laborado.
+  {
+    codigo: 'DT',
+    descripcion: 'Descanso trabajado',
+    color: '#eab308',
+    cuenta_como: 'DIA_TRABAJADO',
+    es_laborable: true,
+    genera_pago: true,
     horas_default: 8,
   },
 ];

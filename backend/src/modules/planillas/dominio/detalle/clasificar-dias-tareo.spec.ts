@@ -82,3 +82,41 @@ describe('clasificarDiasTareo', () => {
     expect(c.cantidadFeriados).toBe(1);
   });
 });
+
+describe('clasificarDiasTareo - destaque a mina (política BM: 8h + 4 extras diurnas)', () => {
+  it('MINA de 12h diurnas devenga el día y genera 2h al 25% y 2h al 35%', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'MINA', horasDetalle: 12, horasDiurnas: 12 }),
+    ]);
+    expect(c.diasLaborables).toBe(1);
+    expect(c.turnoDia).toBe(1);
+    expect(c.turnoNoche).toBe(0);
+    expect(c.totalHorasExtrasDiurnas25).toBe(2);
+    expect(c.totalHorasExtrasDiurnas35).toBe(2);
+    expect(c.totalHorasExtrasNocturnas25).toBe(0);
+  });
+
+  it('MINA-F (feriado trabajado en destaque) suma además el feriado doble', () => {
+    const c = clasificarDiasTareo([
+      dia({
+        codigo: 'MINA-F',
+        horasDetalle: 12,
+        horasDiurnas: 12,
+        esFeriadoTrabajado: true,
+      }),
+    ]);
+    // Día devengado + feriado trabajado (paga valorDía × 2 aparte) + extras.
+    expect(c.diasLaborables).toBe(1);
+    expect(c.cantidadFeriados).toBe(1);
+    expect(c.totalHorasExtrasDiurnas25).toBe(2);
+    expect(c.totalHorasExtrasDiurnas35).toBe(2);
+  });
+
+  it('DT (descanso trabajado al 100%, a elección del trabajador) devenga y paga doble aparte', () => {
+    const c = clasificarDiasTareo([dia({ codigo: 'DT' })]);
+    // Día base devengado + diasDescansoTrabajado paga valorDía × 2 aparte:
+    // descanso ya remunerado en los 30 + día trabajado + sobretasa 100%.
+    expect(c.diasLaborables).toBe(1);
+    expect(c.diasDescansoTrabajado).toBe(1);
+  });
+});
