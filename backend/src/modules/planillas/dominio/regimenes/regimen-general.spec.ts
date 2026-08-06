@@ -63,7 +63,7 @@ describe('RegimenGeneral (D.L. 728)', () => {
     const c = ctx({
       periodo: { anio: 2026, mes: 7, fecha: new Date('2026-07-31') },
     });
-    expect(general.gratificacion(c).conceptos[0]?.monto).toBe(3000);
+    expect(general.gratificacion(c, params).conceptos[0]?.monto).toBe(3000);
   });
 
   it('CTS = 1 sueldo (incluye 1/6 grati) en noviembre', () => {
@@ -71,7 +71,25 @@ describe('RegimenGeneral (D.L. 728)', () => {
       periodo: { anio: 2026, mes: 11, fecha: new Date('2026-11-30') },
     });
     // (3000+500)/12*6 = 1750
-    expect(general.cts(c).conceptos[0]?.monto).toBe(1750);
+    expect(general.cts(c, params).conceptos[0]?.monto).toBe(1750);
+  });
+
+  it('gratificación: la asignación familiar integra la computable (Ley 25129)', () => {
+    const c = ctx({
+      tieneHijos: true,
+      periodo: { anio: 2026, mes: 7, fecha: new Date('2026-07-31') },
+    });
+    // (3000 + 113) × 6/6 = 3113
+    expect(general.gratificacion(c, params).conceptos[0]?.monto).toBe(3113);
+  });
+
+  it('CTS: la asignación familiar integra la computable (Ley 25129)', () => {
+    const c = ctx({
+      tieneHijos: true,
+      periodo: { anio: 2026, mes: 11, fecha: new Date('2026-11-30') },
+    });
+    // (3000 + 113 + 500)/12 × 6 = 1806.50
+    expect(general.cts(c, params).conceptos[0]?.monto).toBe(1806.5);
   });
 
   it('asignación familiar = 10% RMV solo si tiene hijos', () => {

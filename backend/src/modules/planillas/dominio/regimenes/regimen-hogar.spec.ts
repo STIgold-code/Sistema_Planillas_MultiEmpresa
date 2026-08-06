@@ -60,7 +60,7 @@ describe('RegimenHogar (Ley 31047)', () => {
   });
 
   it('gratificación = 1 sueldo completo en julio [ASUNCION A VALIDAR: entera vs media]', () => {
-    expect(hogar.gratificacion(ctx()).conceptos[0]?.monto).toBe(1200);
+    expect(hogar.gratificacion(ctx(), params).conceptos[0]?.monto).toBe(1200);
   });
 
   it('CTS = 1 sueldo/año (semestre completo) en noviembre', () => {
@@ -68,7 +68,7 @@ describe('RegimenHogar (Ley 31047)', () => {
       periodo: { anio: 2026, mes: 11, fecha: new Date('2026-11-30') },
     });
     // 1200/12*6 = 600 (medio sueldo por semestre = 1 sueldo/año)
-    expect(hogar.cts(c).conceptos[0]?.monto).toBe(600);
+    expect(hogar.cts(c, params).conceptos[0]?.monto).toBe(600);
   });
 
   it('vacaciones derecho 30 dias: valoriza los gozados del periodo', () => {

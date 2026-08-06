@@ -64,7 +64,7 @@ describe('RegimenPequenaEmpresa (REMYPE)', () => {
       periodo: { anio: 2026, mes: 7, fecha: new Date('2026-07-31') },
     });
     // 2000 * 6/6 * 0.5 = 1000
-    expect(pequena.gratificacion(c).conceptos[0]?.monto).toBe(1000);
+    expect(pequena.gratificacion(c, params).conceptos[0]?.monto).toBe(1000);
   });
 
   it('CTS = 1/2 depósito en noviembre', () => {
@@ -72,7 +72,7 @@ describe('RegimenPequenaEmpresa (REMYPE)', () => {
       periodo: { anio: 2026, mes: 11, fecha: new Date('2026-11-30') },
     });
     // (2000/12*6) * 0.5 = 500
-    expect(pequena.cts(c).conceptos[0]?.monto).toBe(500);
+    expect(pequena.cts(c, params).conceptos[0]?.monto).toBe(500);
   });
 
   it('vacaciones derecho 15 dias: valoriza solo los gozados del periodo', () => {
