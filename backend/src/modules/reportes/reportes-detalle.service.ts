@@ -11,6 +11,11 @@ import {
   finDelMesPeru,
   parsearFechaISOenPeru,
 } from '../../common/utils/datetime.util';
+import {
+  esPeriodoCalendario,
+  etiquetaDiaMes,
+  ventanaDePeriodo,
+} from '../tareo/ventana-periodo';
 
 /**
  * Servicio dedicado a la obtencion de datos para reportes (12 fetchers).
@@ -312,6 +317,10 @@ export class ReportesDetalleService {
     const mes = filtros.mes || ahora.month;
     const anio = filtros.anio || ahora.year;
 
+    // La identidad del período sigue siendo mes/año (así lo elige el usuario en
+    // el filtro); su RANGO de fechas, en cambio, se lee siempre de
+    // fecha_inicio/fecha_fin. Este reporte solo cuenta días marcados, así que no
+    // necesita traducir ordinales a fechas.
     const periodo = await this.prisma.periodoTareo.findFirst({
       where: { empresa_id: empresaId, mes, anio },
     });
@@ -622,9 +631,19 @@ export class ReportesDetalleService {
       { key: 'alerta', header: 'Alerta', width: 15 },
     ];
 
+    // La ventana real del período traduce los ordinales a fechas. En períodos
+    // calendario el ordinal ES el día del mes, así que se conserva tal cual.
+    const ventana = ventanaDePeriodo(periodo);
+    const esCalendario = esPeriodoCalendario(
+      ventana.fechaInicio,
+      ventana.fechaFin,
+    );
+    const rotularDia = (dia: number): string =>
+      esCalendario ? String(dia) : etiquetaDiaMes(ventana.fechaInicio, dia);
+
     const data = tareos
       .map((tareo) => {
-        // Obtener días justificados
+        // Obtener días justificados (dia_inicio/dia_fin son ordinales del período)
         const diasJustificados = new Set<number>();
         tareo.justificaciones.forEach((j) => {
           for (let d = j.dia_inicio; d <= j.dia_fin; d++) {
@@ -645,7 +664,7 @@ export class ReportesDetalleService {
           area: tareo.area?.nombre || '',
           faltas_sin_justificar: cantidadFaltas,
           dias_falta:
-            faltasSinJustificar.slice(0, 10).join(', ') +
+            faltasSinJustificar.slice(0, 10).map(rotularDia).join(', ') +
             (faltasSinJustificar.length > 10 ? '...' : ''),
           alerta:
             cantidadFaltas >= 3

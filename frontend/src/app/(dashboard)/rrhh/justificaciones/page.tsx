@@ -58,6 +58,12 @@ import {
 import { toast } from 'sonner';
 import { TareoJustificacion, TipoJustificacion } from '@/types';
 import { FilePreviewModal } from '@/components/ui/file-preview-modal';
+import {
+  esPeriodoCalendario,
+  etiquetaDiaMes,
+  fechaDeDia,
+} from '@/lib/ventana-periodo';
+import { parseDateLocal } from '@/lib/utils';
 
 // Configuración de tipos de justificación
 const TIPOS_JUSTIFICACION: {
@@ -116,6 +122,40 @@ function getFileIcon(tipo: string) {
   }
   if (tipo.includes('doc')) return <FileText className="h-5 w-5 text-blue-700" />;
   return <File className="h-5 w-5 text-gray-500" />;
+}
+
+/**
+ * Rango de la ventana del periodo (ej. "26/6 - 25/7"), o null si el periodo es
+ * calendario: ahi el mes y el año ya lo describen por completo.
+ */
+function rangoDelPeriodo(j: TareoJustificacion): string | null {
+  const periodo = j.tareo?.periodo;
+  if (!periodo || esPeriodoCalendario(periodo.fecha_inicio)) return null;
+  const inicio = etiquetaDiaMes(parseDateLocal(periodo.fecha_inicio));
+  const fin = etiquetaDiaMes(parseDateLocal(periodo.fecha_fin));
+  return `${inicio} - ${fin}`;
+}
+
+/**
+ * Etiqueta de los dias de una justificacion. dia_inicio/dia_fin son ORDINALES
+ * del periodo: en periodos calendario coinciden con el dia del mes y se muestran
+ * tal cual; con dia de corte se traducen a la fecha real.
+ */
+function etiquetaDias(j: TareoJustificacion, formatoLargo = false): string {
+  const periodo = j.tareo?.periodo;
+  const unSoloDia = j.dia_inicio === j.dia_fin;
+
+  if (!periodo || esPeriodoCalendario(periodo.fecha_inicio)) {
+    if (unSoloDia) return `Día ${j.dia_inicio}`;
+    return formatoLargo
+      ? `Del día ${j.dia_inicio} al ${j.dia_fin}`
+      : `${j.dia_inicio} - ${j.dia_fin}`;
+  }
+
+  const inicio = etiquetaDiaMes(fechaDeDia(periodo.fecha_inicio, j.dia_inicio));
+  const fin = etiquetaDiaMes(fechaDeDia(periodo.fecha_inicio, j.dia_fin));
+  if (unSoloDia) return inicio;
+  return formatoLargo ? `Del ${inicio} al ${fin}` : `${inicio} - ${fin}`;
 }
 
 function formatFileSize(bytes: number): string {
@@ -399,18 +439,21 @@ export default function JustificacionesPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1 text-sm">
-                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                               {j.tareo?.periodo ? (
-                                <span>{MESES[j.tareo.periodo.mes - 1]} {j.tareo.periodo.anio}</span>
+                                <span className="flex flex-col leading-tight">
+                                  <span>{MESES[j.tareo.periodo.mes - 1]} {j.tareo.periodo.anio}</span>
+                                  {rangoDelPeriodo(j) && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {rangoDelPeriodo(j)}
+                                    </span>
+                                  )}
+                                </span>
                               ) : 'N/A'}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm">
-                              {j.dia_inicio === j.dia_fin
-                                ? `Día ${j.dia_inicio}`
-                                : `${j.dia_inicio} - ${j.dia_fin}`}
-                            </span>
+                            <span className="text-sm">{etiquetaDias(j)}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -524,13 +567,16 @@ export default function JustificacionesPage() {
                         `${MESES[selectedJustificacion.tareo.periodo.mes - 1]} ${selectedJustificacion.tareo.periodo.anio}`
                       ) : 'N/A'}
                     </p>
+                    {rangoDelPeriodo(selectedJustificacion) && (
+                      <p className="text-xs text-muted-foreground">
+                        {rangoDelPeriodo(selectedJustificacion)}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Días</p>
                     <p className="font-medium mt-1">
-                      {selectedJustificacion.dia_inicio === selectedJustificacion.dia_fin
-                        ? `Día ${selectedJustificacion.dia_inicio}`
-                        : `Del día ${selectedJustificacion.dia_inicio} al ${selectedJustificacion.dia_fin}`}
+                      {etiquetaDias(selectedJustificacion, true)}
                     </p>
                   </div>
                   <div>

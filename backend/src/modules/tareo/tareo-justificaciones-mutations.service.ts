@@ -11,7 +11,12 @@ import {
 } from './dto';
 import { Prisma, EstadoPeriodoTareo } from '@prisma/client';
 import { UploadsService } from '../uploads/uploads.service';
-import { diasDelPeriodo, ventanaDePeriodo } from './ventana-periodo';
+import {
+  diasDelPeriodo,
+  fechaComoDbDate,
+  rangoOrdinalEnPeriodo,
+  ventanaDePeriodo,
+} from './ventana-periodo';
 
 /**
  * Servicio de mutaciones de justificaciones de tareo + alertas de faltas.
@@ -440,57 +445,68 @@ export class TareoJustificacionesMutationsService {
       return { empleados: [], total: 0, minimo_faltas: minimoFaltas };
     }
 
-    // Calcular los periodos que caen dentro del rango de fechas
     const fechaInicio = new Date(filters.fecha_inicio);
     const fechaFin = new Date(filters.fecha_fin);
 
-    // Obtener periodos en el rango
-    const periodos = await this.prisma.periodoTareo.findMany({
+    // Períodos cuya VENTANA persistida solapa con el rango pedido. La ventana
+    // se lee de fecha_inicio/fecha_fin: con día de corte, el período "julio"
+    // puede ir del 26-jun al 25-jul, así que derivarla de anio/mes fallaba.
+    const periodosEnRango = await this.prisma.periodoTareo.findMany({
       where: {
         empresa_id: empresaId,
-        OR: [
-          {
-            // Periodo inicia dentro del rango
-            anio: {
-              gte: fechaInicio.getFullYear(),
-              lte: fechaFin.getFullYear(),
-            },
-          },
-        ],
+        fecha_inicio: { lte: fechaComoDbDate(fechaFin) },
+        fecha_fin: { gte: fechaComoDbDate(fechaInicio) },
       },
-      select: { id: true, anio: true, mes: true },
-    });
-
-    // Filtrar periodos que realmente se solapan con el rango
-    const periodosEnRango = periodos.filter((p) => {
-      const inicioMes = new Date(p.anio, p.mes - 1, 1);
-      const finMes = new Date(p.anio, p.mes, 0);
-      return inicioMes <= fechaFin && finMes >= fechaInicio;
+      select: {
+        id: true,
+        anio: true,
+        mes: true,
+        fecha_inicio: true,
+        fecha_fin: true,
+      },
     });
 
     if (periodosEnRango.length === 0) {
       return { empleados: [], total: 0, minimo_faltas: minimoFaltas };
     }
 
-    const periodoIds = periodosEnRango.map((p) => p.id);
-
-    // Construir filtro de tareo
-    const tareoWhere: Prisma.TareoWhereInput = {
-      periodo_id: { in: periodoIds },
+    // Filtros comunes de tareo (sede/área y aislamiento por empresa)
+    const filtrosTareo: Prisma.TareoWhereInput = {
       periodo: { empresa_id: empresaId },
     };
 
-    if (filters.sede_id) tareoWhere.sede_id = filters.sede_id;
-    if (filters.area_id) tareoWhere.area_id = filters.area_id;
+    if (filters.sede_id) filtrosTareo.sede_id = filters.sede_id;
+    if (filters.area_id) filtrosTareo.area_id = filters.area_id;
 
-    // Contar faltas por empleado agrupando por empleado_id
+    // FIX de sobreconteo: antes se contaban TODAS las faltas de los períodos
+    // solapados, ignorando el rango de fechas pedido (un período que solapa un
+    // solo día aportaba su mes completo). Ahora, para cada período, el rango de
+    // fechas se traduce a su rango ORDINAL y se filtra `dia` por ese rango.
+    const condicionesPorPeriodo = periodosEnRango.flatMap((periodo) => {
+      const rango = rangoOrdinalEnPeriodo(
+        ventanaDePeriodo(periodo),
+        fechaInicio,
+        fechaFin,
+      );
+      if (!rango) return [];
+      return [
+        {
+          tareo: { ...filtrosTareo, periodo_id: periodo.id },
+          dia: { gte: rango.desde, lte: rango.hasta },
+        },
+      ];
+    });
+
+    if (condicionesPorPeriodo.length === 0) {
+      return { empleados: [], total: 0, minimo_faltas: minimoFaltas };
+    }
+
+    // Contar faltas por tareo, solo dentro del rango de días solicitado
     const faltasPorEmpleado = await this.prisma.tareoDetalle.groupBy({
       by: ['tareo_id'],
       where: {
         tipo_marcacion_id: tipoFalta.id,
-        tareo: tareoWhere,
-        // Filtrar por días dentro del rango de fechas
-        // Esto requiere lógica adicional porque dia es 1-31 y depende del periodo
+        OR: condicionesPorPeriodo,
       },
       _count: { id: true },
     });

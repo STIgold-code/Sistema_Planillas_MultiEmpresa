@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EstadoPeriodoTareo, TipoJustificacion } from '@prisma/client';
+import {
+  diasDelPeriodo,
+  fechaComoDbDate,
+  rangoOrdinalEnPeriodo,
+  ventanaDePeriodo,
+} from '../tareo/ventana-periodo';
 
 interface SolicitudVacacionesParaSync {
   id: number;
@@ -106,13 +112,18 @@ export class VacacionesTareoSyncService {
         });
 
         if (!tareo) {
-          // Crear tareo con todos los días del mes (igual que generarTareos)
+          // Crear tareo con todos los días de la VENTANA del período (igual que
+          // generarTareos): N sale del rango persistido, no del mes calendario.
           const empleado = await this.prisma.empleado.findUnique({
             where: { id: solicitud.empleado_id },
             select: { area_id: true, sede_id: true, cargo_id: true },
           });
 
-          const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
+          const ventana = ventanaDePeriodo(periodo);
+          const totalDias = diasDelPeriodo(
+            ventana.fechaInicio,
+            ventana.fechaFin,
+          );
 
           tareo = await this.prisma.tareo.create({
             data: {
@@ -124,26 +135,25 @@ export class VacacionesTareoSyncService {
             },
           });
 
-          // Crear TareoDetalle para todos los días del mes
+          // Crear TareoDetalle para todos los días ordinales del período
           const detalles = [];
-          for (let dia = 1; dia <= diasDelMes; dia++) {
+          for (let dia = 1; dia <= totalDias; dia++) {
             detalles.push({ tareo_id: tareo.id, dia });
           }
           await this.prisma.tareoDetalle.createMany({ data: detalles });
         }
 
-        // Calcular qué días de este mes están en el rango de vacaciones
-        const diasVacacionesEnMes = this.calcularDiasVacacionesEnMes(
+        // Días ordinales de este período que caen en el rango de vacaciones
+        const diasVacacionesEnPeriodo = this.calcularDiasVacacionesEnPeriodo(
+          periodo,
           fechaInicio,
           fechaFin,
-          periodo.mes,
-          periodo.anio,
         );
 
-        if (diasVacacionesEnMes.length === 0) continue;
+        if (diasVacacionesEnPeriodo.length === 0) continue;
 
         // Marcar cada día como VAC
-        for (const dia of diasVacacionesEnMes) {
+        for (const dia of diasVacacionesEnPeriodo) {
           // Buscar o crear el detalle del día
           const detalle = await this.prisma.tareoDetalle.findFirst({
             where: {
@@ -171,9 +181,10 @@ export class VacacionesTareoSyncService {
           resultado.diasMarcados++;
         }
 
-        // Crear justificación vinculada a la solicitud de vacaciones
-        const diaInicio = Math.min(...diasVacacionesEnMes);
-        const diaFin = Math.max(...diasVacacionesEnMes);
+        // Crear justificación vinculada a la solicitud de vacaciones.
+        // dia_inicio/dia_fin son ordinales del período, igual que TareoDetalle.dia.
+        const diaInicio = Math.min(...diasVacacionesEnPeriodo);
+        const diaFin = Math.max(...diasVacacionesEnPeriodo);
 
         // Evitar duplicados: si ya existe justificación para esta solicitud, no crear otra
         const justificacionExistente =
@@ -312,16 +323,15 @@ export class VacacionesTareoSyncService {
 
         if (!tareo) continue;
 
-        // Calcular días que estaban marcados
-        const diasVacacionesEnMes = this.calcularDiasVacacionesEnMes(
+        // Calcular días ordinales que estaban marcados
+        const diasVacacionesEnPeriodo = this.calcularDiasVacacionesEnPeriodo(
+          periodo,
           fechaInicio,
           fechaFin,
-          periodo.mes,
-          periodo.anio,
         );
 
         // Limpiar marcación de cada día (poner null)
-        for (const dia of diasVacacionesEnMes) {
+        for (const dia of diasVacacionesEnPeriodo) {
           await this.prisma.tareoDetalle.updateMany({
             where: {
               tareo_id: tareo.id,
@@ -349,71 +359,51 @@ export class VacacionesTareoSyncService {
   }
 
   /**
-   * Obtiene los períodos de tareo que caen dentro del rango de fechas
+   * Obtiene los períodos de tareo cuya ventana real solapa con el rango de
+   * vacaciones.
+   *
+   * REGLA DE ORO: el rango del período se lee de `fecha_inicio`/`fecha_fin`
+   * persistidos, NUNCA se reconstruye desde anio/mes. Con día de corte, unas
+   * vacaciones del 20 al 30 de julio tocan el período de julio (26-jun a 25-jul)
+   * y el de agosto (26-jul a 25-ago); enumerar meses calendario perdía el
+   * segundo.
    */
   private async obtenerPeriodosAfectados(
     empresaId: number,
     fechaInicio: Date,
     fechaFin: Date,
   ) {
-    // Calcular qué meses están involucrados
-    const mesesInvolucrados: Array<{ mes: number; anio: number }> = [];
-
-    const fechaActual = new Date(fechaInicio);
-    while (fechaActual <= fechaFin) {
-      const mes = fechaActual.getMonth() + 1;
-      const anio = fechaActual.getFullYear();
-
-      if (!mesesInvolucrados.some((m) => m.mes === mes && m.anio === anio)) {
-        mesesInvolucrados.push({ mes, anio });
-      }
-
-      // Avanzar al siguiente mes
-      fechaActual.setMonth(fechaActual.getMonth() + 1);
-      fechaActual.setDate(1);
-    }
-
-    // Buscar períodos de tareo para esos meses
-    const periodos = await this.prisma.periodoTareo.findMany({
+    return this.prisma.periodoTareo.findMany({
       where: {
         empresa_id: empresaId,
-        OR: mesesInvolucrados.map((m) => ({
-          mes: m.mes,
-          anio: m.anio,
-        })),
+        fecha_inicio: { lte: fechaComoDbDate(fechaFin) },
+        fecha_fin: { gte: fechaComoDbDate(fechaInicio) },
       },
+      orderBy: [{ anio: 'asc' }, { mes: 'asc' }],
     });
-
-    return periodos;
   }
 
   /**
-   * Calcula qué días de un mes específico están dentro del rango de vacaciones
+   * Calcula qué días ORDINALES (1..N) del período están dentro del rango de
+   * vacaciones. El ordinal es la posición dentro de la ventana del período, no
+   * el día del mes: en períodos calendario ambos coinciden.
    */
-  private calcularDiasVacacionesEnMes(
+  private calcularDiasVacacionesEnPeriodo(
+    periodo: { fecha_inicio: Date; fecha_fin: Date },
     fechaInicio: Date,
     fechaFin: Date,
-    mes: number,
-    anio: number,
   ): number[] {
+    const rango = rangoOrdinalEnPeriodo(
+      ventanaDePeriodo(periodo),
+      fechaInicio,
+      fechaFin,
+    );
+    if (!rango) return [];
+
     const dias: number[] = [];
-    const diasEnMes = new Date(anio, mes, 0).getDate();
-
-    for (let dia = 1; dia <= diasEnMes; dia++) {
-      const fechaDia = new Date(anio, mes - 1, dia);
-      fechaDia.setHours(12, 0, 0, 0); // Mediodía para evitar problemas de zona horaria
-
-      const inicio = new Date(fechaInicio);
-      inicio.setHours(0, 0, 0, 0);
-
-      const fin = new Date(fechaFin);
-      fin.setHours(23, 59, 59, 999);
-
-      if (fechaDia >= inicio && fechaDia <= fin) {
-        dias.push(dia);
-      }
+    for (let dia = rango.desde; dia <= rango.hasta; dia++) {
+      dias.push(dia);
     }
-
     return dias;
   }
 

@@ -11,10 +11,7 @@ import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
-import {
-  calcularVentanaPeriodo,
-  diasDelPeriodo,
-} from '../tareo/ventana-periodo';
+import { calcularVentanaPeriodo } from '../tareo/ventana-periodo';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -81,7 +78,6 @@ export class PlanillasCalcularService {
       ventana ?? calcularVentanaPeriodo(planilla.anio, planilla.mes, null);
     const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
       ventanaPeriodo;
-    const diasPeriodo = diasDelPeriodo(fechaInicioPeriodo, fechaFinPeriodo);
 
     const empleados = await this.carga.cargarEmpleados(
       empresaId,
@@ -141,7 +137,7 @@ export class PlanillasCalcularService {
         this.carga.recolectarWarnings(
           empleado,
           detallesTareo,
-          diasPeriodo,
+          ventanaPeriodo,
           warnings,
         );
 
