@@ -11,6 +11,10 @@ import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
+import {
+  calcularVentanaPeriodo,
+  diasDelPeriodo,
+} from '../tareo/ventana-periodo';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -67,11 +71,17 @@ export class PlanillasCalcularService {
 
     const tieneEdicionesManuales = planilla.estado === 'REVISADA';
 
-    const { periodoTareoId, warningsPlanilla } =
+    const { periodoTareoId, ventana, warningsPlanilla } =
       await this.carga.resolverPeriodoTareo(planilla, empresaId);
 
-    const fechaInicioPeriodo = new Date(planilla.anio, planilla.mes - 1, 1);
-    const fechaFinPeriodo = new Date(planilla.anio, planilla.mes, 0);
+    // El rango del período sale del período de tareo asociado. Si la planilla no
+    // tiene período (caso degradado, ya reportado como warning), se cae al mes
+    // calendario para conservar el comportamiento histórico.
+    const ventanaPeriodo =
+      ventana ?? calcularVentanaPeriodo(planilla.anio, planilla.mes, null);
+    const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
+      ventanaPeriodo;
+    const diasPeriodo = diasDelPeriodo(fechaInicioPeriodo, fechaFinPeriodo);
 
     const empleados = await this.carga.cargarEmpleados(
       empresaId,
@@ -131,7 +141,7 @@ export class PlanillasCalcularService {
         this.carga.recolectarWarnings(
           empleado,
           detallesTareo,
-          planilla,
+          diasPeriodo,
           warnings,
         );
 
@@ -157,6 +167,7 @@ export class PlanillasCalcularService {
           empresa: empresaParaRegimen,
           mes: planilla.mes,
           anio: planilla.anio,
+          ventanaPeriodo,
           acumuladoRenta: acumulado.remuneracionAcumulada,
           retencionesPreviasRenta: acumulado.retencionesAcumuladas,
           promedios: {

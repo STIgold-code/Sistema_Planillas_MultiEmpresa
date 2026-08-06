@@ -7,6 +7,11 @@ import {
   leerFechaPrisma,
   fechaHoyPeru,
 } from '../../common/utils/datetime.util';
+import {
+  diaDeFecha,
+  fechaCalendarioLocal,
+  ventanaDePeriodo,
+} from '../tareo/ventana-periodo';
 
 @Injectable()
 export class DashboardService {
@@ -52,8 +57,8 @@ export class DashboardService {
           empleado: { empresa_id: empresaId, estado: { not: 'CESADO' } },
         },
       }),
-      // Ausencias del día y mes
-      this.calcularAusencias(hoy, empresaId),
+      // Ausencias del día y del período de tareo vigente
+      this.calcularAusencias(empresaId),
       // Solicitudes de cese pendientes
       this.prisma.solicitudCese.count({
         where: { empresa_id: empresaId, estado: 'PENDIENTE' },
@@ -94,31 +99,47 @@ export class DashboardService {
   }
 
   /**
-   * Calcula las ausencias (faltas) del día actual y del mes basándose en el tareo
+   * Calcula las ausencias (faltas) del día actual y del período vigente según el
+   * tareo.
+   *
+   * El período se ubica por RANGO (fecha_inicio <= hoy <= fecha_fin), no por
+   * anio/mes: con día de corte, el período "de julio" puede ir del 26 de junio
+   * al 25 de julio. El día que se cuenta es el ORDINAL de hoy dentro de esa
+   * ventana. Si hoy no cae en ningún período, se devuelven ceros.
    */
   private async calcularAusencias(
-    hoy: Date,
     empresaId: number,
   ): Promise<{ ausenciasHoy: number; ausenciasMes: number }> {
-    const mes = hoy.getMonth() + 1;
-    const anio = hoy.getFullYear();
-    const dia = hoy.getDate();
+    // Las columnas fecha_inicio/fecha_fin son @db.Date (medianoche UTC): se
+    // compara contra la fecha de hoy en Perú normalizada al mismo formato.
+    const hoyFecha = leerFechaPrisma(fechaHoyPeru()).toJSDate();
 
-    // Buscar el período de tareo del mes actual de la empresa
     const periodoActual = await this.prisma.periodoTareo.findFirst({
       where: {
-        anio,
-        mes,
         estado: { in: ['EN_PROCESO', 'CERRADO'] },
         empresa_id: empresaId,
+        fecha_inicio: { lte: hoyFecha },
+        fecha_fin: { gte: hoyFecha },
       },
+      orderBy: [{ anio: 'desc' }, { mes: 'desc' }],
     });
 
     if (!periodoActual) {
       return { ausenciasHoy: 0, ausenciasMes: 0 };
     }
 
-    // Contar marcaciones con código 'F' (Falta) - hoy y todo el mes
+    const ventana = ventanaDePeriodo(periodoActual);
+    const dia = diaDeFecha(
+      ventana.fechaInicio,
+      ventana.fechaFin,
+      fechaCalendarioLocal(hoyFecha),
+    );
+
+    if (dia === null) {
+      return { ausenciasHoy: 0, ausenciasMes: 0 };
+    }
+
+    // Contar marcaciones con código 'F' (Falta) - hoy y todo el período
     const [ausenciasHoy, ausenciasMes] = await Promise.all([
       this.prisma.tareoDetalle.count({
         where: {

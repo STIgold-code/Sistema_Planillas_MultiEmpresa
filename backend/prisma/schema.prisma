@@ -67,6 +67,10 @@ model Empresa {
   regimen_laboral_default        RegimenLaboral               @default(GENERAL)
   // SENATI (Ley 26272): solo empresas industriales >20 trabajadores lo aportan.
   aporta_senati                  Boolean                      @default(false)
+  // Día de corte del período de tareo (política de la empresa): el período del
+  // mes M abarca del día (corte+1) del mes M-1 al día corte del mes M.
+  // NULL = mes calendario completo.
+  dia_corte_tareo                Int?
   activo                         Boolean                      @default(true)
   created_at                     DateTime                     @default(now())
   updated_at                     DateTime                     @updatedAt

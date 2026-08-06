@@ -57,14 +57,16 @@ interface AlertasFaltasResponse {
 
 interface AlertasFaltasPanelProps {
   periodoId: number;
-  mes: number;
-  anio: number;
+  /** Fecha real de inicio del período (ISO date). */
+  fechaInicioPeriodo: string;
+  /** Fecha real de fin del período (ISO date). */
+  fechaFinPeriodo: string;
   className?: string;
 }
 
 export function AlertasFaltasPanel({
-  mes,
-  anio,
+  fechaInicioPeriodo,
+  fechaFinPeriodo,
   className,
 }: AlertasFaltasPanelProps) {
   const [open, setOpen] = useState(false);
@@ -74,13 +76,11 @@ export function AlertasFaltasPanel({
   const [fechaFin, setFechaFin] = useState('');
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
 
-  // Inicializar fechas con el rango del periodo actual
+  // Inicializar fechas con el rango real del periodo (puede tener ventana de corte)
   useEffect(() => {
-    const inicioMes = new Date(anio, mes - 1, 1);
-    const finMes = new Date(anio, mes, 0);
-    setFechaInicio(inicioMes.toISOString().split('T')[0]);
-    setFechaFin(finMes.toISOString().split('T')[0]);
-  }, [mes, anio]);
+    setFechaInicio(fechaInicioPeriodo.split('T')[0]);
+    setFechaFin(fechaFinPeriodo.split('T')[0]);
+  }, [fechaInicioPeriodo, fechaFinPeriodo]);
 
   const fetchAlertas = useCallback(async () => {
     if (!fechaInicio || !fechaFin) return;

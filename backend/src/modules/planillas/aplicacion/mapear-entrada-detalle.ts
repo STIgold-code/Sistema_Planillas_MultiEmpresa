@@ -10,6 +10,13 @@
  * paridad al céntimo con los golden snapshots.
  */
 import { leerFechaPrisma } from '../../../common/utils/datetime.util';
+import {
+  calcularVentanaPeriodo,
+  diaDeFecha,
+  diasDelPeriodo,
+  fechaCalendarioLocal,
+  VentanaPeriodo,
+} from '../../tareo/ventana-periodo';
 import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
 import {
   DiaTareoDetalle,
@@ -65,6 +72,11 @@ export interface ParametrosMapeoDetalle {
   acumuladoRenta: number;
   retencionesPreviasRenta: number;
   promedios: PromediosDetalle;
+  /**
+   * Ventana real del período de tareo (con día de corte puede no ser el mes
+   * calendario). Si se omite, se usa el mes calendario de `mes`/`anio`.
+   */
+  ventanaPeriodo?: VentanaPeriodo;
   /** True si la empresa del período aporta SENATI (config por empresa). */
   empresaAportaSenati?: boolean;
 }
@@ -112,59 +124,72 @@ function mapearAfiliacion(
   };
 }
 
-/** Días previos al ingreso a mitad de mes (replica `calcular-empleado.ts`). */
+/**
+ * Días de la ventana ANTERIORES a `fecha` (la fecha misma no cuenta).
+ * Si `fecha` cae después de la ventana, ningún día se devengó → N.
+ */
+function diasDeVentanaAntesDe(ventana: VentanaPeriodo, fecha: Date): number {
+  const ordinal = diaDeFecha(ventana.fechaInicio, ventana.fechaFin, fecha);
+  if (ordinal === null) {
+    return diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
+  }
+  return ordinal - 1;
+}
+
+/** Días de la ventana POSTERIORES a `fecha` (la fecha misma no cuenta). */
+function diasDeVentanaDespuesDe(ventana: VentanaPeriodo, fecha: Date): number {
+  const ordinal = diaDeFecha(ventana.fechaInicio, ventana.fechaFin, fecha);
+  if (ordinal === null) return 0;
+  return diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin) - ordinal;
+}
+
+/**
+ * Días de la ventana anteriores al ingreso (el trabajador entró a mitad del
+ * período). Con período calendario equivale a `día del mes - 1`; con ventana de
+ * corte se cuentan los días REALES entre el inicio del período y el ingreso.
+ */
 function calcularDiasNuevoNoLab(
   empleado: EmpleadoParaDetalle,
-  fechaInicioPeriodo: Date,
-  fechaFinPeriodo: Date,
-  diasDelMes: number,
+  ventana: VentanaPeriodo,
 ): number {
   const contrato = empleado.contratos?.[0];
   if (contrato) {
-    const inicio = leerFechaPrisma(contrato.fecha_inicio);
-    if (inicio.toJSDate() > fechaInicioPeriodo) {
-      return Math.min(inicio.day - 1, diasDelMes);
+    const inicio = fechaCalendarioLocal(contrato.fecha_inicio);
+    if (inicio > ventana.fechaInicio) {
+      return diasDeVentanaAntesDe(ventana, inicio);
     }
     return 0;
   }
   if (empleado.fecha_ingreso) {
-    const ingreso = leerFechaPrisma(empleado.fecha_ingreso);
-    if (
-      ingreso.toJSDate() > fechaInicioPeriodo &&
-      ingreso.toJSDate() <= fechaFinPeriodo
-    ) {
-      return ingreso.day - 1;
+    const ingreso = fechaCalendarioLocal(empleado.fecha_ingreso);
+    if (ingreso > ventana.fechaInicio && ingreso <= ventana.fechaFin) {
+      return diasDeVentanaAntesDe(ventana, ingreso);
     }
   }
   return 0;
 }
 
-/** Días posteriores al cese a mitad de mes (replica `calcular-empleado.ts`). */
+/**
+ * Días de la ventana posteriores al cese (el trabajador salió a mitad del
+ * período). Con período calendario equivale a `días del mes - día del cese`.
+ */
 function calcularDiasCesadoNoLab(
   empleado: EmpleadoParaDetalle,
-  fechaInicioPeriodo: Date,
-  fechaFinPeriodo: Date,
-  diasDelMes: number,
+  ventana: VentanaPeriodo,
 ): number {
   const contrato = empleado.contratos?.[0];
   if (contrato) {
     if (!contrato.fecha_fin) return 0;
-    const fin = leerFechaPrisma(contrato.fecha_fin);
-    if (
-      fin.toJSDate() >= fechaInicioPeriodo &&
-      fin.toJSDate() < fechaFinPeriodo
-    ) {
-      return diasDelMes - fin.day;
+    const fin = fechaCalendarioLocal(contrato.fecha_fin);
+    if (fin >= ventana.fechaInicio && fin < ventana.fechaFin) {
+      return diasDeVentanaDespuesDe(ventana, fin);
     }
     return 0;
   }
   if (empleado.fecha_cese) {
-    const cese = leerFechaPrisma(empleado.fecha_cese);
-    if (
-      cese.toJSDate() >= fechaInicioPeriodo &&
-      cese.toJSDate() < fechaFinPeriodo
-    ) {
-      return diasDelMes - cese.day;
+    const cese = fechaCalendarioLocal(empleado.fecha_cese);
+    if (cese >= ventana.fechaInicio && cese < ventana.fechaFin) {
+      return diasDeVentanaDespuesDe(ventana, cese);
     }
   }
   return 0;
@@ -232,50 +257,34 @@ function resolverMesesCts(
   return { mesesCts, diasCts };
 }
 
-/** True si el empleado cesa dentro del período (replica `calcular-empleado.ts`). */
+/** True si el empleado cesa dentro de la ventana del período. */
 function calcularEmpleadoCesa(
   empleado: EmpleadoParaDetalle,
   diasCesadoNoLab: number,
-  fechaInicioPeriodo: Date,
-  fechaFinPeriodo: Date,
+  ventana: VentanaPeriodo,
 ): boolean {
   if (diasCesadoNoLab > 0) return true;
   if (!empleado.fecha_cese) return false;
-  const cese = leerFechaPrisma(empleado.fecha_cese).toJSDate();
-  return cese >= fechaInicioPeriodo && cese <= fechaFinPeriodo;
+  const cese = fechaCalendarioLocal(empleado.fecha_cese);
+  return cese >= ventana.fechaInicio && cese <= ventana.fechaFin;
 }
 
 export function mapearEntradaDetalle(
   params: ParametrosMapeoDetalle,
 ): EntradaDetalle {
   const { empleado, mes, anio } = params;
-  const fechaInicioPeriodo = new Date(anio, mes - 1, 1);
-  const fechaFinPeriodo = new Date(anio, mes, 0);
-  const diasDelMes = fechaFinPeriodo.getDate();
+  // La ventana manda; sin período de tareo asociado se cae al mes calendario.
+  const ventana =
+    params.ventanaPeriodo ?? calcularVentanaPeriodo(anio, mes, null);
 
   const detalles = empleado.tareos?.[0]?.detalles ?? [];
   const dias = detalles
     .map(mapearDia)
     .filter((d): d is DiaTareoDetalle => d !== null);
 
-  const diasNuevoNoLab = calcularDiasNuevoNoLab(
-    empleado,
-    fechaInicioPeriodo,
-    fechaFinPeriodo,
-    diasDelMes,
-  );
-  const diasCesadoNoLab = calcularDiasCesadoNoLab(
-    empleado,
-    fechaInicioPeriodo,
-    fechaFinPeriodo,
-    diasDelMes,
-  );
-  const empleadoCesa = calcularEmpleadoCesa(
-    empleado,
-    diasCesadoNoLab,
-    fechaInicioPeriodo,
-    fechaFinPeriodo,
-  );
+  const diasNuevoNoLab = calcularDiasNuevoNoLab(empleado, ventana);
+  const diasCesadoNoLab = calcularDiasCesadoNoLab(empleado, ventana);
+  const empleadoCesa = calcularEmpleadoCesa(empleado, diasCesadoNoLab, ventana);
   const cts = resolverMesesCts(mes, anio, empleado.fecha_ingreso);
 
   return {
@@ -287,6 +296,7 @@ export function mapearEntradaDetalle(
     promedios: params.promedios,
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
+    fechaReferenciaParametros: ventana.fechaFin,
     diasNuevoNoLab,
     diasCesadoNoLab,
     empleadoCesa,

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Save, Download, Upload, UserPlus, Loader2, Clock, Shield } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDateSafe } from '@/lib/utils';
+import { esPeriodoCalendario } from '@/lib/ventana-periodo';
 import { meses } from '../useTareoDetalle';
 import type { TareoGrillaResponse } from '@/types';
 import type { SesionTareoResponse } from '@/hooks/useSesionTareo';
@@ -55,6 +56,11 @@ export function TareoHeader({
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">
           Tareo {meses[data.periodo.mes - 1]} {data.periodo.anio}
         </h1>
+        {!esPeriodoCalendario(data.periodo.fecha_inicio) && (
+          <p className="text-xs md:text-sm text-muted-foreground truncate">
+            {formatDateSafe(data.periodo.fecha_inicio)} – {formatDateSafe(data.periodo.fecha_fin)}
+          </p>
+        )}
         <p className="text-xs md:text-sm text-muted-foreground truncate">
           {data.meta.total} empleados (Pág. {data.meta.page} de {data.meta.totalPages})
         </p>

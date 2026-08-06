@@ -1,16 +1,13 @@
 import * as ExcelJS from 'exceljs';
 import { COLORES, BORDER_THIN, BORDER_MEDIUM } from '../tareo-excel-constants';
 import {
+  etiquetaColumnaDia,
   formatDate,
   isDiaEnContrato,
   hexToArgb,
   lightenColor,
 } from '../tareo-excel-helpers';
-
-interface PeriodoMin {
-  mes: number;
-  anio: number;
-}
+import { esPeriodoCalendario, VentanaPeriodo } from '../ventana-periodo';
 
 interface TipoMarcacionMin {
   codigo: string;
@@ -38,8 +35,9 @@ interface TareoProcesadoDetalle {
 
 /**
  * Hoja 2 del Excel: tabla detallada del tareo del periodo.
- * Por cada empleado: una fila con sus marcaciones por dia (1..diasDelMes) +
- * totales por categoria (DM/LSG/F/DT/FT). Al final, fila de TOTALES GENERALES.
+ * Por cada empleado: una fila con sus marcaciones por dia ordinal (1..N de la
+ * ventana) + totales por categoria (DM/LSG/F/DT/FT). Al final, fila de TOTALES
+ * GENERALES.
  *
  * Las celdas de dias usan los colores del tipo de marcacion (color de la BD).
  * Los dias fuera del rango del contrato salen grises.
@@ -48,8 +46,8 @@ interface TareoProcesadoDetalle {
  */
 export function appendDetalleSheet(
   workbook: ExcelJS.Workbook,
-  periodo: PeriodoMin,
-  diasDelMes: number,
+  ventana: VentanaPeriodo,
+  diasPeriodo: number,
   tareosProcesados: TareoProcesadoDetalle[],
 ): void {
   const tareoSheet = workbook.addWorksheet('Tareo Detallado', {
@@ -67,9 +65,19 @@ export function appendDetalleSheet(
     { header: 'FIN', key: 'fin', width: 11 },
   ];
 
-  // Columnas de dias
-  for (let dia = 1; dia <= diasDelMes; dia++) {
-    tareoColumns.push({ header: dia.toString(), key: `d${dia}`, width: 4 });
+  // Columnas de dias. En periodo calendario el header es el numero de dia (como
+  // siempre); con dia de corte se rotula la FECHA real corta (ej. "26/06"), que
+  // necesita algo mas de ancho.
+  const esCalendario = esPeriodoCalendario(
+    ventana.fechaInicio,
+    ventana.fechaFin,
+  );
+  for (let dia = 1; dia <= diasPeriodo; dia++) {
+    tareoColumns.push({
+      header: etiquetaColumnaDia(dia, ventana.fechaInicio, ventana.fechaFin),
+      key: `d${dia}`,
+      width: esCalendario ? 4 : 6,
+    });
   }
 
   // Columnas de totales
@@ -99,7 +107,7 @@ export function appendDetalleSheet(
   tareoHeaderRow.height = 22;
 
   // Colorear headers de totales
-  const totalColStart = 7 + diasDelMes + 1; // Columna donde empiezan los totales
+  const totalColStart = 7 + diasPeriodo + 1; // Columna donde empiezan los totales
   const totalColors = [
     COLORES.CARD_BLUE,
     COLORES.CARD_ORANGE,
@@ -148,7 +156,7 @@ export function appendDetalleSheet(
     totalGeneralFT += tareo.totales.ft;
 
     // Dias
-    for (let dia = 1; dia <= diasDelMes; dia++) {
+    for (let dia = 1; dia <= diasPeriodo; dia++) {
       const detalle = tareo.detallesMap.get(dia);
       rowData[`d${dia}`] = detalle?.tipo_marcacion?.codigo || '';
     }
@@ -159,13 +167,12 @@ export function appendDetalleSheet(
     row.font = { size: 9 };
 
     // Aplicar colores a celdas de dias - USANDO COLORES FIELES DE LA BD
-    for (let dia = 1; dia <= diasDelMes; dia++) {
+    for (let dia = 1; dia <= diasPeriodo; dia++) {
       const detalle = tareo.detallesMap.get(dia);
       const cell = row.getCell(`d${dia}`);
       const enContrato = isDiaEnContrato(
         dia,
-        periodo.mes,
-        periodo.anio,
+        ventana.fechaInicio,
         tareo.contrato?.fecha_inicio || null,
         tareo.contrato?.fecha_fin || null,
       );

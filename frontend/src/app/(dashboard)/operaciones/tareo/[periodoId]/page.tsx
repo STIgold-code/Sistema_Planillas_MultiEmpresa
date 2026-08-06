@@ -89,7 +89,11 @@ export default function TareoGrillaPage() {
           />
         )}
 
-        <AlertasFaltasPanel periodoId={s.periodoId} mes={data.periodo.mes} anio={data.periodo.anio} />
+        <AlertasFaltasPanel
+          periodoId={s.periodoId}
+          fechaInicioPeriodo={data.periodo.fecha_inicio}
+          fechaFinPeriodo={data.periodo.fecha_fin}
+        />
 
         {s.isMobileView && (
           <div className="lg:hidden">
@@ -224,9 +228,8 @@ export default function TareoGrillaPage() {
             onOpenChange={(open) => !open && s.setJustificacionModal(null)}
             tareoId={s.justificacionModal.tareoId}
             empleadoNombre={s.justificacionModal.empleadoNombre}
-            mes={data.periodo.mes}
-            anio={data.periodo.anio}
-            diasDelMes={data.periodo.dias_mes}
+            fechaInicioPeriodo={data.periodo.fecha_inicio}
+            fechaFinPeriodo={data.periodo.fecha_fin}
             diaInicial={s.justificacionModal.diaInicial}
             diaFinal={s.justificacionModal.diaFinal}
             justificacionExistente={s.justificacionModal.justificacionExistente}
@@ -241,7 +244,11 @@ export default function TareoGrillaPage() {
             empleadoId={s.historialDrawer.empleadoId}
             empleadoNombre={s.historialDrawer.empleadoNombre}
             tareoId={s.historialDrawer.tareoId}
-            periodoInfo={{ mes: data.periodo.mes, anio: data.periodo.anio }}
+            periodoInfo={{
+              mes: data.periodo.mes,
+              anio: data.periodo.anio,
+              fecha_inicio: data.periodo.fecha_inicio,
+            }}
             onNuevaJustificacion={() =>
               s.setJustificacionModal({
                 open: true,

@@ -40,6 +40,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { esPeriodoCalendario, etiquetaDiaMes, fechaDeDia } from '@/lib/ventana-periodo';
 
 interface TareoMobileViewProps {
   data: TareoGrillaResponse;
@@ -77,22 +78,33 @@ export default function TareoMobileView({
 
   const isReadonly = data.periodo.estado === 'CERRADO' || data.periodo.estado === 'ANULADO';
 
-  // Calcular días de la semana actual
+  // Los días del periodo son ordinales (1..N); la fecha real depende de fecha_inicio
+  const esCalendario = esPeriodoCalendario(data.periodo.fecha_inicio);
+
+  // Calcular días de la semana actual (bloques de 7 sobre el total de días del periodo)
   const diasSemana = useMemo(() => {
-    const diasDelMes = data.periodo.dias_mes;
+    const diasDelPeriodo = data.periodo.dias_mes;
     const inicio = weekOffset * 7 + 1;
-    const fin = Math.min(inicio + 6, diasDelMes);
+    const fin = Math.min(inicio + 6, diasDelPeriodo);
     return Array.from({ length: fin - inicio + 1 }, (_, i) => inicio + i);
   }, [weekOffset, data.periodo.dias_mes]);
 
   // Número total de semanas
   const totalSemanas = Math.ceil(data.periodo.dias_mes / 7);
 
-  // Obtener nombre del día de la semana
+  // Obtener nombre del día de la semana a partir de la fecha real
   const getNombreDia = (dia: number) => {
-    const fecha = new Date(data.periodo.anio, data.periodo.mes - 1, dia);
+    const fecha = fechaDeDia(data.periodo.fecha_inicio, dia);
     return fecha.toLocaleDateString('es-PE', { weekday: 'short' }).toUpperCase();
   };
+
+  // Número grande de la celda: día del mes real cuando el periodo tiene ventana de corte
+  const getNumeroDia = (dia: number) =>
+    esCalendario ? dia : fechaDeDia(data.periodo.fecha_inicio, dia).getDate();
+
+  // Etiqueta de día para rangos que pueden cruzar de mes. Ej: "26/6"
+  const getEtiquetaDia = (dia: number) =>
+    esCalendario ? String(dia) : etiquetaDiaMes(fechaDeDia(data.periodo.fecha_inicio, dia));
 
   // Renderizar celda de día
   const renderCelda = (empleado: TareoGrillaEmpleado, dia: number) => {
@@ -107,7 +119,7 @@ export default function TareoMobileView({
           className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-100 opacity-50"
         >
           <span className="text-[10px] text-muted-foreground">{getNombreDia(dia)}</span>
-          <span className="text-lg font-bold text-gray-400">{dia}</span>
+          <span className="text-lg font-bold text-gray-400">{getNumeroDia(dia)}</span>
           <span className="text-xs text-gray-400">-</span>
         </div>
       );
@@ -135,7 +147,7 @@ export default function TareoMobileView({
       >
         <span className="text-[10px] text-muted-foreground">{getNombreDia(dia)}</span>
         <span className="text-lg font-bold" style={{ color: diaData?.color || undefined }}>
-          {dia}
+          {getNumeroDia(dia)}
         </span>
         <span
           className="text-xs font-semibold"
@@ -220,7 +232,7 @@ export default function TareoMobileView({
         </Button>
         <div className="text-center">
           <span className="text-sm font-medium">
-            Días {diasSemana[0]} - {diasSemana[diasSemana.length - 1]}
+            Días {getEtiquetaDia(diasSemana[0])} - {getEtiquetaDia(diasSemana[diasSemana.length - 1])}
           </span>
           <span className="text-xs text-muted-foreground block">
             Semana {weekOffset + 1} de {totalSemanas}
@@ -352,7 +364,7 @@ export default function TareoMobileView({
                 <>
                   <span className="font-medium">{selectedEmpleado.nombre_completo}</span>
                   <br />
-                  Día {editingDay} - {editingDay && getNombreDia(editingDay)}
+                  Día {editingDay && getEtiquetaDia(editingDay)} - {editingDay && getNombreDia(editingDay)}
                 </>
               )}
             </DialogDescription>

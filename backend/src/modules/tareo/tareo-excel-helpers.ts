@@ -1,20 +1,23 @@
 import { CODIGO_SIN_CONTRATO, COLORES } from './tareo-excel-constants';
+import { esPeriodoCalendario, fechaDeDia } from './ventana-periodo';
 
 /**
- * Determina si un dia (anio-mes-dia) cae dentro del rango de un contrato.
+ * Determina si el día ORDINAL `dia` del período (1..N) cae dentro del rango de
+ * un contrato. La fecha real del día se resuelve contra la ventana del período
+ * (`fechaInicioPeriodo`), por lo que funciona igual con períodos calendario y
+ * con períodos con día de corte.
+ *
  * Devuelve false cuando no hay fecha_inicio (sin contrato).
  */
 export function isDiaEnContrato(
   dia: number,
-  mes: number,
-  anio: number,
+  fechaInicioPeriodo: Date,
   fechaInicioContrato: Date | null,
   fechaFinContrato: Date | null,
 ): boolean {
   if (!fechaInicioContrato) return false;
 
-  const fechaDia = new Date(anio, mes - 1, dia);
-  fechaDia.setHours(0, 0, 0, 0);
+  const fechaDia = fechaDeDia(fechaInicioPeriodo, dia);
   const inicioContrato = new Date(fechaInicioContrato);
   inicioContrato.setHours(0, 0, 0, 0);
 
@@ -45,6 +48,27 @@ export function formatDate(date: Date): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+/**
+ * Rótulo de la columna de un día del período en el Excel.
+ *
+ * Período calendario → el número del día (formato histórico, se conserva para no
+ * romper las plantillas ya distribuidas). Período con ventana de corte → la
+ * fecha real corta "dd/MM", porque el ordinal por sí solo no dice nada.
+ */
+export function etiquetaColumnaDia(
+  dia: number,
+  fechaInicioPeriodo: Date,
+  fechaFinPeriodo: Date,
+): string {
+  if (esPeriodoCalendario(fechaInicioPeriodo, fechaFinPeriodo)) {
+    return dia.toString();
+  }
+  const fecha = fechaDeDia(fechaInicioPeriodo, dia);
+  const dd = String(fecha.getDate()).padStart(2, '0');
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
 }
 
 /**

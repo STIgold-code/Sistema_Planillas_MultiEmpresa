@@ -11,6 +11,7 @@ import {
 } from './dto';
 import { Prisma, EstadoPeriodoTareo } from '@prisma/client';
 import { UploadsService } from '../uploads/uploads.service';
+import { diasDelPeriodo, ventanaDePeriodo } from './ventana-periodo';
 
 /**
  * Servicio de mutaciones de justificaciones de tareo + alertas de faltas.
@@ -79,15 +80,13 @@ export class TareoJustificacionesMutationsService {
       );
     }
 
-    // Verificar días válidos para el mes
-    const diasDelMes = new Date(
-      tareo.periodo.anio,
-      tareo.periodo.mes,
-      0,
-    ).getDate();
-    if (dto.dia_inicio > diasDelMes || dto.dia_fin > diasDelMes) {
+    // Verificar días válidos: los días son ORDINALES dentro de la ventana del
+    // período (1..N), que puede no coincidir con el mes calendario.
+    const ventana = ventanaDePeriodo(tareo.periodo);
+    const diasPeriodo = diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
+    if (dto.dia_inicio > diasPeriodo || dto.dia_fin > diasPeriodo) {
       throw new BadRequestException(
-        `Los días deben estar entre 1 y ${diasDelMes}`,
+        `Los días deben estar entre 1 y ${diasPeriodo}`,
       );
     }
 
@@ -211,16 +210,13 @@ export class TareoJustificacionesMutationsService {
         );
       }
 
-      // Verificar días válidos para el mes
-      const diasDelMes = new Date(
-        justificacion.tareo.periodo.anio,
-        justificacion.tareo.periodo.mes,
-        0,
-      ).getDate();
+      // Verificar días válidos: ordinales dentro de la ventana del período (1..N).
+      const ventana = ventanaDePeriodo(justificacion.tareo.periodo);
+      const diasPeriodo = diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
 
-      if (diaInicio > diasDelMes || diaFin > diasDelMes) {
+      if (diaInicio > diasPeriodo || diaFin > diasPeriodo) {
         throw new BadRequestException(
-          `Los días deben estar entre 1 y ${diasDelMes}`,
+          `Los días deben estar entre 1 y ${diasPeriodo}`,
         );
       }
 

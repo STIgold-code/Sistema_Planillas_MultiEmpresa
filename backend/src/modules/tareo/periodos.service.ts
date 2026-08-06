@@ -8,6 +8,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePeriodoDto, UpdatePeriodoDto, FilterPeriodoDto } from './dto';
 import { Prisma, EstadoPeriodoTareo } from '@prisma/client';
 import { ahoraPeru } from '../../common/utils/datetime.util';
+import {
+  calcularVentanaPeriodo,
+  diasDelPeriodo,
+  ventanaDePeriodo,
+} from './ventana-periodo';
 
 @Injectable()
 export class PeriodosService {
@@ -82,9 +87,15 @@ export class PeriodosService {
       );
     }
 
-    // Calcular fechas inicio y fin del mes
-    const fecha_inicio = new Date(dto.anio, dto.mes - 1, 1);
-    const fecha_fin = new Date(dto.anio, dto.mes, 0); // Último día del mes
+    // Ventana del período según la política de la empresa: con día de corte,
+    // el mes M va del (corte+1) del mes anterior al corte del mes M; sin
+    // corte, mes calendario completo.
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { dia_corte_tareo: true },
+    });
+    const { fechaInicio: fecha_inicio, fechaFin: fecha_fin } =
+      calcularVentanaPeriodo(dto.anio, dto.mes, empresa?.dia_corte_tareo);
 
     return this.prisma.periodoTareo.create({
       data: {
@@ -122,8 +133,10 @@ export class PeriodosService {
 
     // Obtener empleados con contrato que cubra el período
     // Incluye PENDIENTE/CESADO para registrar asistencia de días trabajados antes del cese
-    const fechaInicioPeriodo = new Date(periodo.anio, periodo.mes - 1, 1);
-    const fechaFinPeriodo = new Date(periodo.anio, periodo.mes, 0);
+    // La ventana SIEMPRE sale de la BD (puede no ser el mes calendario si la
+    // empresa tiene día de corte).
+    const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
+      ventanaDePeriodo(periodo);
 
     const empleados = await this.prisma.empleado.findMany({
       where: {
@@ -154,8 +167,8 @@ export class PeriodosService {
       );
     }
 
-    // Calcular días del mes
-    const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
+    // Cantidad de días de la ventana del período (N)
+    const diasPeriodo = diasDelPeriodo(fechaInicioPeriodo, fechaFinPeriodo);
 
     // Obtener IDs de empleados que ya tienen tareo
     const tareosExistentes = await this.prisma.tareo.findMany({
@@ -202,9 +215,9 @@ export class PeriodosService {
               },
             });
 
-            // Crear detalles (31 días máximo)
+            // Crear un detalle por cada día ordinal de la ventana (1..N)
             const detalles = [];
-            for (let dia = 1; dia <= diasDelMes; dia++) {
+            for (let dia = 1; dia <= diasPeriodo; dia++) {
               detalles.push({
                 tareo_id: tareo.id,
                 dia,
@@ -334,9 +347,9 @@ export class PeriodosService {
       throw new BadRequestException('No se puede modificar un periodo anulado');
     }
 
-    // Obtener empleados con contrato que cubra el período
-    const fechaInicioPeriodo = new Date(periodo.anio, periodo.mes - 1, 1);
-    const fechaFinPeriodo = new Date(periodo.anio, periodo.mes, 0);
+    // Obtener empleados con contrato que cubra el período (ventana real de la BD)
+    const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
+      ventanaDePeriodo(periodo);
 
     const empleadosActivos = await this.prisma.empleado.findMany({
       where: {
@@ -385,8 +398,8 @@ export class PeriodosService {
       };
     }
 
-    // Calcular días del mes
-    const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
+    // Cantidad de días de la ventana del período (N)
+    const diasPeriodo = diasDelPeriodo(fechaInicioPeriodo, fechaFinPeriodo);
 
     // Procesar en lotes para evitar timeout de transacción
     const BATCH_SIZE = 50;
@@ -407,9 +420,9 @@ export class PeriodosService {
               },
             });
 
-            // Crear detalles para cada día
+            // Crear un detalle por cada día ordinal de la ventana (1..N)
             const detalles = [];
-            for (let dia = 1; dia <= diasDelMes; dia++) {
+            for (let dia = 1; dia <= diasPeriodo; dia++) {
               detalles.push({
                 tareo_id: tareo.id,
                 dia,

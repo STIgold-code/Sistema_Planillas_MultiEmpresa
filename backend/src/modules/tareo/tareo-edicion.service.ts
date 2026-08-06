@@ -12,6 +12,7 @@ import {
   isDiaEnContrato,
   isCodigoPermitidoFueraContrato,
 } from './tareo-excel-helpers';
+import { ventanaDePeriodo } from './ventana-periodo';
 
 // Limite maximo de celdas por actualizacion masiva (previene DoS)
 const MAX_BULK_UPDATE_CELLS = 1000;
@@ -87,14 +88,11 @@ export class TareoEdicionService {
       tipoMarcacionNuevo = tipoMarcacion;
     }
 
-    // Buscar contrato que aplica al periodo (por fechas, no por estado)
-    const periodoDetalle = detalle.tareo.periodo;
-    const fechaInicioP = new Date(
-      periodoDetalle.anio,
-      periodoDetalle.mes - 1,
-      1,
+    // Buscar contrato que aplica al periodo (por fechas, no por estado).
+    // La ventana sale de la BD: puede no ser el mes calendario.
+    const { fechaInicio: fechaInicioP, fechaFin: fechaFinP } = ventanaDePeriodo(
+      detalle.tareo.periodo,
     );
-    const fechaFinP = new Date(periodoDetalle.anio, periodoDetalle.mes, 0);
     const contratoVigente =
       detalle.tareo.empleado.contratos.find((c) => {
         const inicio = new Date(c.fecha_inicio);
@@ -109,8 +107,7 @@ export class TareoEdicionService {
       }) || null;
     const diaEnContrato = isDiaEnContrato(
       detalle.dia,
-      detalle.tareo.periodo.mes,
-      detalle.tareo.periodo.anio,
+      fechaInicioP,
       contratoVigente?.fecha_inicio || null,
       contratoVigente?.fecha_fin || null,
     );
@@ -272,9 +269,10 @@ export class TareoEdicionService {
     });
     const empleadoToTareo = new Map(tareos.map((t) => [t.empleado_id, t.id]));
 
-    // Cargar contratos que se solapan con el periodo (por fechas, no por estado)
-    const fechaInicioPeriodo = new Date(periodo.anio, periodo.mes - 1, 1);
-    const fechaFinPeriodo = new Date(periodo.anio, periodo.mes, 0);
+    // Cargar contratos que se solapan con el periodo (por fechas, no por estado).
+    // La ventana sale de la BD: puede no ser el mes calendario.
+    const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
+      ventanaDePeriodo(periodo);
     const contratos = await this.prisma.contrato.findMany({
       where: {
         empleado_id: { in: empleadoIds },
@@ -364,8 +362,7 @@ export class TareoEdicionService {
       const contrato = empleadoToContrato.get(celda.empleado_id);
       const diaEnContrato = isDiaEnContrato(
         celda.dia,
-        periodo.mes,
-        periodo.anio,
+        fechaInicioPeriodo,
         contrato?.fecha_inicio || null,
         contrato?.fecha_fin || null,
       );

@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FilterTareoDto } from './dto';
 import { isDiaEnContrato } from './tareo-excel-helpers';
+import { diasDelPeriodo, ventanaDePeriodo } from './ventana-periodo';
+import { toDateOnly } from '../../common/utils/datetime.util';
 
 /**
  * Servicio dedicado a construir la grilla del periodo de tareo
@@ -47,9 +49,9 @@ export class TareoGrillaService {
     if (sede_id) where.sede_id = sede_id;
     if (cargo_id) where.cargo_id = cargo_id;
 
-    // Rango de fechas del periodo para filtrar contratos
-    const fechaInicioPeriodo = new Date(periodo.anio, periodo.mes - 1, 1);
-    const fechaFinPeriodo = new Date(periodo.anio, periodo.mes, 0);
+    // Rango de fechas del periodo para filtrar contratos (ventana real de la BD)
+    const { fechaInicio: fechaInicioPeriodo, fechaFin: fechaFinPeriodo } =
+      ventanaDePeriodo(periodo);
 
     if (buscar) {
       const orConditions: Prisma.EmpleadoWhereInput[] = [
@@ -124,8 +126,8 @@ export class TareoGrillaService {
       orderBy: { codigo: 'asc' },
     });
 
-    // Calcular días del mes
-    const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
+    // Cantidad de días de la ventana del período (N)
+    const diasPeriodo = diasDelPeriodo(fechaInicioPeriodo, fechaFinPeriodo);
 
     // Transformar datos para la grilla
     const grilla = tareos.map((tareo) => {
@@ -145,12 +147,11 @@ export class TareoGrillaService {
         en_contrato: boolean;
       }> = [];
 
-      for (let dia = 1; dia <= diasDelMes; dia++) {
+      for (let dia = 1; dia <= diasPeriodo; dia++) {
         const detalle = detallesMap.get(dia);
         const enContrato = isDiaEnContrato(
           dia,
-          periodo.mes,
-          periodo.anio,
+          fechaInicioPeriodo,
           contratoVigente?.fecha_inicio || null,
           contratoVigente?.fecha_fin || null,
         );
@@ -282,7 +283,14 @@ export class TareoGrillaService {
         anio: periodo.anio,
         mes: periodo.mes,
         estado: periodo.estado,
-        dias_mes: diasDelMes,
+        // Ventana real del período (YYYY-MM-DD, sin desplazamiento de zona).
+        // El cliente necesita ambas fechas para rotular cada columna con su día
+        // real cuando la empresa tiene día de corte.
+        fecha_inicio: toDateOnly(periodo.fecha_inicio),
+        fecha_fin: toDateOnly(periodo.fecha_fin),
+        // Cantidad de días de la ventana. Se conserva el nombre `dias_mes` por
+        // compatibilidad con los clientes ya desplegados.
+        dias_mes: diasPeriodo,
       },
       tipos_marcacion: tiposMarcacion,
       empleados: grilla,

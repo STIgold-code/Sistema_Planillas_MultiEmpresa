@@ -40,7 +40,9 @@ export function calcularDetalleCompleto(
   params: ParametrosLegales,
 ): DetalleCompleto {
   const { sueldoBase, mes } = entrada;
-  const fecha = new Date(entrada.anio, mes, 0);
+  // Fecha de referencia de los parámetros legales versionados: fin de la ventana
+  // del período (resuelta en el borde). NO se recalcula desde anio/mes.
+  const fecha = entrada.fechaReferenciaParametros;
 
   const c = clasificarDiasTareo(entrada.dias);
   const diasTrabajados = c.diasLaborables;

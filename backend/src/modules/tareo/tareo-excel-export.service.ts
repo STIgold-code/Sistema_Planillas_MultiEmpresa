@@ -4,6 +4,7 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import { LOGO_ERMIR_PATH } from '../../common/utils/assets.util';
 import { isDiaEnContrato } from './tareo-excel-helpers';
+import { diasDelPeriodo, ventanaDePeriodo } from './ventana-periodo';
 import { appendLeyendaSheet } from './tareo-excel-sheets/leyenda';
 import { appendAlertasSheet } from './tareo-excel-sheets/alertas';
 import { appendDetalleSheet } from './tareo-excel-sheets/detalle';
@@ -100,7 +101,9 @@ export class TareoExcelExportService {
       orderBy: { codigo: 'asc' },
     });
 
-    const diasDelMes = new Date(periodo.anio, periodo.mes, 0).getDate();
+    // Ventana real del período (puede no ser el mes calendario) y su cantidad de días.
+    const ventana = ventanaDePeriodo(periodo);
+    const diasPeriodo = diasDelPeriodo(ventana.fechaInicio, ventana.fechaFin);
 
     // ========================================
     // CALCULAR ESTADÍSTICAS
@@ -184,11 +187,10 @@ export class TareoExcelExportService {
       let diasSinMarcacion = 0;
       const detallesMap = new Map(tareo.detalles.map((d) => [d.dia, d]));
 
-      for (let dia = 1; dia <= diasDelMes; dia++) {
+      for (let dia = 1; dia <= diasPeriodo; dia++) {
         const enContrato = isDiaEnContrato(
           dia,
-          periodo.mes,
-          periodo.anio,
+          ventana.fechaInicio,
           contrato?.fecha_inicio || null,
           contrato?.fecha_fin || null,
         );
@@ -308,7 +310,7 @@ export class TareoExcelExportService {
     // ========================================
     // HOJA 2: TAREO DETALLADO
     // ========================================
-    appendDetalleSheet(workbook, periodo, diasDelMes, tareosProcesados);
+    appendDetalleSheet(workbook, ventana, diasPeriodo, tareosProcesados);
 
     // ========================================
     // HOJA 3: ALERTAS - TODOS LOS EMPLEADOS
