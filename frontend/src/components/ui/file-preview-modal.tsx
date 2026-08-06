@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getAccessToken } from '@/lib/api';
+import { obtenerBlobArchivo } from '@/lib/archivos';
 
 interface FileItem {
   id?: number;
@@ -80,19 +80,7 @@ export function FilePreviewModal({
     setBlobUrl(null);
 
     try {
-      const token = getAccessToken();
-
-      const response = await fetch(file.archivo_url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await obtenerBlobArchivo(file.archivo_url);
       const url = URL.createObjectURL(blob);
       setBlobUrl(url);
     } catch (err) {
@@ -157,16 +145,7 @@ export function FilePreviewModal({
     if (!currentFile) return;
 
     try {
-      const token = getAccessToken();
-      const response = await fetch(currentFile.archivo_url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Error al descargar');
-
-      const blob = await response.blob();
+      const blob = await obtenerBlobArchivo(currentFile.archivo_url);
       const url = URL.createObjectURL(blob);
 
       const a = document.createElement('a');

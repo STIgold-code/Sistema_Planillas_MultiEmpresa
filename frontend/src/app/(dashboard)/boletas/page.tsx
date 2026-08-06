@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -211,21 +211,8 @@ export default function BoletasPage() {
   const handleDescargarPdf = async (id: number) => {
     setDownloading(id);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/boletas/${id}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Error al descargar');
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'boleta.pdf';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.getBlob(`/boletas/${id}/pdf`);
+      const filename = 'boleta.pdf';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -249,25 +236,8 @@ export default function BoletasPage() {
   const handleDescargarPdfMasivo = async (planillaId: number) => {
     setDownloadingMasivo(planillaId);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/boletas/planilla/${planillaId}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al descargar');
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const boletasCount = response.headers.get('X-Boletas-Count');
-      let filename = 'boletas.pdf';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.getBlob(`/boletas/planilla/${planillaId}/pdf`);
+      const filename = 'boletas.pdf';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -278,7 +248,7 @@ export default function BoletasPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast.success(`PDF descargado con ${boletasCount || 'todas las'} boletas`);
+      toast.success('PDF descargado con todas las boletas');
     } catch (error) {
       console.error('Error downloading PDF masivo:', error);
       const err = error as { message?: string };

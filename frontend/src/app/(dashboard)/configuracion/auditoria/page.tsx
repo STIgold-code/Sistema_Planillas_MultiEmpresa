@@ -28,7 +28,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Search, Eye, ChevronLeft, ChevronRight, History, Filter, X, BarChart3, Download } from 'lucide-react';
 import Link from 'next/link';
-import { getAccessToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { JsonDiffViewer } from '@/components/auditoria/json-diff-viewer';
 import { format } from 'date-fns';
@@ -178,19 +177,7 @@ export default function AuditoriaPage() {
       if (filtroFechaDesde) params.append('fecha_desde', filtroFechaDesde);
       if (filtroFechaHasta) params.append('fecha_hasta', filtroFechaHasta);
 
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auditoria/exportar?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error('Error al exportar');
-
-      const blob = await response.blob();
+      const blob = await api.getBlob(`/auditoria/exportar?${params.toString()}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -33,13 +33,22 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getAccessToken } from '@/lib/api';
 
 interface VariableValidation {
   valid: string[];
   invalid: Array<{ variable: string; suggestion: string | null }>;
   hasErrors: boolean;
   summary: string;
+}
+
+interface ExtraccionVariables {
+  variables?: string[];
+  validation?: VariableValidation;
+}
+
+interface PreviewPlantilla {
+  text?: string;
+  unreplacedVariables?: string[];
 }
 
 const plantillaSchema = z.object({
@@ -122,20 +131,10 @@ export default function NuevaPlantillaPage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/extract-variables`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al extraer variables');
-      }
-
-      const data = await response.json();
+      const data = await api.upload<ExtraccionVariables>(
+        '/plantillas-contrato/extract-variables',
+        formData
+      );
       setExtractedVariables(data.variables || []);
       if (data.validation) {
         setValidation(data.validation);
@@ -168,16 +167,10 @@ export default function NuevaPlantillaPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/preview-file`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Error al generar preview');
-
-      const data = await response.json();
+      const data = await api.upload<PreviewPlantilla>(
+        '/plantillas-contrato/preview-file',
+        formData
+      );
       setPreviewText(data.text || '');
       setPreviewUnreplaced(data.unreplacedVariables || []);
       setPreviewOpen(true);
@@ -213,19 +206,7 @@ export default function NuevaPlantillaPage() {
         formData.append('force_invalid_variables', 'true');
       }
 
-      const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al crear la plantilla');
-      }
+      await api.upload('/plantillas-contrato/upload', formData);
 
       toast.success('Plantilla creada correctamente');
       router.push('/rrhh/plantillas-contrato');

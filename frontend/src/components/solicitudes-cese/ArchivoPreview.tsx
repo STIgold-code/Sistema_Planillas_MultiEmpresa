@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Download, FileText, ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getAccessToken } from '@/lib/api';
+import { obtenerBlobArchivo } from '@/lib/archivos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -53,16 +53,7 @@ function useAuthBlob(url: string | null | undefined) {
 
     const fetchBlob = async () => {
       try {
-        const resolved = buildAuthUrl(url);
-        const token = getAccessToken();
-        const res = await fetch(resolved, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) {
-          setError(true);
-          return;
-        }
-        const blob = await res.blob();
+        const blob = await obtenerBlobArchivo(url);
         if (!revoked) {
           objectUrl = URL.createObjectURL(blob);
           setBlobUrl(objectUrl);

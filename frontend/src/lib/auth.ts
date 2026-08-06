@@ -1,9 +1,13 @@
 import { api, setTokens, clearTokens, getRefreshToken } from './api';
+import { clearEmpresaActiva } from '@/contexts/empresa-activa-context';
 import { LoginRequest, LoginResponse, Usuario } from '@/types';
 
 // Iniciar sesión
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   const response = await api.post<LoginResponse>('/auth/login', credentials);
+  // Cada sesión arranca en la empresa propia del usuario: la selección del
+  // usuario anterior no debe heredarse (equipos compartidos).
+  clearEmpresaActiva();
   setTokens(response.access_token, response.refresh_token);
   return response;
 }
@@ -20,6 +24,7 @@ export async function logout(): Promise<void> {
     // Ignorar errores al cerrar sesión
   } finally {
     clearTokens();
+    clearEmpresaActiva();
   }
 }
 

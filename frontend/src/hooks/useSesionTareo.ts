@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 
 // Tipos de configuración
@@ -376,19 +376,10 @@ export function useSesionTareo(periodoId: number | null): UseSesionTareoReturn {
     if (!sesion?.id || sesion?.estado !== 'ACTIVA') return;
 
     const handleBeforeUnload = () => {
-      // Usar fetch con keepalive para request síncrono al cerrar
-      // (keepalive permite que el request se complete aunque la página se cierre)
-      const token = getAccessToken();
-      if (!token) return;
-
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/tareo/sesiones/${sesion.id}/finalizar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        keepalive: true,
-      }).catch(() => {
+      // Se usa el cliente central para que el request lleve la empresa activa.
+      // Es best-effort: si el navegador corta el request al cerrar la pestaña,
+      // el cron limpia las sesiones abandonadas.
+      api.post(`/tareo/sesiones/${sesion.id}/finalizar`).catch(() => {
         // Ignorar errores - el cron limpiará sesiones abandonadas
       });
     };

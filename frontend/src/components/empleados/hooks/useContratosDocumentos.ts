@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
@@ -34,28 +34,8 @@ export function useContratosDocumentos({
   const handleDescargarContrato = async (contratoId: number) => {
     setDownloadingContratoId(contratoId);
     try {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/contratos/${contratoId}/descargar`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Error al descargar contrato');
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'contrato.pdf';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+?)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.getBlob(`/contratos/${contratoId}/descargar`);
+      const filename = 'contrato.pdf';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -113,40 +93,17 @@ export function useContratosDocumentos({
 
     setGenerating(true);
     try {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        }
-      );
+      const blob = await api.postBlob(endpoint, body);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al generar documento');
-      }
-
-      const contentDisposition = response.headers.get('Content-Disposition');
       let filename = 'documento.docx';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
+      if (activeTab === 'banco') {
+        const p = plantillasBanco.find(pb => pb.id.toString() === plantillaId);
+        if (p) filename = `${p.nombre}.docx`;
       } else {
-        if (activeTab === 'banco') {
-          const p = plantillasBanco.find(pb => pb.id.toString() === plantillaId);
-          if (p) filename = `${p.nombre}.docx`;
-        } else {
-          const p = plantillas.find(pc => pc.id.toString() === plantillaId);
-          if (p) filename = `${p.nombre}.docx`;
-        }
+        const p = plantillas.find(pc => pc.id.toString() === plantillaId);
+        if (p) filename = `${p.nombre}.docx`;
       }
 
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

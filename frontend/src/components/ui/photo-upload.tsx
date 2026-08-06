@@ -3,10 +3,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, X, Loader2 } from 'lucide-react';
 import { Button } from './button';
-import { getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuthImage } from '@/hooks/useAuthImage';
+
+interface RespuestaUploadFoto {
+  file?: { path?: string; url?: string };
+}
 
 interface PhotoUploadProps {
   value?: string;
@@ -69,22 +73,7 @@ export function PhotoUpload({
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/uploads/fotos`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${getAccessToken()}`,
-            },
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Error al subir la imagen');
-        }
-
-        const data = await response.json();
+        const data = await api.upload<RespuestaUploadFoto>('/uploads/fotos', formData);
         // data.file.path = key para DB (ej: "empleados/UUID.jpg")
         // data.file.url = URL servible (absoluta si Wasabi, relativa si local)
         const dbPath = data.file?.path;

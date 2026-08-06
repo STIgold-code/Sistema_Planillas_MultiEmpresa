@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -153,28 +153,13 @@ export default function GenerarReportePage() {
     setGenerando(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reportes/generar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAccessToken()}`,
-        },
-        body: JSON.stringify({
-          codigo_reporte: codigo,
-          formato,
-          filtros,
-        }),
+      const blobData = await api.postBlob('/reportes/generar', {
+        codigo_reporte: codigo,
+        formato,
+        filtros,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al generar reporte');
-      }
-
-      const blobData = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1]
-        || `${reporte.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const extension = formato === 'PDF' ? 'pdf' : 'xlsx';
+      const filename = `${reporte.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.${extension}`;
 
       // Descargar archivo
       const url = window.URL.createObjectURL(blobData);

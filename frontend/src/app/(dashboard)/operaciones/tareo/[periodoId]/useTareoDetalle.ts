@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, getAccessToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import { TareoGrillaResponse, TareoGrillaEmpleado, DiasConJustificacion, TareoJustificacion, TareoDetalle, TareoDetalleAudit } from '@/types';
 import { useSesionTareo } from '@/hooks/useSesionTareo';
 import { toast } from 'sonner';
@@ -447,12 +447,7 @@ export function useTareoDetalle() {
 
   const handleExportar = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tareo/periodos/${periodoId}/exportar`, {
-        headers: { 'Authorization': `Bearer ${getAccessToken()}` },
-      });
-      if (!response.ok) throw new Error('Error al exportar');
-
-      const blob = await response.blob();
+      const blob = await api.getBlob(`/tareo/periodos/${periodoId}/exportar`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -481,17 +476,10 @@ export function useTareoDetalle() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tareo/periodos/${periodoId}/importar/preview`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${getAccessToken()}` }, body: formData }
+      const preview = await api.upload<ImportPreview>(
+        `/tareo/periodos/${periodoId}/importar/preview`,
+        formData
       );
-
-      if (!response.ok) {
-        const error: { message?: string } = await response.json();
-        throw new Error(error.message || 'Error al procesar archivo');
-      }
-
-      const preview: ImportPreview = await response.json();
       setImportPreview(preview);
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, 'Error al procesar archivo'));

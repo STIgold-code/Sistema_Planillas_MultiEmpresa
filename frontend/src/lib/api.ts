@@ -236,6 +236,54 @@ async function fetchBlob(endpoint: string): Promise<Blob> {
   return response.blob();
 }
 
+// Función para descargar archivos binarios generados por POST (reportes, contratos, etc.)
+async function fetchPostBlob(endpoint: string, data?: unknown): Promise<Blob> {
+  const url = `${API_URL}${endpoint}`;
+  const accessToken = getAccessToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  aplicarEmpresaActiva(headers);
+
+  const body = data !== undefined ? JSON.stringify(data) : undefined;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      const newAccessToken = getAccessToken();
+      headers['Authorization'] = `Bearer ${newAccessToken}`;
+      const retryResponse = await fetch(url, { method: 'POST', headers, body });
+
+      if (!retryResponse.ok) {
+        throw { message: 'Error al descargar archivo', statusCode: retryResponse.status };
+      }
+      return retryResponse.blob();
+    } else {
+      clearTokens();
+      window.location.href = '/login';
+      // Retornar una promesa que nunca se resuelve para evitar que el código continúe
+      return new Promise(() => { });
+    }
+  }
+
+  if (!response.ok) {
+    throw { message: 'Error al descargar archivo', statusCode: response.status };
+  }
+
+  return response.blob();
+}
+
 // Helper para asegurar que la respuesta sea un array
 export async function fetchArray<T>(endpoint: string): Promise<T[]> {
   const response = await fetchApi<T[]>(endpoint, { method: 'GET' });
@@ -277,6 +325,8 @@ export const api = {
     fetchUpload<T>(endpoint, formData, method),
 
   getBlob: (endpoint: string) => fetchBlob(endpoint),
+
+  postBlob: (endpoint: string, data?: unknown) => fetchPostBlob(endpoint, data),
 };
 
 // Subir archivos (multipart/form-data)

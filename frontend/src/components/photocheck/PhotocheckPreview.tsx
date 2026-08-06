@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { pdf } from '@react-pdf/renderer';
 import { Empleado } from '@/types';
-import { getAccessToken } from '@/lib/api';
+import { obtenerBlobArchivo } from '@/lib/archivos';
 import { PhotocheckDocument } from './PhotocheckDocument';
 import {
   Dialog,
@@ -23,18 +23,11 @@ const PDFViewer = dynamic(
   { ssr: false, loading: () => <PreviewSkeleton /> }
 );
 
-// Función para cargar imagen con JWT y convertir a base64
-async function fetchImageAsBase64(url: string): Promise<string | null> {
-  if (!url) return null;
+// Función para cargar la imagen autenticada y convertirla a base64
+async function fetchImageAsBase64(referencia: string): Promise<string | null> {
+  if (!referencia) return null;
   try {
-    const token = getAccessToken();
-    console.log('[PhotocheckPreview] Fetching image:', { url, hasToken: !!token });
-    const response = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    console.log('[PhotocheckPreview] Response:', { status: response.status, ok: response.ok });
-    if (!response.ok) return null;
-    const blob = await response.blob();
+    const blob = await obtenerBlobArchivo(referencia);
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
@@ -87,16 +80,6 @@ export function PhotocheckPreview({
     return typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
   };
 
-  // Construir URL completa de la foto del empleado
-  const getFotoUrl = (fotoPath: string | undefined | null): string | null => {
-    if (!fotoPath) return null;
-    // Si ya es URL completa, usarla directamente
-    if (fotoPath.startsWith('http')) return fotoPath;
-    // Si es path relativo, construir URL con el endpoint de archivos protegidos
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    return `${apiUrl}/files/key/${encodeURIComponent(fotoPath)}`;
-  };
-
   // Cargar foto del empleado como base64 cuando se abre el diálogo
   useEffect(() => {
     if (!open) {
@@ -104,14 +87,14 @@ export function PhotocheckPreview({
       return;
     }
 
-    const fotoUrl = getFotoUrl(empleado.foto_url);
-    if (!fotoUrl) {
+    const foto = empleado.foto_url;
+    if (!foto) {
       setFotoBase64(null);
       return;
     }
 
     setLoadingFoto(true);
-    fetchImageAsBase64(fotoUrl)
+    fetchImageAsBase64(foto)
       .then((base64) => {
         setFotoBase64(base64);
       })

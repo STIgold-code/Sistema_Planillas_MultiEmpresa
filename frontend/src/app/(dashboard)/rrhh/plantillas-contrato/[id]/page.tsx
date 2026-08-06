@@ -44,7 +44,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
-import { getAccessToken } from '@/lib/api';
 
 const TIPOS_CONTRATO: Record<string, string> = {
   SUJETO_A_MODALIDAD: 'Sujeto a Modalidad',
@@ -153,34 +152,11 @@ export default function VerPlantillaPage() {
 
     setGenerating(true);
     try {
-      const token = getAccessToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/${plantillaId}/generar`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            empleado_id: selectedEmpleado.id,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al generar contrato');
-      }
-
       // Descargar archivo
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'contrato.docx';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
-      }
+      const blob = await api.postBlob(`/plantillas-contrato/${plantillaId}/generar`, {
+        empleado_id: selectedEmpleado.id,
+      });
+      const filename = 'contrato.docx';
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -332,13 +308,9 @@ export default function VerPlantillaPage() {
                   variant="outline"
                   onClick={async () => {
                     try {
-                      const token = getAccessToken();
-                      const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/plantillas-contrato/${plantillaId}/descargar`,
-                        { headers: { 'Authorization': `Bearer ${token}` } }
+                      const blob = await api.getBlob(
+                        `/plantillas-contrato/${plantillaId}/descargar`
                       );
-                      if (!res.ok) throw new Error('Error al descargar');
-                      const blob = await res.blob();
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
