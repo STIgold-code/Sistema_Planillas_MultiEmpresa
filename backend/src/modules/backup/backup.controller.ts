@@ -2,11 +2,12 @@ import { Controller, Post, UseGuards } from '@nestjs/common';
 import { BackupService } from './backup.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-// import { Permissions } from '../../common/decorators/permissions.decorator';
-// import { PERMISOS } from '../../common/constants/permissions';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
+// El backup vuelca la base COMPLETA (todas las empresas): solo superadmin.
 @Controller('backups')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('*')
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}
 

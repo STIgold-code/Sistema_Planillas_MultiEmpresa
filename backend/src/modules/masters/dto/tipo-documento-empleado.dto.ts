@@ -55,9 +55,6 @@ export class CreateTipoDocumentoEmpleadoDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
-
-  @IsInt()
-  empresa_id: number;
 }
 
 export class UpdateTipoDocumentoEmpleadoDto extends PartialType(
