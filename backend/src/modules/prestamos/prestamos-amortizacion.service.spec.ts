@@ -60,6 +60,27 @@ const PRESTAMO_BASE: FilaPrestamo = {
   saldo: 500,
 };
 
+/** Cargo ya registrado contra un préstamo, tal como lo devuelve la reversión. */
+interface FilaCargo {
+  id: number;
+  monto: number;
+  prestamo: { id: number; saldo: number | null; estado: string };
+}
+
+function buildReversion(cargos: FilaCargo[]) {
+  const tx = {
+    prestamoMovimiento: {
+      findMany: jest.fn().mockResolvedValue(cargos),
+      deleteMany: jest.fn().mockResolvedValue({ count: cargos.length }),
+    },
+    prestamo: {
+      update: jest.fn().mockResolvedValue({ id: 1 }),
+    },
+  };
+  const service = new PrestamosAmortizacionService();
+  return { service, tx };
+}
+
 /** Primer argumento de la primera llamada, tipado (sin `any` de mock.calls). */
 function primerArgumento<T>(mock: jest.Mock): T {
   return (mock.mock.calls as unknown as [T][])[0][0];
@@ -292,5 +313,107 @@ describe('PrestamosAmortizacionService.amortizarPlanillaAprobada', () => {
     }>(tx.prestamo.findMany).where;
     expect(dondePrestamo.empresa_id).toBe(5);
     expect(dondePrestamo.estado).toBe('ACTIVO');
+  });
+});
+
+describe('PrestamosAmortizacionService.revertirPlanillaAnulada', () => {
+  it('sin cargos previos no hace nada', async () => {
+    const { service, tx } = buildReversion([]);
+
+    const resumen = await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    expect(resumen.cargos).toBe(0);
+    expect(tx.prestamo.update).not.toHaveBeenCalled();
+    expect(tx.prestamoMovimiento.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('devuelve el saldo descontado y borra el cargo', async () => {
+    const { service, tx } = buildReversion([
+      { id: 11, monto: 100, prestamo: { id: 1, saldo: 400, estado: 'ACTIVO' } },
+    ]);
+
+    const resumen = await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    const actualizacion = primerArgumento<{
+      where: { id: number };
+      data: { saldo?: number; estado?: string };
+    }>(tx.prestamo.update);
+    expect(actualizacion.where).toEqual({ id: 1 });
+    expect(actualizacion.data.saldo).toBe(500);
+    expect(actualizacion.data.estado).toBeUndefined();
+
+    expect(tx.prestamoMovimiento.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: [11] } },
+    });
+    expect(resumen).toEqual({
+      cargos: 1,
+      montoAmortizado: 100,
+      prestamosPagados: 0,
+    });
+  });
+
+  it('reactiva un préstamo que la planilla anulada había dejado en PAGADO', async () => {
+    const { service, tx } = buildReversion([
+      { id: 11, monto: 50, prestamo: { id: 1, saldo: 0, estado: 'PAGADO' } },
+    ]);
+
+    const resumen = await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    const actualizacion = primerArgumento<{
+      data: { saldo?: number; estado?: string };
+    }>(tx.prestamo.update);
+    expect(actualizacion.data.saldo).toBe(50);
+    expect(actualizacion.data.estado).toBe('ACTIVO');
+    expect(resumen.prestamosPagados).toBe(1);
+  });
+
+  it('un préstamo recurrente (saldo NULL) no recibe saldo al revertir', async () => {
+    const { service, tx } = buildReversion([
+      {
+        id: 11,
+        monto: 300,
+        prestamo: { id: 2, saldo: null, estado: 'ACTIVO' },
+      },
+    ]);
+
+    await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    const actualizacion = primerArgumento<{
+      data: { saldo?: number; estado?: string };
+    }>(tx.prestamo.update);
+    expect(actualizacion.data.saldo).toBeUndefined();
+  });
+
+  it('solo revierte cargos de préstamos de la empresa de la planilla', async () => {
+    const { service, tx } = buildReversion([
+      { id: 11, monto: 100, prestamo: { id: 1, saldo: 400, estado: 'ACTIVO' } },
+    ]);
+
+    await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    const donde = primerArgumento<{
+      where: {
+        planilla_id: number;
+        tipo: string;
+        prestamo: { empresa_id: number };
+      };
+    }>(tx.prestamoMovimiento.findMany).where;
+    expect(donde.planilla_id).toBe(50);
+    expect(donde.tipo).toBe('CARGO_PLANILLA');
+    expect(donde.prestamo.empresa_id).toBe(5);
+  });
+
+  it('tras revertir, el préstamo puede volver a cargarse en la misma planilla', async () => {
+    // El borrado (en vez de un contra-movimiento) libera el unique
+    // (prestamo_id, planilla_id, tipo) para una futura re-aprobación.
+    const { service, tx } = buildReversion([
+      { id: 11, monto: 100, prestamo: { id: 1, saldo: 400, estado: 'ACTIVO' } },
+    ]);
+
+    await service.revertirPlanillaAnulada(tx as never, 50, 5);
+
+    expect(tx.prestamoMovimiento.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: [11] } },
+    });
   });
 });

@@ -401,6 +401,16 @@ export class PlanillasService {
         },
       });
 
+      // Una planilla anulada no se pagó: el descuento de préstamos nunca ocurrió,
+      // así que se devuelve el saldo y se borran los cargos. Sin esto el saldo
+      // quedaría amortizado contra una planilla sin valor.
+      const reversion =
+        await this.prestamosAmortizacion.revertirPlanillaAnulada(
+          tx,
+          id,
+          empresaId,
+        );
+
       await this.auditoria.registrar(tx, {
         tabla: 'planillas',
         registro_id: id,
@@ -408,7 +418,11 @@ export class PlanillasService {
         empresa_id: empresaId,
         usuario_id: usuarioId,
         datos_anteriores: { estado: estadoAnterior },
-        datos_nuevos: { estado: 'ANULADA', motivo_anulacion: motivo },
+        datos_nuevos: {
+          estado: 'ANULADA',
+          motivo_anulacion: motivo,
+          prestamos_revertidos: reversion,
+        },
       });
 
       return updated;
