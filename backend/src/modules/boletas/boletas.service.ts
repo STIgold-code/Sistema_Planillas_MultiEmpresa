@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { FilterBoletaDto, GenerarBoletasDto } from './dto';
+import { FilterBoletaDto, GenerarBoletasDto, OrdenBoletasMasivo } from './dto';
 import { Prisma, EstadoBoleta } from '@prisma/client';
 import { EmailService } from '../../common/services/email.service';
 import { BoletasPdfService } from './boletas-pdf.service';
@@ -297,8 +297,13 @@ export class BoletasService {
   async generarPdfMasivo(
     planillaId: number,
     empresaId: number,
+    orden: OrdenBoletasMasivo = OrdenBoletasMasivo.APELLIDO,
   ): Promise<{ buffer: Buffer; filename: string; cantidad: number }> {
-    return this.boletasPdfService.generarPdfMasivo(planillaId, empresaId);
+    return this.boletasPdfService.generarPdfMasivo(
+      planillaId,
+      empresaId,
+      orden,
+    );
   }
 
   async getEstadisticas(empresaId: number, anio?: number) {
