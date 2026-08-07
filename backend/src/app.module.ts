@@ -27,6 +27,7 @@ import { PlantillasContratoModule } from './modules/plantillas-contrato/plantill
 import { SedesModule } from './modules/sedes/sedes.module';
 import { PlanillasModule } from './modules/planillas/planillas.module';
 import { BoletasModule } from './modules/boletas/boletas.module';
+import { PrestamosModule } from './modules/prestamos/prestamos.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
 import { BancoDocumentosModule } from './modules/banco-documentos/banco-documentos.module';
 import { VacacionesModule } from './modules/vacaciones/vacaciones.module';
@@ -102,6 +103,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
     SedesModule,
     PlanillasModule,
     BoletasModule,
+    PrestamosModule,
     ClientesModule,
     BancoDocumentosModule,
     VacacionesModule,

@@ -221,11 +221,31 @@ export function calcularDetalleCompleto(
     ? redondear2(valorMinuto * c.minutosTardanza)
     : 0;
 
+  // Préstamos y adelantos vigentes: entran ANTES de los totales para que el
+  // neto refleje el descuento sin depender de una edición manual posterior.
+  const prestamo = Math.max(
+    0,
+    redondear2(entrada.descuentosPrestamos?.prestamo ?? 0),
+  );
+  const adelantoQuincena = Math.max(
+    0,
+    redondear2(entrada.descuentosPrestamos?.adelantoQuincena ?? 0),
+  );
+  const adelantoGratificacion = Math.max(
+    0,
+    redondear2(entrada.descuentosPrestamos?.adelantoGratificacion ?? 0),
+  );
+
   const totalDescuentosLey = redondear2(
     ded.afpAporte + ded.afpPrima + ded.afpComision + ded.onp + renta5ta,
   );
   const totalDescuentosOtros = redondear2(
-    descuentoFaltas + descuentoPermisos + descuentoTardanzas,
+    descuentoFaltas +
+      descuentoPermisos +
+      descuentoTardanzas +
+      prestamo +
+      adelantoQuincena +
+      adelantoGratificacion,
   );
   const totalDescuentos = redondear2(totalDescuentosLey + totalDescuentosOtros);
 
@@ -377,14 +397,16 @@ export function calcularDetalleCompleto(
     renta_5ta: redondear2(renta5ta),
 
     adelantos: 0,
-    adelanto_quincena: 0,
+    adelanto_quincena: adelantoQuincena,
     adelanto_vacacional: 0,
     otros_adelantos: 0,
     adelanto_cts: 0,
-    adelanto_gratificacion: 0,
+    adelanto_gratificacion: adelantoGratificacion,
 
+    // `prestamos` es el campo agregado legacy que la boleta solo usa como
+    // fallback cuando `prestamo` viene en 0. Se deja en 0 para no duplicar.
     prestamos: 0,
-    prestamo: 0,
+    prestamo: prestamo,
     otros_descuentos: 0,
     descuento_faltas: redondear2(descuentoFaltas),
     descuento_permisos: redondear2(descuentoPermisos),

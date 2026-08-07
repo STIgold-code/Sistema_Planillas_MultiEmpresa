@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-interface EmpleadoOption {
+export interface EmpleadoOption {
   id: number;
   nombres: string;
   apellido_paterno: string;
@@ -17,12 +17,30 @@ interface EmpleadoOption {
 interface Props {
   selectedId: number | null;
   onSelect: (empleado: EmpleadoOption) => void;
+  /** Texto inicial del buscador (por ejemplo, al editar un registro). */
+  valorInicial?: string;
+  placeholder?: string;
+  disabled?: boolean;
 }
 
-export function EmpleadoSelector({ selectedId, onSelect }: Props) {
-  const [buscar, setBuscar] = useState("");
+/**
+ * Buscador de empleados de la empresa activa (autocompletado con debounce).
+ * Compartido por los módulos que necesitan elegir un trabajador.
+ */
+export function EmpleadoSelector({
+  selectedId,
+  onSelect,
+  valorInicial = "",
+  placeholder = "Buscar empleado por nombre o DNI...",
+  disabled = false,
+}: Props) {
+  const [buscar, setBuscar] = useState(valorInicial);
   const [opciones, setOpciones] = useState<EmpleadoOption[]>([]);
   const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    setBuscar(valorInicial);
+  }, [valorInicial]);
 
   useEffect(() => {
     const termino = buscar.trim();
@@ -59,8 +77,9 @@ export function EmpleadoSelector({ selectedId, onSelect }: Props) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           className="pl-9"
-          placeholder="Buscar empleado por nombre o DNI..."
+          placeholder={placeholder}
           value={buscar}
+          disabled={disabled}
           onChange={(e) => setBuscar(e.target.value)}
           onFocus={() => opciones.length > 0 && setAbierto(true)}
         />

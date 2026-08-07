@@ -12,6 +12,8 @@ import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
 import { calcularVentanaPeriodo } from '../tareo/ventana-periodo';
+import { PrestamosPlanillaService } from '../prestamos/prestamos-planilla.service';
+import { SIN_DESCUENTOS_PRESTAMOS } from '../prestamos/dominio/descuentos-prestamos';
 
 // Tipo de advertencia (duplicado del principal para autocontener)
 export interface CalculoWarning {
@@ -51,6 +53,7 @@ export class PlanillasCalcularService {
     private auditoria: PlanillaAuditoriaService,
     private carga: PlanillaCargaService,
     private consulta: PlanillaConsultaService,
+    private prestamos: PrestamosPlanillaService,
   ) {}
 
   async calcular(id: number, empresaId: number, usuarioId?: number) {
@@ -111,6 +114,16 @@ export class PlanillasCalcularService {
       planilla.anio,
       planilla.mes,
     );
+
+    // Préstamos y adelantos ACTIVOS del período. Los descuentos se recalculan en
+    // cada corrida, así el recálculo completo ya NO los borra (antes eran
+    // números sueltos cargados a mano en el detalle).
+    const descuentosPrestamosPorEmpleado =
+      await this.prestamos.descuentosPorEmpleado(
+        empresaId,
+        empleados.map((e) => e.id),
+        planilla.mes,
+      );
 
     const detalles: Prisma.PlanillaDetalleCreateManyInput[] = [];
     const warnings: CalculoWarning[] = [];
@@ -173,6 +186,9 @@ export class PlanillasCalcularService {
             ultimaGratificacion: promedios.ultimaGratificacion,
           },
           parametros: parametrosLegales,
+          descuentosPrestamos:
+            descuentosPrestamosPorEmpleado.get(empleado.id) ??
+            SIN_DESCUENTOS_PRESTAMOS,
         }) as Record<string, number | string | boolean>;
 
         const netoPagar = Number(calculo.neto_pagar) || 0;

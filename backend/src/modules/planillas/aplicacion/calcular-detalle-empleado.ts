@@ -22,7 +22,10 @@ import { ParametrosLegales } from '../dominio/parametros/parametros-legales';
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { calcularDetalleCompleto } from '../dominio/detalle/calcular-detalle-completo';
-import { PromediosDetalle } from '../dominio/detalle/tipos-detalle';
+import {
+  DescuentosPrestamosDetalle,
+  PromediosDetalle,
+} from '../dominio/detalle/tipos-detalle';
 import { asegurarRegimenCertificado } from './guardia-certificacion';
 import {
   mapearEntradaCalculo,
@@ -53,6 +56,12 @@ export interface ParametrosCalculoDetalle {
   retencionesPreviasRenta: number;
   promedios: PromediosDetalle;
   parametros: ParametrosLegales;
+  /**
+   * Descuentos por préstamos/adelantos ACTIVOS del trabajador (módulo
+   * `prestamos`). Entran al DTO completo ANTES del cálculo de totales, así el
+   * neto ya sale con el descuento y el recálculo NO los pierde.
+   */
+  descuentosPrestamos?: DescuentosPrestamosDetalle;
 }
 
 /**
@@ -91,6 +100,7 @@ export function calcularDetalleEmpleado(
     retencionesPreviasRenta: params.retencionesPreviasRenta,
     promedios: params.promedios,
     empresaAportaSenati: !!empresa.aporta_senati,
+    descuentosPrestamos: params.descuentosPrestamos,
   });
   const detalleCompleto = calcularDetalleCompleto(
     entradaDetalle,

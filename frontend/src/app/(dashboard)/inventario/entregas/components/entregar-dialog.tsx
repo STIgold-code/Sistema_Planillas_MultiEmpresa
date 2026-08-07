@@ -17,7 +17,7 @@ import {
 import { toDateString } from '@/lib/utils';
 import type { TipoUniformeSelect } from '@/types/inventario';
 import type { CrearEntregaData, LineaEntrega } from '../hooks/use-entregas';
-import { EmpleadoSelector } from '../../shared/empleado-selector';
+import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import { LineaEntregaRow } from './linea-entrega-row';
 
 interface Props {

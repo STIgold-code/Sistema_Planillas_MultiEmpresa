@@ -19,6 +19,7 @@ import {
   ahoraPeru,
   formatearFechaPeru,
 } from '../../common/utils/datetime.util';
+import { PrestamosAmortizacionService } from '../prestamos/prestamos-amortizacion.service';
 
 // Interfaz para advertencias de validación (exportada para tipado en controller)
 export interface CalculoWarning {
@@ -46,6 +47,7 @@ export class PlanillasService {
     private readonly planillaDetalleService: PlanillaDetalleService,
     private readonly planillasCalcularService: PlanillasCalcularService,
     private readonly auditoria: PlanillaAuditoriaService,
+    private readonly prestamosAmortizacion: PrestamosAmortizacionService,
   ) {}
 
   // =============================================
@@ -238,6 +240,16 @@ export class PlanillasService {
         },
       });
 
+      // Aprobar es el momento en que el descuento se considera cobrado: recién
+      // aquí se amortiza el saldo de los préstamos. Es idempotente (unique
+      // prestamo+planilla+tipo), así que re-aprobar tras un revert no duplica.
+      const amortizacion =
+        await this.prestamosAmortizacion.amortizarPlanillaAprobada(
+          tx,
+          id,
+          empresaId,
+        );
+
       await this.auditoria.registrar(tx, {
         tabla: 'planillas',
         registro_id: id,
@@ -245,7 +257,7 @@ export class PlanillasService {
         empresa_id: empresaId,
         usuario_id: usuarioId,
         datos_anteriores: { estado: planilla.estado },
-        datos_nuevos: { estado: 'APROBADA' },
+        datos_nuevos: { estado: 'APROBADA', prestamos: amortizacion },
       });
 
       return updated;

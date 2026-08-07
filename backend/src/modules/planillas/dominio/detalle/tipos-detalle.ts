@@ -16,6 +16,20 @@
  */
 import { AfiliacionPensionaria } from '../tipos';
 
+/**
+ * Descuentos por préstamos y adelantos ya resueltos en el borde de aplicación
+ * (el dominio del detalle no conoce la tabla `prestamos`). Entran ANTES del
+ * cálculo de totales para que `total_descuentos` y el neto los reflejen.
+ */
+export interface DescuentosPrestamosDetalle {
+  /** Cuotas de préstamos del mes → `planilla_detalle.prestamo`. */
+  prestamo: number;
+  /** Adelantos de sueldo → `planilla_detalle.adelanto_quincena`. */
+  adelantoQuincena: number;
+  /** Adelantos de gratificación → `planilla_detalle.adelanto_gratificacion`. */
+  adelantoGratificacion: number;
+}
+
 /** Promedios históricos del semestre (alimentan grati y CTS). */
 export interface PromediosDetalle {
   promedioHorasExtras: number;
@@ -85,6 +99,11 @@ export interface EntradaDetalle {
   mesesCts: number;
   /** Días sueltos del semestre para CTS (resuelto en el borde). */
   diasCts: number;
+  /**
+   * Descuentos por préstamos/adelantos vigentes del trabajador. Ausente = el
+   * trabajador no tiene préstamos activos (todos los montos en 0).
+   */
+  descuentosPrestamos?: DescuentosPrestamosDetalle;
 }
 
 /**

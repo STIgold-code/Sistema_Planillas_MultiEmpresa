@@ -92,6 +92,7 @@ model Empresa {
   plantillas_documento           PlantillaDocumento[]
   plantillas_onboarding          PlantillaOnboarding[]
   postulantes                    Postulante[]
+  prestamos                      Prestamo[]
   procedencias                   Procedencia[]
   procesos_onboarding            ProcesoOnboarding[]
   reportes_generados             ReporteGenerado[]
@@ -458,6 +459,7 @@ model Empleado {
   periodos_vacacionales          PeriodoVacacional[]
   photocheck_logs                PhotocheckLog[]
   planilla_detalles              PlanillaDetalle[]
+  prestamos                      Prestamo[]
   postulante_origen              Postulante?
   procesos_onboarding            ProcesoOnboarding[]
   mentoria_onboarding            ProcesoOnboarding[]            @relation("OnboardingMentor")
@@ -1089,6 +1091,7 @@ model Planilla {
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
   detalles         PlanillaDetalle[]
+  movimientos_prestamo PrestamoMovimiento[]
   aprobador        Usuario?          @relation("PlanillaAprobadaPor", fields: [aprobado_por], references: [id])
   empresa          Empresa           @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
   periodo_tareo    PeriodoTareo?     @relation(fields: [periodo_tareo_id], references: [id])
@@ -2456,4 +2459,76 @@ model VinculoLaboral {
   @@index([empresa_id])
   @@index([empleado_id, estado])
   @@map("vinculos_laborales")
+}
+
+// =============================================
+// PRÉSTAMOS Y ADELANTOS
+// =============================================
+
+enum TipoPrestamo {
+  PRESTAMO
+  ADELANTO_SUELDO
+  ADELANTO_GRATIFICACION
+}
+
+enum EstadoPrestamo {
+  ACTIVO
+  PAGADO
+  CANCELADO
+}
+
+enum TipoMovimientoPrestamo {
+  CARGO_PLANILLA
+  ABONO_MANUAL
+  AJUSTE
+}
+
+/// Préstamo o adelanto otorgado a un trabajador. El cálculo de planilla consulta
+/// los ACTIVOS y descuenta la cuota; la aprobación de la planilla amortiza el saldo.
+/// `monto_total`/`saldo` en NULL = descuento recurrente sin monto definido (se
+/// descuenta la cuota cada mes hasta que se cancela manualmente).
+model Prestamo {
+  id             Int            @id @default(autoincrement())
+  empresa_id     Int
+  empleado_id    Int
+  tipo           TipoPrestamo
+  monto_total    Decimal?       @db.Decimal(10, 2)
+  cuota_mensual  Decimal        @db.Decimal(10, 2)
+  saldo          Decimal?       @db.Decimal(10, 2)
+  estado         EstadoPrestamo @default(ACTIVO)
+  fecha_otorgado DateTime       @db.Date
+  observaciones  String?        @db.VarChar(500)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+
+  empresa     Empresa              @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  empleado    Empleado             @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  movimientos PrestamoMovimiento[]
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([estado])
+  @@index([empresa_id, estado])
+  @@map("prestamos")
+}
+
+/// Movimiento sobre el saldo de un préstamo. El cargo por planilla es idempotente
+/// (unique prestamo+planilla+tipo): re-aprobar una planilla no vuelve a descontar.
+model PrestamoMovimiento {
+  id            Int                    @id @default(autoincrement())
+  prestamo_id   Int
+  planilla_id   Int?
+  monto         Decimal                @db.Decimal(10, 2)
+  tipo          TipoMovimientoPrestamo
+  fecha         DateTime               @default(now())
+  observaciones String?                @db.VarChar(500)
+  created_at    DateTime               @default(now())
+
+  prestamo Prestamo  @relation(fields: [prestamo_id], references: [id], onDelete: Cascade)
+  planilla Planilla? @relation(fields: [planilla_id], references: [id], onDelete: SetNull)
+
+  @@unique([prestamo_id, planilla_id, tipo])
+  @@index([prestamo_id])
+  @@index([planilla_id])
+  @@map("prestamos_movimientos")
 }
