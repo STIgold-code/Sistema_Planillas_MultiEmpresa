@@ -1,9 +1,35 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { Prisma, EstadoBoleta } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { dibujarBoletaA4 } from './boleta-pdf';
+import { dibujarBoletaA4, ImagenesEmpresaBoleta } from './boleta-pdf';
 import { ahoraPeru } from '../../common/utils/datetime.util';
+import { obtenerMensajeError } from '../../common/utils/error.util';
+import { UploadsService } from '../uploads/uploads.service';
+import { extraerKeyDeValor } from '../uploads/archivo-key.util';
+import { OrdenBoletasMasivo } from './dto';
+
+/** Referencias de imagen guardadas en la empresa (key o URL del proxy). */
+interface ReferenciasImagenEmpresa {
+  logo_url: string | null;
+  firma_representante_url: string | null;
+}
+
+/**
+ * Traduce el criterio de orden pedido por el usuario al `orderBy` de Prisma.
+ * Exportada para poder probarla y para que el criterio viva en un solo lugar.
+ */
+export function resolverOrdenBoletas(
+  orden: OrdenBoletasMasivo,
+): Prisma.BoletaOrderByWithRelationInput[] {
+  if (orden === OrdenBoletasMasivo.CODIGO) {
+    return [{ empleado_id: 'asc' }];
+  }
+  return [
+    { empleado: { apellido_paterno: 'asc' } },
+    { empleado: { apellido_materno: 'asc' } },
+  ];
+}
 
 /**
  * Servicio dedicado a la generacion de PDF de boletas (individual + masivo).
@@ -13,7 +39,60 @@ import { ahoraPeru } from '../../common/utils/datetime.util';
  */
 @Injectable()
 export class BoletasPdfService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(BoletasPdfService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private uploadsService: UploadsService,
+  ) {}
+
+  /**
+   * Descarga una imagen de la empresa (logo o firma) desde el almacenamiento
+   * a partir de la referencia guardada, que puede ser una key cruda o una URL
+   * del proxy de archivos.
+   *
+   * Devuelve `null` ante cualquier problema (sin referencia, referencia no
+   * mapeable a key, archivo inexistente): la boleta se emite sin la imagen.
+   */
+  private async cargarImagen(
+    referencia: string | null,
+  ): Promise<Buffer | null> {
+    if (!referencia) {
+      return null;
+    }
+
+    const key = extraerKeyDeValor(referencia);
+    if (!key) {
+      this.logger.warn(
+        `[BOLETA_PDF] Referencia de imagen no mapeable a key: ${referencia}`,
+      );
+      return null;
+    }
+
+    try {
+      return await this.uploadsService.getFileBuffer(key);
+    } catch (error: unknown) {
+      this.logger.warn(
+        `[BOLETA_PDF] No se pudo cargar la imagen ${key}: ${obtenerMensajeError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Resuelve logo y firma de la empresa a Buffer. Se invoca UNA sola vez por
+   * request (tambien en el masivo) y el resultado se reutiliza en todas las
+   * boletas y en ambas copias de cada pagina.
+   */
+  private async cargarImagenesEmpresa(
+    empresa: ReferenciasImagenEmpresa,
+  ): Promise<ImagenesEmpresaBoleta> {
+    const [logo, firma] = await Promise.all([
+      this.cargarImagen(empresa.logo_url),
+      this.cargarImagen(empresa.firma_representante_url),
+    ]);
+    return { logo, firma };
+  }
 
   // Finder local: busca boleta con sus relaciones, lanza NotFoundException si no existe.
   private async findBoleta(id: number, empresaId: number) {
@@ -58,6 +137,8 @@ export class BoletasPdfService {
       throw new NotFoundException('Empresa no encontrada');
     }
 
+    const imagenes = await this.cargarImagenesEmpresa(empresa);
+
     // A4 horizontal: 841.89 x 595.28 points (297 x 210 mm)
     const doc = new PDFDocument({
       size: 'A4',
@@ -90,6 +171,7 @@ export class BoletasPdfService {
         boletaWidth,
         boletaHeight,
         'EMPLEADOR',
+        imagenes,
       );
 
       // Línea divisoria vertical (punteada para cortar)
@@ -115,6 +197,7 @@ export class BoletasPdfService {
         boletaWidth,
         boletaHeight,
         'EMPLEADO',
+        imagenes,
       );
 
       doc.end();
@@ -164,10 +247,13 @@ export class BoletasPdfService {
   /**
    * Genera PDF con múltiples boletas (2 copias por página en A4 horizontal)
    * Útil para impresión masiva - mismo formato que boleta individual
+   *
+   * @param orden Criterio de ordenamiento de las boletas dentro del PDF.
    */
   async generarPdfMasivo(
     planillaId: number,
     empresaId: number,
+    orden: OrdenBoletasMasivo = OrdenBoletasMasivo.APELLIDO,
   ): Promise<{ buffer: Buffer; filename: string; cantidad: number }> {
     const boletas = await this.prisma.boleta.findMany({
       where: {
@@ -193,10 +279,7 @@ export class BoletasPdfService {
           },
         },
       },
-      orderBy: [
-        { empleado: { apellido_paterno: 'asc' } },
-        { empleado: { apellido_materno: 'asc' } },
-      ],
+      orderBy: resolverOrdenBoletas(orden),
     });
 
     if (boletas.length === 0) {
@@ -219,6 +302,9 @@ export class BoletasPdfService {
     if (!empresa) {
       throw new NotFoundException('Empresa no encontrada');
     }
+
+    // Una sola descarga de logo y firma para TODO el lote.
+    const imagenes = await this.cargarImagenesEmpresa(empresa);
 
     // A4 horizontal: 841.89 x 595.28 points
     const doc = new PDFDocument({
@@ -282,6 +368,7 @@ export class BoletasPdfService {
           boletaWidth,
           boletaHeight,
           'EMPLEADOR',
+          imagenes,
         );
 
         // Línea divisoria vertical (punteada para cortar)
@@ -307,6 +394,7 @@ export class BoletasPdfService {
           boletaWidth,
           boletaHeight,
           'EMPLEADO',
+          imagenes,
         );
       }
 

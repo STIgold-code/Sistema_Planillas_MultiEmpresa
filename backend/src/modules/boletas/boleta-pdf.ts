@@ -1,6 +1,4 @@
-import * as fs from 'fs';
 import { Boleta, PlanillaDetalle } from '@prisma/client';
-import { LOGO_ERMIR_PATH } from '../../common/utils/assets.util';
 
 /**
  * Datos del empleado requeridos para dibujar la boleta.
@@ -24,14 +22,30 @@ export interface EmpleadoBoletaPdf {
 
 /**
  * Datos de la empresa requeridos para dibujar la boleta.
+ * El logo y la firma NO llegan como referencia (key/URL) sino ya resueltos a
+ * Buffer en `ImagenesEmpresaBoleta`: dibujar es una operación síncrona.
  */
 export interface EmpresaBoletaPdf {
   razon_social: string;
   ruc: string;
   direccion: string | null;
-  logo_url: string | null;
-  firma_representante_url: string | null;
 }
+
+/**
+ * Imágenes de la empresa ya descargadas del almacenamiento (Wasabi o local).
+ * Quien arma el PDF las resuelve UNA vez por request y las reutiliza en todas
+ * las boletas y en ambas copias. `null` significa "no hay imagen disponible":
+ * se deja el espacio limpio, nunca se sustituye por una marca ajena.
+ */
+export interface ImagenesEmpresaBoleta {
+  logo: Buffer | null;
+  firma: Buffer | null;
+}
+
+/** Ancho máximo de la firma del representante legal, en puntos. */
+const FIRMA_ANCHO = 90;
+/** Alto máximo de la firma del representante legal, en puntos. */
+const FIRMA_ALTO = 35;
 
 /**
  * Dibuja una boleta individual en formato A4 horizontal - FORMATO ERMIR v2
@@ -48,6 +62,7 @@ export function dibujarBoletaA4(
   anchoTotal: number,
   altoTotal: number,
   tipoCopia: 'EMPLEADOR' | 'EMPLEADO',
+  imagenes: ImagenesEmpresaBoleta,
 ) {
   // =============================================
   // CONFIGURACIÓN DE ESTILOS - PALETA MONOCROMÁTICA
@@ -85,7 +100,6 @@ export function dibujarBoletaA4(
   // =============================================
   // HEADER: Logo + Empresa + Código
   // =============================================
-  const logoPath = LOGO_ERMIR_PATH;
   const logoSize = 40;
 
   // Etiqueta EMPLEADOR/EMPLEADO (esquina superior derecha)
@@ -95,15 +109,18 @@ export function dibujarBoletaA4(
     align: 'right',
   });
 
-  // Dibujar logo
-  if (fs.existsSync(logoPath)) {
+  // Logo de la empresa emisora. Si la empresa no tiene logo configurado (o no
+  // se pudo descargar) el espacio queda vacío: jamás se dibuja la marca de otra
+  // empresa en una boleta.
+  if (imagenes.logo) {
     try {
-      doc.image(logoPath, startX + 4, y + 4, {
-        width: logoSize,
-        height: logoSize,
+      doc.image(imagenes.logo, startX + 4, y + 4, {
+        fit: [logoSize, logoSize],
+        align: 'center',
+        valign: 'center',
       });
     } catch (e) {
-      console.error('[BOLETA_PDF] Error cargando logo:', e);
+      console.error('[BOLETA_PDF] Error dibujando el logo de la empresa:', e);
     }
   }
 
@@ -711,8 +728,12 @@ export function dibujarBoletaA4(
     return Math.max(1, Math.round(alto / altoLineaConcepto));
   };
 
-  // Calcular filas disponibles para 3 columnas
-  const espacioRestante = altoTotal - (y - startY) - 90;
+  // Calcular filas disponibles para 3 columnas.
+  // Cuando hay firma del representante legal se reserva su alto: el bloque de
+  // firmas baja lo mismo que crece el hueco sobre la línea del Empleador, así
+  // que la boleta no puede desbordar por dibujar la firma.
+  const altoReservadoFirma = imagenes.firma ? FIRMA_ALTO : 0;
+  const espacioRestante = altoTotal - (y - startY) - 90 - altoReservadoFirma;
   const filasCandidatas = Math.max(
     10,
     ingresos.length,
@@ -938,12 +959,32 @@ export function dibujarBoletaA4(
   // VIDA LEY
   drawAporteItem(3, 'VIDA LEY', Number(detalle.vida_ley_empleador || 0), true);
 
-  y += aporteRowH + 12;
+  y += aporteRowH + 12 + altoReservadoFirma;
 
   // =============================================
   // FIRMAS
   // =============================================
   const firmaW = anchoTotal / 2 - 40;
+
+  // Firma escaneada del representante legal, centrada SOBRE la línea del
+  // Empleador. Sin firma configurada la línea queda sola (comportamiento previo).
+  if (imagenes.firma) {
+    try {
+      doc.image(
+        imagenes.firma,
+        startX + 20 + (firmaW - FIRMA_ANCHO) / 2,
+        y - FIRMA_ALTO - 2,
+        {
+          fit: [FIRMA_ANCHO, FIRMA_ALTO],
+          align: 'center',
+          valign: 'bottom',
+        },
+      );
+    } catch (e) {
+      console.error('[BOLETA_PDF] Error dibujando la firma del empleador:', e);
+    }
+  }
+
   doc.strokeColor(COLOR_NEGRO);
   doc
     .moveTo(startX + 20, y)

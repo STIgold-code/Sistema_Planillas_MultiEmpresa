@@ -11,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { BoletasService } from './boletas.service';
-import { FilterBoletaDto, GenerarBoletasDto } from './dto';
+import {
+  DescargarBoletasMasivoDto,
+  FilterBoletaDto,
+  GenerarBoletasDto,
+  OrdenBoletasMasivo,
+} from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -95,10 +100,15 @@ export class BoletasController {
   async descargarPdfMasivo(
     @Param('planillaId', ParseIntPipe) planillaId: number,
     @CurrentUser('empresa_id') empresaId: number,
+    @Query() query: DescargarBoletasMasivoDto,
     @Res() res: Response,
   ) {
     const { buffer, filename, cantidad } =
-      await this.boletasService.generarPdfMasivo(planillaId, empresaId);
+      await this.boletasService.generarPdfMasivo(
+        planillaId,
+        empresaId,
+        query.orden ?? OrdenBoletasMasivo.APELLIDO,
+      );
 
     res.set({
       'Content-Type': 'application/pdf',

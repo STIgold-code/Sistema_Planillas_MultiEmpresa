@@ -83,6 +83,9 @@ interface BoletasResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+/** Criterios de orden soportados por la descarga masiva (espejo del backend). */
+type OrdenMasivo = 'apellido' | 'codigo';
+
 interface Planilla {
   id: number;
   anio: number;
@@ -137,6 +140,7 @@ export default function BoletasPage() {
   const [generando, setGenerando] = useState(false);
   const [loadingPlanillas, setLoadingPlanillas] = useState(false);
   const [downloadingMasivo, setDownloadingMasivo] = useState<number | null>(null);
+  const [ordenMasivo, setOrdenMasivo] = useState<OrdenMasivo>('apellido');
 
   const fetchBoletas = async (page = 1) => {
     setLoading(true);
@@ -236,7 +240,9 @@ export default function BoletasPage() {
   const handleDescargarPdfMasivo = async (planillaId: number) => {
     setDownloadingMasivo(planillaId);
     try {
-      const blob = await api.getBlob(`/boletas/planilla/${planillaId}/pdf`);
+      const blob = await api.getBlob(
+        `/boletas/planilla/${planillaId}/pdf?orden=${ordenMasivo}`
+      );
       const filename = 'boletas.pdf';
 
       const url = window.URL.createObjectURL(blob);
@@ -586,6 +592,26 @@ export default function BoletasPage() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex items-center gap-2 sm:mr-auto">
+              <label
+                htmlFor="orden-masivo"
+                className="text-sm text-muted-foreground whitespace-nowrap"
+              >
+                Ordenar por:
+              </label>
+              <Select
+                value={ordenMasivo}
+                onValueChange={(valor) => setOrdenMasivo(valor as OrdenMasivo)}
+              >
+                <SelectTrigger id="orden-masivo" className="h-9 w-[130px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apellido">Apellido</SelectItem>
+                  <SelectItem value="codigo">Código</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button variant="outline" onClick={() => setShowGenerarModal(false)}>
               Cancelar
             </Button>
