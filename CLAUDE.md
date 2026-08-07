@@ -88,8 +88,10 @@ Convención `FF_<FLAG>` (backend, env) y `NEXT_PUBLIC_FF_<FLAG>` (frontend). Aus
 
 ## Plan de fases
 
-**Las 6 fases técnicas están implementadas y con tests en verde.** El producto está en fase de
-cierre / hardening, no de construcción. Ver `ESTADO.md` para el detalle vigente.
+**Las 6 fases técnicas están completas y el producto está en OPERACIÓN REAL** con el primer
+cliente (Grupo BM): planillas mensuales calculadas y aprobadas en producción, boletas emitidas y
+liquidaciones de cese procesadas. Sobre esa base se construyó la capa de operación (PRs #50–#62).
+`ESTADO.md` es la fuente de verdad del estado vigente — leelo antes de asumir nada.
 
 0. ✅ **Bootstrap**: base RRHH limpia, repo propio, baseline que compila.
 1. ✅ **Dominio del motor**: interfaz `CalculadoraRegimen`, conceptos puros, los 6 regímenes, factory (TDD).
@@ -98,8 +100,16 @@ cierre / hardening, no de construcción. Ver `ESTADO.md` para el detalle vigente
 4. ✅ **Casos de uso + API**: cálculo de planilla, controllers delgados.
 5. ✅ **Frontend**: gestión, generación de planilla, boleta.
 6. ✅ **Exportación**: PDF de boleta + Excel de planilla.
+7. ✅ **Operación**: ventana de corte por empresa, destaques a mina, boletas con identidad de la
+   empresa, y préstamos/adelantos con descuento automático en el cálculo (PRs #55–#61).
 
 **Pendiente real (no es código):** validación de un contador para certificar Agrario y Construcción
-civil (5 puntos legales en `it.skip`), aplicar la migración de SUCAMEC por entorno, y Sentry de deploy.
+civil (5 puntos legales en `it.skip`), asignar los permisos `prestamos:*` a los roles (sin eso solo
+el superadmin ve el módulo de préstamos), y Sentry de deploy.
+
+> **Migraciones: NO son un paso manual.** `backend/Dockerfile` termina en
+> `CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]`, así que cada deploy de Railway
+> aplica las migraciones pendientes antes de arrancar. Producción queda al día sola. Solo hay que
+> correr `migrate deploy` a mano en BD **locales**. No listes "aplicar la migración X" como pendiente.
 
 **Calidad:** 0 `any`, 0 errores de ESLint, CI bloqueante (`tsc` + sin-any + tests + lint) en cada PR.
