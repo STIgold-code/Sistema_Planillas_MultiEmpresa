@@ -72,6 +72,12 @@ export const TIPO_DESCRIPCION: Record<TipoPrestamo, string> = {
     'Se descuenta únicamente en las planillas de julio y diciembre.',
 };
 
+export const MOVIMIENTO_ETIQUETA: Record<TipoMovimientoPrestamo, string> = {
+  CARGO_PLANILLA: 'Descuento en planilla',
+  ABONO_MANUAL: 'Abono manual',
+  AJUSTE: 'Ajuste de saldo',
+};
+
 export const ESTADO_ETIQUETA: Record<EstadoPrestamo, string> = {
   ACTIVO: 'Activo',
   PAGADO: 'Pagado',
@@ -144,6 +150,7 @@ export function usePrestamos() {
   const [dialogoCancelarAbierto, setDialogoCancelarAbierto] = useState(false);
   const [seleccionado, setSeleccionado] = useState<Prestamo | null>(null);
   const [nombreEmpleado, setNombreEmpleado] = useState('');
+  const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
 
   const [filtroBuscar, setFiltroBuscar] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>(TODOS);
@@ -179,6 +186,18 @@ export function usePrestamos() {
     }, 250);
     return () => clearTimeout(timer);
   }, [cargarPrestamos]);
+
+  const alternarDetalle = (id: number) => {
+    setExpandidos((previos) => {
+      const siguiente = new Set(previos);
+      if (siguiente.has(id)) {
+        siguiente.delete(id);
+      } else {
+        siguiente.add(id);
+      }
+      return siguiente;
+    });
+  };
 
   const abrirDialogoNuevo = () => {
     setSeleccionado(null);
@@ -263,6 +282,8 @@ export function usePrestamos() {
     setDialogoCancelarAbierto,
     seleccionado,
     nombreEmpleado,
+    expandidos,
+    alternarDetalle,
     filtroBuscar,
     setFiltroBuscar,
     filtroTipo,

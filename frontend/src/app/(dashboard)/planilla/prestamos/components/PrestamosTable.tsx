@@ -10,10 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Ban, Pencil } from 'lucide-react';
+import { Ban, ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import {
   ESTADO_COLOR,
   ESTADO_ETIQUETA,
+  MOVIMIENTO_ETIQUETA,
   Prestamo,
   TIPO_ETIQUETA,
 } from '../usePrestamos';
@@ -21,11 +22,13 @@ import {
 interface Props {
   prestamos: Prestamo[];
   cargando: boolean;
+  expandidos: Set<number>;
+  onAlternarDetalle: (id: number) => void;
   onEditar: (prestamo: Prestamo) => void;
   onCancelar: (prestamo: Prestamo) => void;
 }
 
-const COLUMNAS = 8;
+const COLUMNAS = 9;
 
 function moneda(valor: string | null): string {
   if (valor === null) return '—';
@@ -52,6 +55,8 @@ function nombreCompleto(prestamo: Prestamo): string {
 export function PrestamosTable({
   prestamos,
   cargando,
+  expandidos,
+  onAlternarDetalle,
   onEditar,
   onCancelar,
 }: Props) {
@@ -62,6 +67,9 @@ export function PrestamosTable({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <span className="sr-only">Movimientos</span>
+                </TableHead>
                 <TableHead className="min-w-[220px]">Trabajador</TableHead>
                 <TableHead className="min-w-[170px]">Tipo</TableHead>
                 <TableHead className="min-w-[120px] text-right">
@@ -96,13 +104,33 @@ export function PrestamosTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                prestamos.map((prestamo) => (
+                prestamos.flatMap((prestamo) => [
                   <TableRow
                     key={prestamo.id}
                     className={
                       prestamo.estado === 'CANCELADO' ? 'opacity-60' : ''
                     }
                   >
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        aria-expanded={expandidos.has(prestamo.id)}
+                        aria-label={
+                          expandidos.has(prestamo.id)
+                            ? `Ocultar movimientos de ${nombreCompleto(prestamo)}`
+                            : `Ver movimientos de ${nombreCompleto(prestamo)}`
+                        }
+                        onClick={() => onAlternarDetalle(prestamo.id)}
+                      >
+                        {expandidos.has(prestamo.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-sm">
                       <span className="font-medium block truncate">
                         {nombreCompleto(prestamo)}
@@ -165,8 +193,49 @@ export function PrestamosTable({
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))
+                  </TableRow>,
+                  ...(expandidos.has(prestamo.id)
+                    ? [
+                        <TableRow
+                          key={`${prestamo.id}-movimientos`}
+                          className="bg-muted/40 hover:bg-muted/40"
+                        >
+                          <TableCell colSpan={COLUMNAS} className="py-3">
+                            {prestamo.movimientos.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                Todavía no hay movimientos. El primer cargo se
+                                registra cuando se aprueba una planilla.
+                              </p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {prestamo.movimientos.map((movimiento) => (
+                                  <li
+                                    key={movimiento.id}
+                                    className="flex flex-wrap items-baseline gap-x-3 text-sm"
+                                  >
+                                    <span className="font-mono text-xs text-muted-foreground">
+                                      {fechaCorta(movimiento.fecha)}
+                                    </span>
+                                    <span className="font-medium">
+                                      {MOVIMIENTO_ETIQUETA[movimiento.tipo]}
+                                    </span>
+                                    <span className="font-mono">
+                                      {moneda(movimiento.monto)}
+                                    </span>
+                                    {movimiento.planilla_id !== null && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Planilla #{movimiento.planilla_id}
+                                      </span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </TableCell>
+                        </TableRow>,
+                      ]
+                    : []),
+                ])
               )}
             </TableBody>
           </Table>

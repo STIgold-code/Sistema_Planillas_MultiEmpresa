@@ -35,6 +35,8 @@ export default function PrestamosPage() {
     setDialogoCancelarAbierto,
     seleccionado,
     nombreEmpleado,
+    expandidos,
+    alternarDetalle,
     filtroBuscar,
     setFiltroBuscar,
     filtroTipo,
@@ -110,6 +112,8 @@ export default function PrestamosPage() {
       <PrestamosTable
         prestamos={prestamos}
         cargando={cargando}
+        expandidos={expandidos}
+        onAlternarDetalle={alternarDetalle}
         onEditar={abrirDialogoEdicion}
         onCancelar={abrirDialogoCancelar}
       />

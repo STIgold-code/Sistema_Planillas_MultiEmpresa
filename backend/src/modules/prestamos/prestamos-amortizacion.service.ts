@@ -168,4 +168,81 @@ export class PrestamosAmortizacionService {
 
     return resumen;
   }
+
+  /**
+   * Revierte los cargos de una planilla que se anula.
+   *
+   * Una planilla ANULADA no se pagó, así que el descuento nunca ocurrió: hay que
+   * devolver el saldo y borrar los movimientos. Si el cargo había cancelado la
+   * deuda, el préstamo vuelve a ACTIVO. Sin esto el saldo quedaría descontado
+   * contra una planilla que no vale y el unique impediría volver a cobrarlo.
+   *
+   * Debe ejecutarse DENTRO de la transacción que anula la planilla.
+   */
+  async revertirPlanillaAnulada(
+    tx: Prisma.TransactionClient,
+    planillaId: number,
+    empresaId: number,
+  ): Promise<ResumenAmortizacion> {
+    const resumen: ResumenAmortizacion = {
+      cargos: 0,
+      montoAmortizado: 0,
+      prestamosPagados: 0,
+    };
+
+    // Multi-tenant: solo se revierten cargos de préstamos de ESTA empresa.
+    const cargos = await tx.prestamoMovimiento.findMany({
+      where: {
+        planilla_id: planillaId,
+        tipo: TipoMovimientoPrestamo.CARGO_PLANILLA,
+        prestamo: { empresa_id: empresaId },
+      },
+      select: {
+        id: true,
+        monto: true,
+        prestamo: { select: { id: true, saldo: true, estado: true } },
+      },
+    });
+
+    if (cargos.length === 0) return resumen;
+
+    for (const cargo of cargos) {
+      const monto = aNumero(cargo.monto);
+      const saldoActual =
+        cargo.prestamo.saldo === null ? null : aNumero(cargo.prestamo.saldo);
+
+      await tx.prestamo.update({
+        where: { id: cargo.prestamo.id },
+        data: {
+          ...(saldoActual !== null
+            ? { saldo: Number((saldoActual + monto).toFixed(2)) }
+            : {}),
+          // Un préstamo cancelado por este cargo vuelve a deber.
+          ...(cargo.prestamo.estado === EstadoPrestamo.PAGADO
+            ? { estado: EstadoPrestamo.ACTIVO }
+            : {}),
+        },
+      });
+
+      resumen.cargos += 1;
+      resumen.montoAmortizado = Number(
+        (resumen.montoAmortizado + monto).toFixed(2),
+      );
+      if (cargo.prestamo.estado === EstadoPrestamo.PAGADO) {
+        resumen.prestamosPagados += 1;
+      }
+    }
+
+    // Se borran (no se compensan con un contra-movimiento) para que el unique
+    // deje volver a cargar si la planilla se recalcula y se aprueba de nuevo.
+    await tx.prestamoMovimiento.deleteMany({
+      where: { id: { in: cargos.map((cargo) => cargo.id) } },
+    });
+
+    this.logger.log(
+      `Planilla #${planillaId} anulada: se revirtieron ${resumen.cargos} cargo(s) por S/. ${resumen.montoAmortizado.toFixed(2)} (${resumen.prestamosPagados} préstamo[s] reactivado[s]).`,
+    );
+
+    return resumen;
+  }
 }
