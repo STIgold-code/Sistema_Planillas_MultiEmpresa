@@ -19,6 +19,7 @@ import {
 } from '../../tareo/ventana-periodo';
 import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
 import {
+  DescuentosPrestamosDetalle,
   DiaTareoDetalle,
   EntradaDetalle,
   PromediosDetalle,
@@ -79,6 +80,11 @@ export interface ParametrosMapeoDetalle {
   ventanaPeriodo?: VentanaPeriodo;
   /** True si la empresa del período aporta SENATI (config por empresa). */
   empresaAportaSenati?: boolean;
+  /**
+   * Descuentos por préstamos/adelantos ACTIVOS del trabajador, resueltos por el
+   * módulo `prestamos` antes de calcular. Ausente = sin préstamos vigentes.
+   */
+  descuentosPrestamos?: DescuentosPrestamosDetalle;
 }
 
 const aNumero = (valor: unknown): number => {
@@ -312,5 +318,6 @@ export function mapearEntradaDetalle(
     ),
     mesesCts: cts.mesesCts,
     diasCts: cts.diasCts,
+    descuentosPrestamos: params.descuentosPrestamos,
   };
 }

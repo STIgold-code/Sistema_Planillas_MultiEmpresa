@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
-import { EmpleadoSelector } from '../../shared/empleado-selector';
+import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import type { ItemsPendientesEmpleado } from '@/types/inventario';
 import type { CrearDescuentoData } from '../hooks/use-descuentos';
 

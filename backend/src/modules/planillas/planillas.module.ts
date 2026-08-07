@@ -8,8 +8,10 @@ import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
+import { PrestamosModule } from '../prestamos/prestamos.module';
 
 @Module({
+  imports: [PrestamosModule],
   controllers: [PlanillasController],
   providers: [
     PlanillasService,

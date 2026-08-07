@@ -66,6 +66,14 @@ export const PERMISOS = {
     APROBAR: 'planilla:aprobar', // Aprobar planillas para pago
   },
 
+  // Módulo Préstamos y Adelantos (descuentos recurrentes en planilla)
+  PRESTAMOS: {
+    LEER: 'prestamos:leer',
+    CREAR: 'prestamos:crear',
+    EDITAR: 'prestamos:editar',
+    ELIMINAR: 'prestamos:eliminar',
+  },
+
   // Módulo Boletas de Pago
   BOLETA: {
     LEER: 'boleta:leer',
@@ -327,6 +335,33 @@ export const PERMISOS_POR_MODULO: PermisoGrupo[] = [
         codigo: PERMISOS.PLANILLA.APROBAR,
         nombre: 'Aprobar',
         descripcion: 'Autorizar planillas para pago',
+      },
+    ],
+  },
+  {
+    modulo: 'Préstamos y Adelantos',
+    descripcion:
+      'Préstamos y adelantos que se descuentan automáticamente en la planilla',
+    permisos: [
+      {
+        codigo: PERMISOS.PRESTAMOS.LEER,
+        nombre: 'Leer',
+        descripcion: 'Ver préstamos, saldos y movimientos',
+      },
+      {
+        codigo: PERMISOS.PRESTAMOS.CREAR,
+        nombre: 'Crear',
+        descripcion: 'Otorgar préstamos y registrar adelantos',
+      },
+      {
+        codigo: PERMISOS.PRESTAMOS.EDITAR,
+        nombre: 'Editar',
+        descripcion: 'Modificar la cuota, ajustar el saldo y cancelar',
+      },
+      {
+        codigo: PERMISOS.PRESTAMOS.ELIMINAR,
+        nombre: 'Eliminar',
+        descripcion: 'Eliminar préstamos que aún no tienen movimientos',
       },
     ],
   },

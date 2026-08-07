@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { bloquearTeclasEntero } from '@/lib/numeric-input';
-import { EmpleadoSelector } from '../../../shared/empleado-selector';
+import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import type {
   TallaEmpleadoPrellenada,
   PlantillaUniforme,
