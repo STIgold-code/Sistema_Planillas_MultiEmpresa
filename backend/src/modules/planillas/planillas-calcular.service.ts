@@ -118,11 +118,16 @@ export class PlanillasCalcularService {
     // Préstamos y adelantos ACTIVOS del período. Los descuentos se recalculan en
     // cada corrida, así el recálculo completo ya NO los borra (antes eran
     // números sueltos cargados a mano en el detalle).
+    //
+    // Se pasa el FIN DE LA VENTANA del período (no el mes calendario): un
+    // préstamo otorgado después de esa fecha recién descuenta en el período
+    // siguiente. Nunca se retro-descuenta.
     const descuentosPrestamosPorEmpleado =
       await this.prestamos.descuentosPorEmpleado(
         empresaId,
         empleados.map((e) => e.id),
         planilla.mes,
+        fechaFinPeriodo,
       );
 
     const detalles: Prisma.PlanillaDetalleCreateManyInput[] = [];

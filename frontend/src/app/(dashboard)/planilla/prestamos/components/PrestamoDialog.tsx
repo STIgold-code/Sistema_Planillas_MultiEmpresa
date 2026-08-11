@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Paperclip } from 'lucide-react';
+import { AlertTriangle, Loader2, Paperclip } from 'lucide-react';
 import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import {
   EXTENSIONES_ACEPTADAS,
@@ -37,6 +37,7 @@ import {
   TIPO_DESCRIPCION,
   TIPO_ETIQUETA,
   TipoPrestamo,
+  UMBRAL_CUOTA_SOBRE_SUELDO,
 } from '../usePrestamos';
 
 interface Props {
@@ -47,6 +48,8 @@ interface Props {
   form: UseFormReturn<PrestamoFormValues>;
   onSubmit: (valores: PrestamoFormValues) => void;
   guardando: boolean;
+  sueldoEmpleado: number | null;
+  onSueldoEmpleado: (sueldo: number | null) => void;
 }
 
 const TIPOS: TipoPrestamo[] = [
@@ -63,11 +66,22 @@ export function PrestamoDialog({
   form,
   onSubmit,
   guardando,
+  sueldoEmpleado,
+  onSueldoEmpleado,
 }: Props) {
   const esEdicion = seleccionado !== null;
   const tipoSeleccionado = form.watch('tipo');
   const empleadoId = form.watch('empleado_id');
   const archivosSeleccionados = form.watch('archivos') ?? [];
+  const cuotaMensual = Number(form.watch('cuota_mensual')) || 0;
+
+  // Aviso NO bloqueante: la empresa decide, el sistema informa.
+  const topeSugerido =
+    sueldoEmpleado !== null && sueldoEmpleado > 0
+      ? sueldoEmpleado * UMBRAL_CUOTA_SOBRE_SUELDO
+      : null;
+  const cuotaElevada =
+    !esEdicion && topeSugerido !== null && cuotaMensual > topeSugerido;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,11 +114,17 @@ export function PrestamoDialog({
                     ) : (
                       <EmpleadoSelector
                         selectedId={empleadoId || null}
-                        onSelect={(empleado) =>
+                        onSelect={(empleado) => {
                           form.setValue('empleado_id', empleado.id, {
                             shouldValidate: true,
-                          })
-                        }
+                          });
+                          const sueldo = Number(empleado.sueldo_base);
+                          onSueldoEmpleado(
+                            Number.isFinite(sueldo) && sueldo > 0
+                              ? sueldo
+                              : null,
+                          );
+                        }}
                       />
                     )}
                   </FormControl>
@@ -202,6 +222,21 @@ export function PrestamoDialog({
                 )}
               />
             </div>
+
+            {cuotaElevada && topeSugerido !== null && (
+              <div
+                role="status"
+                className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  La cuota supera el 30% de la remuneración del trabajador
+                  (S/ {topeSugerido.toFixed(2)} sobre un sueldo de S/{' '}
+                  {sueldoEmpleado?.toFixed(2)}). Puedes continuar: es solo un
+                  aviso para que lo revises con el trabajador.
+                </p>
+              </div>
+            )}
 
             <FormField
               control={form.control}

@@ -102,6 +102,13 @@ export const ESTADO_COLOR: Record<EstadoPrestamo, string> = {
 
 const TODOS = 'TODOS';
 
+/**
+ * Umbral de alerta de endeudamiento. NO bloquea: la empresa decide, el sistema
+ * informa. No hay tope legal único en Perú para descuentos autorizados por
+ * convenio, pero una cuota sobre este porcentaje merece una segunda mirada.
+ */
+export const UMBRAL_CUOTA_SOBRE_SUELDO = 0.3;
+
 /** Espejo de ALLOWED_EXTENSIONS del backend (uploads.config.ts). */
 export const EXTENSIONES_ACEPTADAS =
   '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp';
@@ -191,6 +198,9 @@ export function usePrestamos() {
   const [dialogoCancelarAbierto, setDialogoCancelarAbierto] = useState(false);
   const [seleccionado, setSeleccionado] = useState<Prestamo | null>(null);
   const [nombreEmpleado, setNombreEmpleado] = useState('');
+  // Sueldo del trabajador elegido, para el aviso de cuota alta. Sale del propio
+  // listado de empleados que ya consume el selector: cero consultas extra.
+  const [sueldoEmpleado, setSueldoEmpleado] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [dialogoAdjuntarAbierto, setDialogoAdjuntarAbierto] = useState(false);
   const [adjuntando, setAdjuntando] = useState(false);
@@ -255,6 +265,7 @@ export function usePrestamos() {
     modoEdicionRef.current = false;
     setSeleccionado(null);
     setNombreEmpleado('');
+    setSueldoEmpleado(null);
     form.reset({ ...VALORES_INICIALES, fecha_otorgado: hoyISO() });
     setDialogoAbierto(true);
   };
@@ -369,6 +380,8 @@ export function usePrestamos() {
     nombreEmpleado,
     expandidos,
     alternarDetalle,
+    sueldoEmpleado,
+    setSueldoEmpleado,
     dialogoAdjuntarAbierto,
     setDialogoAdjuntarAbierto,
     adjuntando,

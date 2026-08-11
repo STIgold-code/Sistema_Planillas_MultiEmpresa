@@ -12,6 +12,13 @@ export interface EmpleadoOption {
   apellido_paterno: string;
   apellido_materno: string;
   numero_documento: string;
+  /**
+   * El endpoint `/empleados` devuelve el empleado completo (usa `include`, no
+   * `select`), así que estos campos ya viajan sin costo extra. Opcionales para
+   * no romper a los consumidores que no los necesitan.
+   */
+  sueldo_base?: string | number | null;
+  estado?: string;
 }
 
 interface Props {
