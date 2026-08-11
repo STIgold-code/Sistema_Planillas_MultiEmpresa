@@ -23,6 +23,10 @@ import { ArrowLeft, Loader2, RefreshCw, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { addMonths } from 'date-fns';
 import { formatDateSafe, parseDateLocal, toDateString } from '@/lib/utils';
+import {
+  mensajeAnioContratoInvalido,
+  tieneAnioContratoValido,
+} from '@/lib/validar-fecha-contrato';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,8 +34,15 @@ import { z } from 'zod';
 const renovarSchema = z.object({
   tipo_contrato: z.string().min(1, 'El tipo de contrato es requerido'),
   modalidad: z.string().optional(),
-  fecha_inicio: z.string().min(1, 'La fecha de inicio es requerida'),
-  fecha_fin: z.string().optional(),
+  fecha_inicio: z
+    .string()
+    .min(1, 'La fecha de inicio es requerida')
+    .refine(tieneAnioContratoValido, {
+      message: mensajeAnioContratoInvalido('La fecha de inicio'),
+    }),
+  fecha_fin: z.string().optional().refine(tieneAnioContratoValido, {
+    message: mensajeAnioContratoInvalido('La fecha de fin'),
+  }),
   renovar: z.boolean(),
   remuneracion: z.number().optional(),
   observaciones: z.string().optional(),

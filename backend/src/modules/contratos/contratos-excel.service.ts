@@ -3,6 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { ContratosExcelExportService } from './contratos-excel-export.service';
 import { obtenerMensajeError } from '../../common/utils/error.util';
+import {
+  MIN_OPERATIONAL_YEAR,
+  anioMaximoContrato,
+  esAnioContratoValido,
+} from '../../common/validators/is-realistic-date.validator';
 
 export interface ContratoImportRow {
   dni: string;
@@ -215,6 +220,22 @@ export class ContratosExcelService {
         return;
       }
 
+      // Mismo rango de años que el DTO de contratos: un serial de Excel mal
+      // formateado o un "2926" tipeado a mano llega hasta aquí como Date válida.
+      if (!esAnioContratoValido(fechaInicio.getFullYear())) {
+        errores.push(
+          `Fila ${rowNumber}: DNI ${dni} - Fecha inicio con año fuera de rango (debe estar entre ${MIN_OPERATIONAL_YEAR} y ${anioMaximoContrato()})`,
+        );
+        return;
+      }
+
+      if (!esAnioContratoValido(fechaFin.getFullYear())) {
+        errores.push(
+          `Fila ${rowNumber}: DNI ${dni} - Fecha fin con año fuera de rango (debe estar entre ${MIN_OPERATIONAL_YEAR} y ${anioMaximoContrato()})`,
+        );
+        return;
+      }
+
       const sueldoCell = row.getCell(columnMap['SUELDO'] || 0);
       let sueldo: number | null = null;
       if (sueldoCell.value) {
@@ -230,6 +251,13 @@ export class ContratosExcelService {
       const fechaCese = columnMap['FECHA_CESE']
         ? this.parseExcelDate(row.getCell(columnMap['FECHA_CESE']).value)
         : null;
+
+      if (fechaCese && !esAnioContratoValido(fechaCese.getFullYear())) {
+        errores.push(
+          `Fila ${rowNumber}: DNI ${dni} - Fecha de cese con año fuera de rango (debe estar entre ${MIN_OPERATIONAL_YEAR} y ${anioMaximoContrato()})`,
+        );
+        return;
+      }
 
       // Leer motivo de cese si existe
       const motivoCese = columnMap['MOTIVO_CESE']

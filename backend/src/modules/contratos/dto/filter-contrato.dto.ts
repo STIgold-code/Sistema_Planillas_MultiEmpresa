@@ -10,7 +10,7 @@ import {
   Max,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { EstadoContrato } from './create-contrato.dto';
+import { EstadoContrato } from '@prisma/client';
 
 export class FilterContratoDto {
   @IsOptional()
@@ -24,6 +24,9 @@ export class FilterContratoDto {
   @IsInt()
   empleado_id?: number;
 
+  // Se valida contra el enum de Prisma (no el de create-contrato.dto) para
+  // poder filtrar por ANULADO sin habilitar ese estado en creación/edición,
+  // que solo debe alcanzarse por el flujo de solicitudes de anulación.
   @IsOptional()
   @IsEnum(EstadoContrato)
   estado?: EstadoContrato;

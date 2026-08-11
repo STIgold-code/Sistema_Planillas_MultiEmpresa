@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { hasPermission } from "@/lib/auth";
 import { useUser } from "@/contexts/user-context";
 import { toDateString } from "@/lib/utils";
+import { validarAnioFechaContrato } from "@/lib/validar-fecha-contrato";
 import { getApiErrorMessage } from "@/lib/errors";
 import type { SolicitudAnulacionPendiente } from "@/types/solicitudes-anulacion";
 import type {
@@ -597,6 +598,13 @@ export function useDashboard() {
   const handleRenovarContrato = async () => {
     if (!contratoARenovar || !renovarForm.fecha_inicio) {
       toast.error("Complete los campos requeridos");
+      return;
+    }
+    const errorAnio =
+      validarAnioFechaContrato(renovarForm.fecha_inicio, "La fecha de inicio") ??
+      validarAnioFechaContrato(renovarForm.fecha_fin, "La fecha de fin");
+    if (errorAnio) {
+      toast.error(errorAnio);
       return;
     }
     if (renovarForm.generar_documento && !renovarForm.plantilla_id) {
