@@ -12,6 +12,12 @@ export const SYSTEM_TIPO_DOCUMENTO = {
     descripcion:
       'Documento adjunto a una solicitud de cese o anulacion de contrato aprobada',
   },
+  CONVENIO_PRESTAMO: {
+    codigo: 'CONVENIO_PRESTAMO',
+    nombre: 'Convenio de Prestamo o Adelanto',
+    descripcion:
+      'Autorizacion escrita del trabajador para descontar el prestamo o adelanto de su remuneracion',
+  },
 } as const;
 
 type SystemTipoCodigo = keyof typeof SYSTEM_TIPO_DOCUMENTO;

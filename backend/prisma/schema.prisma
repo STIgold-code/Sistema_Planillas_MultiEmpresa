@@ -2504,12 +2504,32 @@ model Prestamo {
   empresa     Empresa              @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
   empleado    Empleado             @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
   movimientos PrestamoMovimiento[]
+  archivos    PrestamoArchivo[]
 
   @@index([empresa_id])
   @@index([empleado_id])
   @@index([estado])
   @@index([empresa_id, estado])
   @@map("prestamos")
+}
+
+/// Documento de respaldo del préstamo (convenio de descuento firmado por el
+/// trabajador). Obligatorio al otorgar: descontar de la remuneración exige
+/// autorización escrita. Tabla aparte (no columna) para admitir varios adjuntos
+/// y para que los préstamos anteriores a esta regla sigan siendo válidos.
+model PrestamoArchivo {
+  id             Int      @id @default(autoincrement())
+  prestamo_id    Int
+  archivo_url    String   @db.VarChar(500)
+  archivo_nombre String   @db.VarChar(200)
+  archivo_tipo   String?  @db.VarChar(100)
+  archivo_tamano Int?
+  created_at     DateTime @default(now())
+
+  prestamo Prestamo @relation(fields: [prestamo_id], references: [id], onDelete: Cascade)
+
+  @@index([prestamo_id])
+  @@map("prestamos_archivos")
 }
 
 /// Movimiento sobre el saldo de un préstamo. El cargo por planilla es idempotente

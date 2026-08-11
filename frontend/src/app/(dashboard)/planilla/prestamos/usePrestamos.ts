@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,6 +29,15 @@ export interface MovimientoPrestamo {
   observaciones: string | null;
 }
 
+export interface ArchivoPrestamo {
+  id: number;
+  archivo_url: string;
+  archivo_nombre: string;
+  archivo_tipo: string | null;
+  archivo_tamano: number | null;
+  created_at: string;
+}
+
 export interface EmpleadoDePrestamo {
   id: number;
   nombres: string;
@@ -49,6 +58,7 @@ export interface Prestamo {
   observaciones: string | null;
   empleado: EmpleadoDePrestamo;
   movimientos: MovimientoPrestamo[];
+  archivos: ArchivoPrestamo[];
 }
 
 interface RespuestaPrestamos {
@@ -92,42 +102,72 @@ export const ESTADO_COLOR: Record<EstadoPrestamo, string> = {
 
 const TODOS = 'TODOS';
 
-export const prestamoSchema = z
-  .object({
-    empleado_id: z.coerce
-      .number()
-      .int()
-      .positive('Selecciona un trabajador'),
-    tipo: z.enum(['PRESTAMO', 'ADELANTO_SUELDO', 'ADELANTO_GRATIFICACION']),
-    monto_total: z.string().optional(),
-    cuota_mensual: z.coerce
-      .number()
-      .positive('La cuota debe ser mayor a 0')
-      .max(999999.99, 'Monto fuera de rango'),
-    fecha_otorgado: z.string().min(1, 'Indica la fecha de otorgamiento'),
-    observaciones: z.string().max(500, 'Máximo 500 caracteres').optional(),
-  })
-  .refine(
-    (valores) => {
-      if (!valores.monto_total) return true;
-      const total = Number(valores.monto_total);
-      return Number.isFinite(total) && total > 0;
-    },
-    { message: 'El monto total debe ser mayor a 0', path: ['monto_total'] },
-  )
-  .refine(
-    (valores) => {
-      if (!valores.monto_total) return true;
-      const total = Number(valores.monto_total);
-      return !Number.isFinite(total) || valores.cuota_mensual <= total;
-    },
-    {
-      message: 'La cuota no puede superar el monto total',
-      path: ['cuota_mensual'],
-    },
-  );
+/** Espejo de ALLOWED_EXTENSIONS del backend (uploads.config.ts). */
+export const EXTENSIONES_ACEPTADAS =
+  '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp';
 
-export type PrestamoFormValues = z.infer<typeof prestamoSchema>;
+/**
+ * `z.custom` guarda el predicado sin evaluar `File` al cargar el módulo, así que
+ * es seguro durante el render en servidor (donde `File` no existe).
+ */
+const esArchivo = z.custom<File>((valor) => valor instanceof File, {
+  message: 'Archivo inválido',
+});
+
+/**
+ * El convenio firmado solo se exige al OTORGAR. Al editar únicamente se tocan
+ * la cuota y las observaciones, así que no se vuelve a pedir el documento.
+ */
+function construirEsquemaPrestamo(exigeConvenio: boolean) {
+  return z
+    .object({
+      empleado_id: z.coerce.number().int().positive('Selecciona un trabajador'),
+      tipo: z.enum(['PRESTAMO', 'ADELANTO_SUELDO', 'ADELANTO_GRATIFICACION']),
+      monto_total: z.string().optional(),
+      cuota_mensual: z.coerce
+        .number()
+        .positive('La cuota debe ser mayor a 0')
+        .max(999999.99, 'Monto fuera de rango'),
+      fecha_otorgado: z.string().min(1, 'Indica la fecha de otorgamiento'),
+      observaciones: z.string().max(500, 'Máximo 500 caracteres').optional(),
+      archivos: exigeConvenio
+        ? z
+            .array(esArchivo)
+            .min(1, 'Adjunta el convenio de descuento firmado por el trabajador')
+        : z.array(esArchivo),
+    })
+    .refine(
+      (valores) => {
+        if (!valores.monto_total) return true;
+        const total = Number(valores.monto_total);
+        return Number.isFinite(total) && total > 0;
+      },
+      { message: 'El monto total debe ser mayor a 0', path: ['monto_total'] },
+    )
+    .refine(
+      (valores) => {
+        if (!valores.monto_total) return true;
+        const total = Number(valores.monto_total);
+        return !Number.isFinite(total) || valores.cuota_mensual <= total;
+      },
+      {
+        message: 'La cuota no puede superar el monto total',
+        path: ['cuota_mensual'],
+      },
+    );
+}
+
+export const prestamoCrearSchema = construirEsquemaPrestamo(true);
+export const prestamoEditarSchema = construirEsquemaPrestamo(false);
+
+export type PrestamoFormValues = z.infer<typeof prestamoCrearSchema>;
+
+const resolverCrear = zodResolver(
+  prestamoCrearSchema,
+) as Resolver<PrestamoFormValues>;
+const resolverEditar = zodResolver(
+  prestamoEditarSchema,
+) as Resolver<PrestamoFormValues>;
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -140,6 +180,7 @@ const VALORES_INICIALES: PrestamoFormValues = {
   cuota_mensual: 0,
   fecha_otorgado: hoyISO(),
   observaciones: '',
+  archivos: [],
 };
 
 export function usePrestamos() {
@@ -151,13 +192,24 @@ export function usePrestamos() {
   const [seleccionado, setSeleccionado] = useState<Prestamo | null>(null);
   const [nombreEmpleado, setNombreEmpleado] = useState('');
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
+  const [dialogoAdjuntarAbierto, setDialogoAdjuntarAbierto] = useState(false);
+  const [adjuntando, setAdjuntando] = useState(false);
 
   const [filtroBuscar, setFiltroBuscar] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>(TODOS);
   const [filtroEstado, setFiltroEstado] = useState<string>('ACTIVO');
 
+  // El resolver se elige en cada validación: al editar no se exige el convenio.
+  // Va por ref para que el `useForm` no arrastre el modo del primer render.
+  const modoEdicionRef = useRef(false);
+
   const form = useForm<PrestamoFormValues>({
-    resolver: zodResolver(prestamoSchema) as Resolver<PrestamoFormValues>,
+    resolver: (valores, contexto, opciones) =>
+      (modoEdicionRef.current ? resolverEditar : resolverCrear)(
+        valores,
+        contexto,
+        opciones,
+      ),
     defaultValues: VALORES_INICIALES,
   });
 
@@ -200,6 +252,7 @@ export function usePrestamos() {
   };
 
   const abrirDialogoNuevo = () => {
+    modoEdicionRef.current = false;
     setSeleccionado(null);
     setNombreEmpleado('');
     form.reset({ ...VALORES_INICIALES, fecha_otorgado: hoyISO() });
@@ -207,6 +260,7 @@ export function usePrestamos() {
   };
 
   const abrirDialogoEdicion = (prestamo: Prestamo) => {
+    modoEdicionRef.current = true;
     setSeleccionado(prestamo);
     setNombreEmpleado(
       `${prestamo.empleado.apellido_paterno} ${prestamo.empleado.apellido_materno}, ${prestamo.empleado.nombres}`,
@@ -218,6 +272,7 @@ export function usePrestamos() {
       cuota_mensual: Number(prestamo.cuota_mensual),
       fecha_otorgado: prestamo.fecha_otorgado.slice(0, 10),
       observaciones: prestamo.observaciones ?? '',
+      archivos: [],
     });
     setDialogoAbierto(true);
   };
@@ -225,6 +280,11 @@ export function usePrestamos() {
   const abrirDialogoCancelar = (prestamo: Prestamo) => {
     setSeleccionado(prestamo);
     setDialogoCancelarAbierto(true);
+  };
+
+  const abrirDialogoAdjuntar = (prestamo: Prestamo) => {
+    setSeleccionado(prestamo);
+    setDialogoAdjuntarAbierto(true);
   };
 
   const guardar = async (valores: PrestamoFormValues) => {
@@ -238,16 +298,19 @@ export function usePrestamos() {
         });
         toast.success('Préstamo actualizado');
       } else {
-        await api.post('/prestamos', {
-          empleado_id: valores.empleado_id,
-          tipo: valores.tipo,
-          monto_total: valores.monto_total
-            ? Number(valores.monto_total)
-            : undefined,
-          cuota_mensual: valores.cuota_mensual,
-          fecha_otorgado: valores.fecha_otorgado,
-          observaciones: valores.observaciones || undefined,
-        });
+        // El alta es multipart: el convenio firmado viaja con el préstamo.
+        const datos = new FormData();
+        datos.append('empleado_id', String(valores.empleado_id));
+        datos.append('tipo', valores.tipo);
+        datos.append('cuota_mensual', String(valores.cuota_mensual));
+        datos.append('fecha_otorgado', valores.fecha_otorgado);
+        if (valores.monto_total) datos.append('monto_total', valores.monto_total);
+        if (valores.observaciones) {
+          datos.append('observaciones', valores.observaciones);
+        }
+        valores.archivos.forEach((archivo) => datos.append('files', archivo));
+
+        await api.upload('/prestamos', datos);
         toast.success('Préstamo registrado');
       }
       setDialogoAbierto(false);
@@ -256,6 +319,28 @@ export function usePrestamos() {
       toast.error(getApiErrorMessage(error, 'No se pudo guardar el préstamo'));
     } finally {
       setGuardando(false);
+    }
+  };
+
+  /** Regularización: sube el convenio de un préstamo que se registró sin él. */
+  const adjuntarArchivos = async (archivos: File[]) => {
+    if (!seleccionado || archivos.length === 0) return;
+    setAdjuntando(true);
+    try {
+      const datos = new FormData();
+      archivos.forEach((archivo) => datos.append('files', archivo));
+
+      await api.upload(`/prestamos/${seleccionado.id}/archivos`, datos);
+      toast.success('Documento adjuntado');
+      setDialogoAdjuntarAbierto(false);
+      setSeleccionado(null);
+      await cargarPrestamos();
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, 'No se pudo adjuntar el documento'),
+      );
+    } finally {
+      setAdjuntando(false);
     }
   };
 
@@ -284,6 +369,11 @@ export function usePrestamos() {
     nombreEmpleado,
     expandidos,
     alternarDetalle,
+    dialogoAdjuntarAbierto,
+    setDialogoAdjuntarAbierto,
+    adjuntando,
+    abrirDialogoAdjuntar,
+    adjuntarArchivos,
     filtroBuscar,
     setFiltroBuscar,
     filtroTipo,

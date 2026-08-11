@@ -10,7 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Ban, ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  ChevronDown,
+  ChevronRight,
+  Paperclip,
+  Pencil,
+} from 'lucide-react';
 import {
   ESTADO_COLOR,
   ESTADO_ETIQUETA,
@@ -26,6 +33,7 @@ interface Props {
   onAlternarDetalle: (id: number) => void;
   onEditar: (prestamo: Prestamo) => void;
   onCancelar: (prestamo: Prestamo) => void;
+  onAdjuntar: (prestamo: Prestamo) => void;
 }
 
 const COLUMNAS = 9;
@@ -59,6 +67,7 @@ export function PrestamosTable({
   onAlternarDetalle,
   onEditar,
   onCancelar,
+  onAdjuntar,
 }: Props) {
   return (
     <div className="overflow-x-auto -mx-4 md:mx-0">
@@ -138,6 +147,12 @@ export function PrestamosTable({
                       <span className="text-xs text-muted-foreground font-mono">
                         {prestamo.empleado.numero_documento}
                       </span>
+                      {prestamo.archivos.length === 0 && (
+                        <span className="mt-1 flex items-center gap-1 text-xs text-amber-700">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Sin convenio adjunto
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       {TIPO_ETIQUETA[prestamo.tipo]}
@@ -173,6 +188,20 @@ export function PrestamosTable({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Adjuntar convenio al préstamo de ${nombreCompleto(prestamo)}`}
+                          onClick={() => onAdjuntar(prestamo)}
+                        >
+                          <Paperclip
+                            className={
+                              prestamo.archivos.length === 0
+                                ? 'h-4 w-4 text-amber-600'
+                                : 'h-4 w-4'
+                            }
+                          />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

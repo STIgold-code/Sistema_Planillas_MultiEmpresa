@@ -28,9 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Paperclip } from 'lucide-react';
 import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import {
+  EXTENSIONES_ACEPTADAS,
   Prestamo,
   PrestamoFormValues,
   TIPO_DESCRIPCION,
@@ -66,6 +67,7 @@ export function PrestamoDialog({
   const esEdicion = seleccionado !== null;
   const tipoSeleccionado = form.watch('tipo');
   const empleadoId = form.watch('empleado_id');
+  const archivosSeleccionados = form.watch('archivos') ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,6 +220,50 @@ export function PrestamoDialog({
                 </FormItem>
               )}
             />
+
+            {!esEdicion && (
+              <FormField
+                control={form.control}
+                name="archivos"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Documento de respaldo *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        multiple
+                        accept={EXTENSIONES_ACEPTADAS}
+                        onChange={(evento) =>
+                          field.onChange(
+                            Array.from(evento.target.files ?? []),
+                          )
+                        }
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Adjunta el convenio de descuento firmado por el trabajador.
+                      Es obligatorio: descontar de la remuneración requiere su
+                      autorización escrita. PDF, Word, Excel o imagen (máx. 10 MB
+                      por archivo).
+                    </FormDescription>
+                    {archivosSeleccionados.length > 0 && (
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {archivosSeleccionados.map((archivo) => (
+                          <li
+                            key={archivo.name}
+                            className="flex items-center gap-2"
+                          >
+                            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{archivo.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button

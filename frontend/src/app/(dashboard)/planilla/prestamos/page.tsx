@@ -23,6 +23,7 @@ import { Plus, Search } from 'lucide-react';
 import { usePrestamos } from './usePrestamos';
 import { PrestamosTable } from './components/PrestamosTable';
 import { PrestamoDialog } from './components/PrestamoDialog';
+import { AdjuntarConvenioDialog } from './components/AdjuntarConvenioDialog';
 
 export default function PrestamosPage() {
   const {
@@ -37,6 +38,11 @@ export default function PrestamosPage() {
     nombreEmpleado,
     expandidos,
     alternarDetalle,
+    dialogoAdjuntarAbierto,
+    setDialogoAdjuntarAbierto,
+    adjuntando,
+    abrirDialogoAdjuntar,
+    adjuntarArchivos,
     filtroBuscar,
     setFiltroBuscar,
     filtroTipo,
@@ -116,6 +122,7 @@ export default function PrestamosPage() {
         onAlternarDetalle={alternarDetalle}
         onEditar={abrirDialogoEdicion}
         onCancelar={abrirDialogoCancelar}
+        onAdjuntar={abrirDialogoAdjuntar}
       />
 
       <PrestamoDialog
@@ -126,6 +133,15 @@ export default function PrestamosPage() {
         form={form}
         onSubmit={guardar}
         guardando={guardando}
+      />
+
+      <AdjuntarConvenioDialog
+        key={`adjuntar-${seleccionado?.id ?? 'ninguno'}`}
+        open={dialogoAdjuntarAbierto}
+        onOpenChange={setDialogoAdjuntarAbierto}
+        prestamo={seleccionado}
+        onAdjuntar={adjuntarArchivos}
+        adjuntando={adjuntando}
       />
 
       <AlertDialog

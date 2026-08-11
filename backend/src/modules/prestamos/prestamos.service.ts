@@ -6,12 +6,21 @@ import {
 import { EstadoPrestamo, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { parsearFechaISOenPeru } from '../../common/utils/datetime.util';
+import { archivarArchivosEnBancoEmpleado } from '../banco-documentos/helpers/archivar-en-banco.helper';
 import {
   CancelarPrestamoDto,
   CreatePrestamoDto,
   FilterPrestamoDto,
   UpdatePrestamoDto,
 } from './dto';
+
+/** Archivo ya subido al storage, listo para asociarse al préstamo. */
+export interface ArchivoPrestamo {
+  archivo_url: string;
+  archivo_nombre: string;
+  archivo_tipo?: string;
+  archivo_tamano?: number;
+}
 
 /** Últimos movimientos que se devuelven junto a cada préstamo del listado. */
 const MOVIMIENTOS_EN_LISTADO = 5;
@@ -32,6 +41,18 @@ const SELECT_MOVIMIENTO = {
   fecha: true,
   observaciones: true,
 } as const;
+
+const SELECT_ARCHIVO = {
+  id: true,
+  archivo_url: true,
+  archivo_nombre: true,
+  archivo_tipo: true,
+  archivo_tamano: true,
+  created_at: true,
+} as const;
+
+const MENSAJE_SIN_DOCUMENTO =
+  'Debe adjuntar el documento que respalda el préstamo (convenio de descuento firmado por el trabajador)';
 
 /**
  * CRUD de préstamos y adelantos.
@@ -86,6 +107,7 @@ export class PrestamosService {
             orderBy: { fecha: 'desc' },
             take: MOVIMIENTOS_EN_LISTADO,
           },
+          archivos: { select: SELECT_ARCHIVO, orderBy: { id: 'asc' } },
         },
         orderBy: [
           { estado: 'asc' },
@@ -116,6 +138,7 @@ export class PrestamosService {
           select: SELECT_MOVIMIENTO,
           orderBy: { fecha: 'desc' },
         },
+        archivos: { select: SELECT_ARCHIVO, orderBy: { id: 'asc' } },
       },
     });
 
@@ -126,7 +149,18 @@ export class PrestamosService {
     return prestamo;
   }
 
-  async create(empresaId: number, dto: CreatePrestamoDto) {
+  async create(
+    empresaId: number,
+    dto: CreatePrestamoDto,
+    usuarioId: number,
+    archivos: ArchivoPrestamo[],
+  ) {
+    // El convenio firmado es requisito legal para descontar de la remuneración:
+    // sin respaldo no se registra el préstamo.
+    if (!archivos || archivos.length === 0) {
+      throw new BadRequestException(MENSAJE_SIN_DOCUMENTO);
+    }
+
     if (dto.cuota_mensual <= 0) {
       throw new BadRequestException('La cuota mensual debe ser mayor a cero');
     }
@@ -149,20 +183,100 @@ export class PrestamosService {
       );
     }
 
-    return this.prisma.prestamo.create({
-      data: {
-        empresa_id: empresaId,
-        empleado_id: dto.empleado_id,
-        tipo: dto.tipo,
-        monto_total: dto.monto_total ?? null,
-        cuota_mensual: dto.cuota_mensual,
-        // Con monto total definido el saldo arranca igual al monto.
-        saldo: dto.monto_total ?? null,
-        fecha_otorgado: parsearFechaISOenPeru(dto.fecha_otorgado),
-        observaciones: dto.observaciones ?? null,
-      },
-      include: { empleado: { select: SELECT_EMPLEADO } },
+    return this.prisma.$transaction(async (tx) => {
+      const prestamo = await tx.prestamo.create({
+        data: {
+          empresa_id: empresaId,
+          empleado_id: dto.empleado_id,
+          tipo: dto.tipo,
+          monto_total: dto.monto_total ?? null,
+          cuota_mensual: dto.cuota_mensual,
+          // Con monto total definido el saldo arranca igual al monto.
+          saldo: dto.monto_total ?? null,
+          fecha_otorgado: parsearFechaISOenPeru(dto.fecha_otorgado),
+          observaciones: dto.observaciones ?? null,
+          archivos: { create: archivos.map((a) => this.aFilaArchivo(a)) },
+        },
+        include: {
+          empleado: { select: SELECT_EMPLEADO },
+          archivos: { select: SELECT_ARCHIVO, orderBy: { id: 'asc' } },
+        },
+      });
+
+      // Un solo archivo físico, dos referencias: el préstamo es dueño de la
+      // transacción, el legajo del empleado es dueño del documento.
+      await archivarArchivosEnBancoEmpleado(tx, {
+        empleadoId: dto.empleado_id,
+        empresaId,
+        tipoCodigo: 'CONVENIO_PRESTAMO',
+        archivos,
+        subidoPorUsuarioId: usuarioId,
+        descripcion: `Convenio de préstamo #${prestamo.id} (${dto.tipo})`,
+      });
+
+      return prestamo;
     });
+  }
+
+  /**
+   * Regularización: agrega documentos a un préstamo ya registrado. Existe
+   * porque los préstamos creados antes de que el convenio fuera obligatorio
+   * quedaron sin respaldo y hay que poder subirlo después.
+   */
+  async agregarArchivos(
+    id: number,
+    empresaId: number,
+    usuarioId: number,
+    archivos: ArchivoPrestamo[],
+  ) {
+    if (!archivos || archivos.length === 0) {
+      throw new BadRequestException(MENSAJE_SIN_DOCUMENTO);
+    }
+
+    const prestamo = await this.prisma.prestamo.findFirst({
+      where: { id, empresa_id: empresaId },
+      select: { id: true, tipo: true, empleado_id: true },
+    });
+
+    if (!prestamo) {
+      throw new NotFoundException('Préstamo no encontrado');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.prestamoArchivo.createMany({
+        data: archivos.map((a) => ({
+          prestamo_id: id,
+          ...this.aFilaArchivo(a),
+        })),
+      });
+
+      await archivarArchivosEnBancoEmpleado(tx, {
+        empleadoId: prestamo.empleado_id,
+        empresaId,
+        tipoCodigo: 'CONVENIO_PRESTAMO',
+        archivos,
+        subidoPorUsuarioId: usuarioId,
+        descripcion: `Convenio de préstamo #${id} (${prestamo.tipo})`,
+      });
+
+      return tx.prestamo.findFirst({
+        where: { id, empresa_id: empresaId },
+        include: {
+          empleado: { select: SELECT_EMPLEADO },
+          archivos: { select: SELECT_ARCHIVO, orderBy: { id: 'asc' } },
+        },
+      });
+    });
+  }
+
+  /** Normaliza el archivo subido a la fila de `prestamos_archivos`. */
+  private aFilaArchivo(archivo: ArchivoPrestamo) {
+    return {
+      archivo_url: archivo.archivo_url,
+      archivo_nombre: archivo.archivo_nombre,
+      archivo_tipo: archivo.archivo_tipo ?? null,
+      archivo_tamano: archivo.archivo_tamano ?? null,
+    };
   }
 
   async update(id: number, empresaId: number, dto: UpdatePrestamoDto) {
