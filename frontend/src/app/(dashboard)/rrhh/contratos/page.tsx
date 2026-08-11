@@ -73,6 +73,16 @@ const estadoLabels: Record<EstadoContrato, string> = {
   ANULADO: 'Anulado',
 };
 
+// Orden en que se ofrecen los estados en el filtro. Declarado aparte para no
+// depender del orden de claves del Record.
+const ESTADOS_CONTRATO: EstadoContrato[] = [
+  'ACTIVO',
+  'PENDIENTE',
+  'RENOVADO',
+  'CESADO',
+  'ANULADO',
+];
+
 const tipoContratoLabels: Record<string, string> = {
   SUJETO_A_MODALIDAD: 'Sujeto a Modalidad',
   INDEFINIDO: 'Indefinido',
@@ -273,11 +283,16 @@ export default function ContratosPage() {
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
+                {/* Las opciones salen de estadoLabels, la misma fuente que los
+                    badges de la tabla: el filtro decía "Vigente"/"Vencido"/
+                    "Terminado" para estados mostrados como "Activo"/"Pendiente"/
+                    "Cesado", y además faltaba "Anulado" */}
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="ACTIVO">Vigente</SelectItem>
-                <SelectItem value="PENDIENTE">Vencido</SelectItem>
-                <SelectItem value="RENOVADO">Renovado</SelectItem>
-                <SelectItem value="CESADO">Terminado</SelectItem>
+                {ESTADOS_CONTRATO.map((estado) => (
+                  <SelectItem key={estado} value={estado}>
+                    {estadoLabels[estado]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={getFilter('tipo_contrato')} onValueChange={(v) => setFilter('tipo_contrato', v)}>

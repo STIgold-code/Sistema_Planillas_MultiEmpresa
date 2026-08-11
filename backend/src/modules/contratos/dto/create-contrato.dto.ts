@@ -10,6 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { RegimenLaboral } from '@prisma/client';
+import { IsRealisticFutureDate } from '../../../common/validators/is-realistic-date.validator';
 
 export enum EstadoContrato {
   VIGENTE = 'ACTIVO',
@@ -32,10 +33,18 @@ export class CreateContratoDto {
   modalidad?: string;
 
   @IsDateString()
+  @IsRealisticFutureDate({
+    message:
+      'La fecha de inicio tiene un año inválido. Verifica el año ingresado.',
+  })
   fecha_inicio: string;
 
   @IsOptional()
   @IsDateString()
+  @IsRealisticFutureDate({
+    message:
+      'La fecha de fin tiene un año inválido. Verifica el año ingresado.',
+  })
   fecha_fin?: string;
 
   @IsOptional()

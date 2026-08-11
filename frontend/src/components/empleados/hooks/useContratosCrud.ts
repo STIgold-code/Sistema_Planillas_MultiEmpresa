@@ -6,6 +6,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { Contrato, PlantillaContrato } from '@/types';
 import { toast } from 'sonner';
 import { toDateString, parseDateLocal } from '@/lib/utils';
+import { validarAnioFechaContrato } from '@/lib/validar-fecha-contrato';
 import { Cliente, Sede, ContratoForm, initialFormState } from './contratos.types';
 
 interface UseContratosCrudParams {
@@ -105,6 +106,14 @@ export function useContratosCrud({
   const handleCrearContrato = async () => {
     if (!form.tipo_contrato || !form.fecha_inicio) {
       toast.error('Complete los campos requeridos');
+      return;
+    }
+
+    const errorAnio =
+      validarAnioFechaContrato(form.fecha_inicio, 'La fecha de inicio') ??
+      validarAnioFechaContrato(form.fecha_fin, 'La fecha de fin');
+    if (errorAnio) {
+      toast.error(errorAnio);
       return;
     }
 
@@ -251,6 +260,14 @@ export function useContratosCrud({
       return;
     }
 
+    const errorAnio =
+      validarAnioFechaContrato(form.fecha_inicio, 'La fecha de inicio') ??
+      validarAnioFechaContrato(form.fecha_fin, 'La fecha de fin');
+    if (errorAnio) {
+      toast.error(errorAnio);
+      return;
+    }
+
     setSaving(true);
     try {
       await api.post(`/contratos/${ultimoContratoVencido.id}/renovar`, {
@@ -316,6 +333,14 @@ export function useContratosCrud({
       return;
     }
 
+    const errorAnio =
+      validarAnioFechaContrato(form.fecha_inicio, 'La fecha de inicio') ??
+      validarAnioFechaContrato(form.fecha_fin, 'La fecha de fin');
+    if (errorAnio) {
+      toast.error(errorAnio);
+      return;
+    }
+
     setSaving(true);
     try {
       await api.post('/contratos/reingreso', {
@@ -364,6 +389,14 @@ export function useContratosCrud({
     const contratoARenovar = contratoVigente || ultimoContratoVencido;
     if (!contratoARenovar || !form.fecha_inicio) {
       toast.error('Complete los campos requeridos');
+      return;
+    }
+
+    const errorAnio =
+      validarAnioFechaContrato(form.fecha_inicio, 'La fecha de inicio') ??
+      validarAnioFechaContrato(form.fecha_fin, 'La fecha de fin');
+    if (errorAnio) {
+      toast.error(errorAnio);
       return;
     }
 
