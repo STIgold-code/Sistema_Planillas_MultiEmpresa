@@ -36,6 +36,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { BackupModule } from './modules/backup/backup.module';
 import { SolicitudesCeseModule } from './modules/solicitudes-cese/solicitudes-cese.module';
 import { SolicitudesAnulacionModule } from './modules/solicitudes-anulacion/solicitudes-anulacion.module';
+import { SolicitudesCorreccionFechasModule } from './modules/solicitudes-correccion-fechas/solicitudes-correccion-fechas.module';
 import { ProveedoresModule } from './modules/proveedores/proveedores.module';
 import { TiposUniformeModule } from './modules/tipos-uniforme/tipos-uniforme.module';
 import { CaracteristicasModule } from './modules/caracteristicas/caracteristicas.module';
@@ -112,6 +113,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
     BackupModule,
     SolicitudesCeseModule,
     SolicitudesAnulacionModule,
+    SolicitudesCorreccionFechasModule,
     ProveedoresModule,
     TiposUniformeModule,
     CaracteristicasModule,

@@ -18,6 +18,15 @@ export const SYSTEM_TIPO_DOCUMENTO = {
     descripcion:
       'Autorizacion escrita del trabajador para descontar el prestamo o adelanto de su remuneracion',
   },
+  // `codigo` va abreviado a proposito: TipoDocumentoEmpleado.codigo es
+  // VarChar(20) y 'SUSTENTO_CORRECCION_FECHA' no entra. La clave del mapa
+  // queda con el nombre completo porque es la que usa el codigo de dominio.
+  SUSTENTO_CORRECCION_FECHA: {
+    codigo: 'SUSTENTO_CORR_FECHA',
+    nombre: 'Sustento de Correccion de Fechas de Contrato',
+    descripcion:
+      'Documento que respalda una correccion aprobada de las fechas de un contrato',
+  },
 } as const;
 
 type SystemTipoCodigo = keyof typeof SYSTEM_TIPO_DOCUMENTO;

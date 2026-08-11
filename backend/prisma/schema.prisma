@@ -110,6 +110,7 @@ model Empresa {
   sesiones_tareo                 SesionTareo[]
   solicitudes_anulacion          SolicitudAnulacionContrato[]
   solicitudes_cese               SolicitudCese[]
+  solicitudes_correccion_fecha   SolicitudCorreccionFecha[]
   solicitudes_extension          SolicitudExtension[]
   solicitudes_vacaciones         SolicitudVacaciones[]
   tareo_justificaciones          TareoJustificacion[]
@@ -183,6 +184,8 @@ model Usuario {
   requerimientos_uniforme         RequerimientoUniforme[]
   solicitudes_cese_resueltas      SolicitudCese[]              @relation("SolicitudCeseResuelta")
   solicitudes_cese_creadas        SolicitudCese[]              @relation("SolicitudCeseSolicitada")
+  solicitudes_correccion_resueltas SolicitudCorreccionFecha[]  @relation("SolicitudCorreccionFechaResuelta")
+  solicitudes_correccion_creadas  SolicitudCorreccionFecha[]   @relation("SolicitudCorreccionFechaSolicitada")
   solicitudes_extension_aprobadas SolicitudExtension[]         @relation("SolicitudExtensionAprobada")
   solicitudes_extension_creadas   SolicitudExtension[]         @relation("SolicitudExtensionCreada")
   solicitudes_vac_aprobadas_jefe  SolicitudVacaciones[]        @relation("SolicitudAprobadaJefe")
@@ -470,6 +473,7 @@ model Empleado {
   requerimiento_detalles         RequerimientoUniformeDetalle[]
   solicitudes_anulacion          SolicitudAnulacionContrato[]
   solicitudes_cese               SolicitudCese[]
+  solicitudes_correccion_fecha   SolicitudCorreccionFecha[]
   solicitudes_vacaciones         SolicitudVacaciones[]
   tareos                         Tareo[]
 
@@ -612,6 +616,7 @@ model Contrato {
   vinculo_laboral       VinculoLaboral?              @relation(fields: [vinculo_laboral_id], references: [id], onDelete: SetNull)
   solicitudes_anulacion SolicitudAnulacionContrato[]
   solicitudes_cese      SolicitudCese[]
+  correcciones_fecha    SolicitudCorreccionFecha[]
 
   @@index([empleado_id])
   @@index([estado])
@@ -1718,6 +1723,72 @@ model SolicitudAnulacionContratoArchivo {
   @@map("solicitudes_anulacion_contrato_archivos")
 }
 
+/// Solicitud para CORREGIR las fechas de un contrato sin editarlo directamente.
+/// El operario propone las fechas con sustento obligatorio y un aprobador
+/// (`contratos:edicion_aprobar`) las aplica o rechaza. El contrato solo cambia
+/// cuando la solicitud pasa a APROBADA.
+///
+/// `fecha_inicio_actual` / `fecha_fin_actual` son un SNAPSHOT tomado al
+/// solicitar: el aprobador necesita ver el diff que se le propuso, aunque el
+/// contrato haya cambiado entre la solicitud y la resolucion.
+model SolicitudCorreccionFecha {
+  id                     Int                              @id @default(autoincrement())
+  empresa_id             Int
+  contrato_id            Int
+  /// Desnormalizado desde el contrato para listar y filtrar por trabajador sin
+  /// un join extra en cada consulta del dashboard.
+  empleado_id            Int
+  fecha_inicio_actual    DateTime                         @db.Date
+  fecha_fin_actual       DateTime?                        @db.Date
+  fecha_inicio_propuesta DateTime                         @db.Date
+  fecha_fin_propuesta    DateTime?                        @db.Date
+  motivo                 String                           @db.VarChar(2000)
+  estado                 EstadoSolicitudCorreccionFecha   @default(PENDIENTE)
+  solicitado_por_id      Int
+  resuelto_por_id        Int?
+  fecha_resolucion       DateTime?
+  observaciones_admin    String?                          @db.VarChar(500)
+  /// Se completa al aprobar cuando el rango afectado se cruza con periodos que
+  /// ya tienen planilla APROBADA o PAGADA. No bloquea: avisa que esos calculos
+  /// no se recalculan solos.
+  advertencia_planillas  String?                          @db.VarChar(1000)
+  created_at             DateTime                         @default(now())
+  updated_at             DateTime                         @updatedAt
+  archivos               SolicitudCorreccionFechaArchivo[]
+  contrato               Contrato                         @relation(fields: [contrato_id], references: [id], onDelete: Cascade)
+  empleado               Empleado                         @relation(fields: [empleado_id], references: [id], onDelete: Cascade)
+  empresa                Empresa                          @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  resuelto_por           Usuario?                         @relation("SolicitudCorreccionFechaResuelta", fields: [resuelto_por_id], references: [id])
+  solicitado_por         Usuario                          @relation("SolicitudCorreccionFechaSolicitada", fields: [solicitado_por_id], references: [id])
+
+  @@index([empresa_id])
+  @@index([empleado_id])
+  @@index([contrato_id])
+  @@index([estado])
+  @@index([empresa_id, estado])
+  @@map("solicitudes_correccion_fecha")
+}
+
+/// Sustento de la correccion (adenda, contrato firmado, acta). Es OBLIGATORIO
+/// al solicitar: corregir fechas de contrato mueve derechos laborales y no
+/// puede quedar sin respaldo documental.
+///
+/// Los nombres de indice y FK van fijados con `map` porque los que Prisma
+/// derivaria superan el limite de 63 caracteres de identificador de Postgres.
+model SolicitudCorreccionFechaArchivo {
+  id                      Int                      @id @default(autoincrement())
+  solicitud_correccion_id Int
+  archivo_url             String                   @db.VarChar(500)
+  archivo_nombre          String                   @db.VarChar(200)
+  archivo_tipo            String?                  @db.VarChar(100)
+  archivo_tamano          Int?
+  created_at              DateTime                 @default(now())
+  solicitud_correccion    SolicitudCorreccionFecha @relation(fields: [solicitud_correccion_id], references: [id], onDelete: Cascade, map: "solicitudes_correccion_fecha_archivos_solicitud_fkey")
+
+  @@index([solicitud_correccion_id], map: "solicitudes_correccion_fecha_archivos_solicitud_idx")
+  @@map("solicitudes_correccion_fecha_archivos")
+}
+
 // ==================== INVENTARIO DE UNIFORMES ====================
 
 model Proveedor {
@@ -2435,6 +2506,12 @@ enum EstadoRequerimientoUniforme {
 }
 
 enum EstadoSolicitudAnulacionContrato {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum EstadoSolicitudCorreccionFecha {
   PENDIENTE
   APROBADA
   RECHAZADA

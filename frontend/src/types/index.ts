@@ -14,5 +14,6 @@ export * from './api';
 export * from './seleccion';
 export * from './planillas';
 export * from './solicitudes-cese';
+export * from './solicitudes-correccion-fecha';
 export * from './sbs';
 export * from './movimientos';
