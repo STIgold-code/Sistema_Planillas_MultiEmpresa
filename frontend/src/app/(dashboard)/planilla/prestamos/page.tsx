@@ -38,6 +38,8 @@ export default function PrestamosPage() {
     nombreEmpleado,
     expandidos,
     alternarDetalle,
+    sueldoEmpleado,
+    setSueldoEmpleado,
     dialogoAdjuntarAbierto,
     setDialogoAdjuntarAbierto,
     adjuntando,
@@ -133,6 +135,8 @@ export default function PrestamosPage() {
         form={form}
         onSubmit={guardar}
         guardando={guardando}
+        sueldoEmpleado={sueldoEmpleado}
+        onSueldoEmpleado={setSueldoEmpleado}
       />
 
       <AdjuntarConvenioDialog

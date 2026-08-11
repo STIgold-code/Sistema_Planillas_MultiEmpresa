@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoPrestamo, Prisma } from '@prisma/client';
+import { EstadoEmpleado, EstadoPrestamo, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { parsearFechaISOenPeru } from '../../common/utils/datetime.util';
 import { archivarArchivosEnBancoEmpleado } from '../banco-documentos/helpers/archivar-en-banco.helper';
@@ -53,6 +53,17 @@ const SELECT_ARCHIVO = {
 
 const MENSAJE_SIN_DOCUMENTO =
   'Debe adjuntar el documento que respalda el préstamo (convenio de descuento firmado por el trabajador)';
+
+/**
+ * True si la fecha ISO (YYYY-MM-DD) es posterior a hoy en hora de Perú.
+ * Se compara como string ISO para evitar corrimientos de zona horaria.
+ */
+function esFechaFutura(fechaIso: string): boolean {
+  const hoyPeru = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'America/Lima',
+  });
+  return fechaIso.slice(0, 10) > hoyPeru;
+}
 
 /**
  * CRUD de préstamos y adelantos.
@@ -171,15 +182,33 @@ export class PrestamosService {
       );
     }
 
+    // Un préstamo nace cuando se firma: no se puede fechar en el futuro.
+    // NO se valida contra el estado del período ni de la planilla — el préstamo
+    // es un acuerdo financiero independiente del tareo. El único acoplamiento
+    // temporal vive en el DESCUENTO (ver PrestamosPlanillaService).
+    if (esFechaFutura(dto.fecha_otorgado)) {
+      throw new BadRequestException(
+        'La fecha de otorgamiento no puede ser futura',
+      );
+    }
+
     // Aislamiento multiempresa: el empleado debe ser de la empresa activa.
     const empleado = await this.prisma.empleado.findFirst({
       where: { id: dto.empleado_id, empresa_id: empresaId },
-      select: { id: true },
+      select: { id: true, estado: true },
     });
 
     if (!empleado) {
       throw new NotFoundException(
         'Empleado no encontrado en la empresa activa',
+      );
+    }
+
+    // Solo se otorga a personal activo. La REGULARIZACIÓN de archivos sí acepta
+    // cesados: el convenio de un préstamo viejo debe poder subirse igual.
+    if (empleado.estado !== EstadoEmpleado.ACTIVO) {
+      throw new BadRequestException(
+        'Solo se pueden otorgar préstamos a trabajadores activos',
       );
     }
 

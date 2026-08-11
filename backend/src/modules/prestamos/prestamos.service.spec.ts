@@ -16,6 +16,10 @@ interface PrismaMock {
   };
   prestamoArchivo: { createMany: jest.Mock };
   empleado: { findFirst: jest.Mock };
+  // Presentes SOLO para probar que el alta NUNCA los toca: un préstamo es un
+  // acuerdo financiero, independiente del estado del tareo o de la planilla.
+  periodoTareo: { findFirst: jest.Mock };
+  planilla: { findFirst: jest.Mock };
   prestamoMovimiento: { create: jest.Mock };
   tipoDocumentoEmpleado: { findFirst: jest.Mock; create: jest.Mock };
   empleadoDocumento: { createMany: jest.Mock };
@@ -34,6 +38,8 @@ function build() {
     },
     prestamoArchivo: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
     empleado: { findFirst: jest.fn() },
+    periodoTareo: { findFirst: jest.fn() },
+    planilla: { findFirst: jest.fn() },
     prestamoMovimiento: { create: jest.fn() },
     tipoDocumentoEmpleado: {
       findFirst: jest.fn().mockResolvedValue({ id: 30 }),
@@ -151,7 +157,7 @@ describe('PrestamosService — aislamiento multiempresa', () => {
 describe('PrestamosService.create', () => {
   it('con monto total definido el saldo arranca igual al monto', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await service.create(
       5,
@@ -170,7 +176,7 @@ describe('PrestamosService.create', () => {
 
   it('sin monto total el saldo queda en NULL (cuota recurrente)', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
 
@@ -183,7 +189,7 @@ describe('PrestamosService.create', () => {
 
   it('rechaza una cuota mayor al monto total', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await expect(
       service.create(
@@ -198,7 +204,7 @@ describe('PrestamosService.create', () => {
 
   it('rechaza una cuota menor o igual a cero', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await expect(
       service.create(
@@ -215,7 +221,7 @@ describe('PrestamosService.create', () => {
 describe('PrestamosService.create — convenio obligatorio', () => {
   it('SIN documento adjunto NO se registra el préstamo', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await expect(
       service.create(5, CREAR_BASE, USUARIO_ID, []),
@@ -236,7 +242,7 @@ describe('PrestamosService.create — convenio obligatorio', () => {
 
   it('persiste el convenio colgado del préstamo', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
 
@@ -264,7 +270,7 @@ describe('PrestamosService.create — convenio obligatorio', () => {
 
   it('archiva el convenio en el legajo del empleado (un archivo, dos referencias)', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
 
     await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
 
@@ -285,7 +291,7 @@ describe('PrestamosService.create — convenio obligatorio', () => {
 
   it('crea el tipo de documento CONVENIO_PRESTAMO si la empresa no lo tiene', async () => {
     const { service, prisma } = build();
-    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
     prisma.tipoDocumentoEmpleado.findFirst.mockResolvedValue(null);
 
     await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
@@ -426,5 +432,103 @@ describe('PrestamosService.remove', () => {
 
     await expect(service.remove(1, 5)).resolves.toBeDefined();
     expect(prisma.prestamo.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+  });
+});
+
+/**
+ * Fecha ISO desplazada N días respecto de HOY EN PERÚ (evita tests que caducan).
+ *
+ * Se ancla en hora de Perú a propósito: el servicio compara contra la fecha
+ * peruana, y con UTC-5 el "hoy" de UTC se adelanta un día pasadas las 19:00.
+ * Anclar en UTC haría que el borde de "hoy" fallara solo de noche.
+ */
+function fechaEnDias(dias: number): string {
+  const hoyPeru = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'America/Lima',
+  });
+  const fecha = new Date(`${hoyPeru}T12:00:00Z`);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
+describe('PrestamosService.create — el alta NO depende del período ni de la planilla', () => {
+  it('no consulta períodos de tareo ni planillas', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
+
+    await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
+
+    expect(prisma.periodoTareo.findFirst).not.toHaveBeenCalled();
+    expect(prisma.planilla.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('acepta una fecha de un período largamente cerrado', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
+
+    await expect(
+      service.create(
+        5,
+        { ...CREAR_BASE, fecha_otorgado: fechaEnDias(-200) },
+        USUARIO_ID,
+        CONVENIO,
+      ),
+    ).resolves.toBeDefined();
+    expect(prisma.prestamo.create).toHaveBeenCalled();
+  });
+
+  it('rechaza una fecha de otorgamiento futura', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
+
+    await expect(
+      service.create(
+        5,
+        { ...CREAR_BASE, fecha_otorgado: fechaEnDias(5) },
+        USUARIO_ID,
+        CONVENIO,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.prestamo.create).not.toHaveBeenCalled();
+  });
+
+  it('acepta la fecha de hoy (borde no futuro)', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'ACTIVO' });
+
+    await expect(
+      service.create(
+        5,
+        { ...CREAR_BASE, fecha_otorgado: fechaEnDias(0) },
+        USUARIO_ID,
+        CONVENIO,
+      ),
+    ).resolves.toBeDefined();
+  });
+});
+
+describe('PrestamosService — estado del trabajador', () => {
+  it('no otorga préstamos a un trabajador cesado', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7, estado: 'CESADO' });
+
+    await expect(
+      service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.prestamo.create).not.toHaveBeenCalled();
+  });
+
+  it('la REGULARIZACIÓN de archivos sí acepta un trabajador cesado', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      tipo: 'PRESTAMO',
+      empleado_id: 7,
+    });
+
+    await expect(
+      service.agregarArchivos(1, 5, USUARIO_ID, CONVENIO),
+    ).resolves.toBeDefined();
+    expect(prisma.prestamoArchivo.createMany).toHaveBeenCalled();
   });
 });
