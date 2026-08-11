@@ -15,6 +15,7 @@ import {
   XCircle,
   Eye,
   Calendar,
+  CalendarClock,
   Building2,
   MapPin,
   Banknote,
@@ -31,6 +32,10 @@ import { ContratoCeseDialog } from './dialogs/ContratoCeseDialog';
 import { ContratoReingresoDialog } from './dialogs/ContratoReingresoDialog';
 import { ContratoDetalleDialog } from './dialogs/ContratoDetalleDialog';
 import { ContratoGenerarBancoDialog } from './dialogs/ContratoGenerarBancoDialog';
+import {
+  SolicitarCorreccionFechasDialog,
+  type ContratoACorregir,
+} from './dialogs/SolicitarCorreccionFechasDialog';
 
 const TIPOS_CONTRATO = [
   { value: 'SUJETO_A_MODALIDAD', label: 'Sujeto a Modalidad' },
@@ -76,6 +81,8 @@ export function EmpleadoContratos({ empleadoId, sueldoBase, estadoEmpleado, fech
     estado: string;
     numero_renovacion?: number | null;
   } | null>(null);
+  const [contratoACorregir, setContratoACorregir] =
+    useState<ContratoACorregir | null>(null);
 
   const {
     contratos, loading, plantillas, clientes, sedesFiltradas,
@@ -265,6 +272,14 @@ export function EmpleadoContratos({ empleadoId, sueldoBase, estadoEmpleado, fech
                   Renovar
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setContratoACorregir(contratoVigente)}
+              >
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Corregir Fechas
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -532,6 +547,20 @@ export function EmpleadoContratos({ empleadoId, sueldoBase, estadoEmpleado, fech
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        className="h-7 w-7"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setContratoACorregir(contrato);
+                                        }}
+                                        title="Solicitar corrección de fechas"
+                                      >
+                                        <CalendarClock className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                    {!isAnulado && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -652,6 +681,16 @@ export function EmpleadoContratos({ empleadoId, sueldoBase, estadoEmpleado, fech
         setSelectedPlantillaBanco={setSelectedPlantillaBanco}
         generating={generating}
         handleGenerarUnificado={handleGenerarUnificado}
+      />
+
+      <SolicitarCorreccionFechasDialog
+        open={contratoACorregir !== null}
+        contrato={contratoACorregir}
+        onOpenChange={(open) => { if (!open) setContratoACorregir(null); }}
+        onSuccess={() => {
+          setContratoACorregir(null);
+          fetchContratos();
+        }}
       />
 
       <SolicitarAnulacionDialog

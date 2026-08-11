@@ -43,6 +43,7 @@ export const PERMISOS = {
     ELIMINAR: 'contratos:eliminar',
     ANULAR_SOLICITAR: 'contratos:anular_solicitar',
     ANULAR_APROBAR: 'contratos:anular_aprobar',
+    EDICION_APROBAR: 'contratos:edicion_aprobar',
   },
 
   // Módulo Tareo (Asistencia)
@@ -263,6 +264,12 @@ export const PERMISOS_POR_MODULO: PermisoGrupo[] = [
         nombre: 'Aprobar anulación',
         descripcion:
           'Aprobar o rechazar solicitudes de anulación de contrato (Admin)',
+      },
+      {
+        codigo: PERMISOS.CONTRATOS.EDICION_APROBAR,
+        nombre: 'Aprobar corrección de fechas',
+        descripcion:
+          'Aprobar o rechazar solicitudes de corrección de fechas de contrato (Admin)',
       },
     ],
   },

@@ -10,6 +10,7 @@ import { toDateString } from "@/lib/utils";
 import { validarAnioFechaContrato } from "@/lib/validar-fecha-contrato";
 import { getApiErrorMessage } from "@/lib/errors";
 import type { SolicitudAnulacionPendiente } from "@/types/solicitudes-anulacion";
+import type { SolicitudCorreccionFecha } from "@/types/solicitudes-correccion-fecha";
 import type {
   SolicitudDescuento,
   SolicitudBaja,
@@ -245,6 +246,18 @@ export function useDashboard() {
   const [observacionesRechazoAnulacion, setObservacionesRechazoAnulacion] =
     useState("");
   const [procesandoAnulacion, setProcesandoAnulacion] = useState(false);
+  const [correccionesFechas, setCorreccionesFechas] = useState<
+    SolicitudCorreccionFecha[]
+  >([]);
+  const [aprobarCorreccionId, setAprobarCorreccionId] = useState<number | null>(
+    null,
+  );
+  const [rechazarCorreccionId, setRechazarCorreccionId] = useState<
+    number | null
+  >(null);
+  const [observacionesRechazoCorreccion, setObservacionesRechazoCorreccion] =
+    useState("");
+  const [procesandoCorreccion, setProcesandoCorreccion] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -253,6 +266,7 @@ export function useDashboard() {
     vencidos: true,
     cesePendiente: true,
     anulacionPendiente: true,
+    correccionFechaPendiente: true,
     descuentos: true,
     bajas: true,
     requerimientos: true,
@@ -310,6 +324,7 @@ export function useDashboard() {
         cesadosRes,
         ceseRes,
         anulacionRes,
+        correccionesRes,
         tiposCeseRes,
         descuentosRes,
         bajasRes,
@@ -327,6 +342,16 @@ export function useDashboard() {
             SolicitudAnulacionPendiente[]
           >("/dashboard/solicitudes-anulacion-pendientes")
           .catch(() => [] as SolicitudAnulacionPendiente[]),
+        // El módulo expone su propio listado paginado; no hay endpoint en
+        // /dashboard para no engordar ese servicio con otro include duplicado.
+        hasPermission(usuario, "contratos:leer")
+          ? api
+              .get<{
+                data: SolicitudCorreccionFecha[];
+              }>("/solicitudes-correccion-fechas?estado=PENDIENTE&limit=100")
+              .then((res) => res?.data ?? [])
+              .catch(() => [] as SolicitudCorreccionFecha[])
+          : Promise.resolve([] as SolicitudCorreccionFecha[]),
         api.get<{ id: number; nombre: string; activo: boolean }[]>(
           "/masters/tipos-cese",
         ),
@@ -348,6 +373,9 @@ export function useDashboard() {
       setEmpleadosCesados(Array.isArray(cesadosRes) ? cesadosRes : []);
       setSolicitudesCese(Array.isArray(ceseRes) ? ceseRes : []);
       setSolicitudesAnulacion(Array.isArray(anulacionRes) ? anulacionRes : []);
+      setCorreccionesFechas(
+        Array.isArray(correccionesRes) ? correccionesRes : [],
+      );
       setTiposCese(
         Array.isArray(tiposCeseRes) ? tiposCeseRes.filter((t) => t.activo) : [],
       );
@@ -454,6 +482,52 @@ export function useDashboard() {
       setProcesandoAnulacion(false);
       setRechazarAnulacionId(null);
       setObservacionesRechazoAnulacion("");
+    }
+  };
+
+  // ── Corrección de fechas handlers ────────────────────────────────────────
+
+  const handleAprobarCorreccion = async () => {
+    if (!aprobarCorreccionId) return;
+    setProcesandoCorreccion(true);
+    try {
+      const resuelta = await api.patch<SolicitudCorreccionFecha>(
+        `/solicitudes-correccion-fechas/${aprobarCorreccionId}/aprobar`,
+        {},
+      );
+      toast.success("Corrección aplicada al contrato");
+      // El backend no bloquea si el cambio toca planillas ya liquidadas, pero
+      // avisa: esos cálculos no se recalculan solos.
+      if (resuelta?.advertencia_planillas) {
+        toast.warning(resuelta.advertencia_planillas, { duration: 12000 });
+      }
+      await fetchDashboardData();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al aprobar la corrección"));
+    } finally {
+      setProcesandoCorreccion(false);
+      setAprobarCorreccionId(null);
+    }
+  };
+
+  const handleRechazarCorreccion = async () => {
+    if (!rechazarCorreccionId) return;
+    setProcesandoCorreccion(true);
+    try {
+      await api.patch(
+        `/solicitudes-correccion-fechas/${rechazarCorreccionId}/rechazar`,
+        {
+          observaciones_admin: observacionesRechazoCorreccion || undefined,
+        },
+      );
+      toast.success("Corrección rechazada; el contrato no cambió");
+      await fetchDashboardData();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Error al rechazar la corrección"));
+    } finally {
+      setProcesandoCorreccion(false);
+      setRechazarCorreccionId(null);
+      setObservacionesRechazoCorreccion("");
     }
   };
 
@@ -761,6 +835,18 @@ export function useDashboard() {
     procesandoAnulacion,
     handleAprobarAnulacion,
     handleRechazarAnulacion,
+    // Corrección de fechas de contrato
+    correccionesFechas,
+    aprobarCorreccionId,
+    setAprobarCorreccionId,
+    rechazarCorreccionId,
+    setRechazarCorreccionId,
+    observacionesRechazoCorreccion,
+    setObservacionesRechazoCorreccion,
+    procesandoCorreccion,
+    handleAprobarCorreccion,
+    handleRechazarCorreccion,
+    puedeAprobarCorreccion: hasPermission(usuario, "contratos:edicion_aprobar"),
     // Renovación
     showRenovarModal,
     setShowRenovarModal,

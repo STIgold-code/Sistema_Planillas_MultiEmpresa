@@ -11,6 +11,7 @@ import { DashboardEmpleadosPendientes } from "./components/dashboard-empleados-p
 import { DashboardContratosPorVencer } from "./components/dashboard-contratos-por-vencer";
 import { DashboardSolicitudesCese } from "./components/dashboard-solicitudes-cese";
 import { DashboardSolicitudesAnulacion } from "./components/dashboard-solicitudes-anulacion";
+import { DashboardCorreccionesFechas } from "./components/dashboard-correcciones-fechas";
 import { DashboardDescuentosPendientes } from "./components/dashboard-descuentos-pendientes";
 import { DashboardBajasPendientes } from "./components/dashboard-bajas-pendientes";
 import { DashboardRequerimientosPendientes } from "./components/dashboard-requerimientos-pendientes";
@@ -72,6 +73,7 @@ export default function DashboardPage() {
     db.empleadosPendientes.length === 0 &&
     db.solicitudesCese.length === 0 &&
     db.solicitudesAnulacion.length === 0 &&
+    db.correccionesFechas.length === 0 &&
     db.descuentosPendientes.length === 0 &&
     db.bajasPendientes.length === 0 &&
     db.requerimientosPendientes.length === 0 &&
@@ -146,6 +148,20 @@ export default function DashboardPage() {
         onAprobar={db.setAprobarAnulacionId}
         onRechazar={db.setRechazarAnulacionId}
         onVerDetalle={setSolicitudAnulacionDetalle}
+      />
+
+      <DashboardCorreccionesFechas
+        solicitudes={db.correccionesFechas}
+        expanded={db.expandedSections.correccionFechaPendiente}
+        onExpandChange={(open) =>
+          db.setExpandedSections((prev) => ({
+            ...prev,
+            correccionFechaPendiente: open,
+          }))
+        }
+        onAprobar={db.setAprobarCorreccionId}
+        onRechazar={db.setRechazarCorreccionId}
+        puedeAprobar={db.puedeAprobarCorreccion}
       />
 
       <DashboardDescuentosPendientes
@@ -369,6 +385,82 @@ export default function DashboardPage() {
               disabled={db.procesandoAnulacion}
             >
               {db.procesandoAnulacion ? "Procesando..." : "Rechazar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={db.aprobarCorreccionId !== null}
+        onOpenChange={(v) => !v && db.setAprobarCorreccionId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aprobar Corrección de Fechas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se aplicarán las fechas propuestas al contrato y el sustento
+              quedará archivado en el legajo del trabajador. Si el cambio toca
+              períodos con planilla aprobada o pagada, se te avisará: esos
+              cálculos no se recalculan automáticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={db.procesandoCorreccion}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={db.handleAprobarCorreccion}
+              disabled={db.procesandoCorreccion}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {db.procesandoCorreccion ? "Procesando..." : "Aprobar Corrección"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={db.rechazarCorreccionId !== null}
+        onOpenChange={(v) => {
+          if (!v) {
+            db.setRechazarCorreccionId(null);
+            db.setObservacionesRechazoCorreccion("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar Corrección de Fechas</DialogTitle>
+            <DialogDescription>
+              Indica el motivo del rechazo (opcional). El contrato no se
+              modificará.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Observaciones del rechazo..."
+            value={db.observacionesRechazoCorreccion}
+            onChange={(e) =>
+              db.setObservacionesRechazoCorreccion(e.target.value)
+            }
+            maxLength={500}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                db.setRechazarCorreccionId(null);
+                db.setObservacionesRechazoCorreccion("");
+              }}
+              disabled={db.procesandoCorreccion}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={db.handleRechazarCorreccion}
+              disabled={db.procesandoCorreccion}
+            >
+              {db.procesandoCorreccion ? "Procesando..." : "Rechazar"}
             </Button>
           </DialogFooter>
         </DialogContent>
