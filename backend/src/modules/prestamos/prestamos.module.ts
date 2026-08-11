@@ -3,12 +3,14 @@ import { PrestamosController } from './prestamos.controller';
 import { PrestamosService } from './prestamos.service';
 import { PrestamosPlanillaService } from './prestamos-planilla.service';
 import { PrestamosAmortizacionService } from './prestamos-amortizacion.service';
+import { UploadsModule } from '../uploads/uploads.module';
 
 /**
  * Préstamos y adelantos. Exporta los dos servicios que consume el módulo de
  * planillas: la lectura para el cálculo y la amortización al aprobar.
  */
 @Module({
+  imports: [UploadsModule],
   controllers: [PrestamosController],
   providers: [
     PrestamosService,

@@ -14,8 +14,11 @@ interface PrismaMock {
     update: jest.Mock;
     delete: jest.Mock;
   };
+  prestamoArchivo: { createMany: jest.Mock };
   empleado: { findFirst: jest.Mock };
   prestamoMovimiento: { create: jest.Mock };
+  tipoDocumentoEmpleado: { findFirst: jest.Mock; create: jest.Mock };
+  empleadoDocumento: { createMany: jest.Mock };
   $transaction: jest.Mock;
 }
 
@@ -29,8 +32,16 @@ function build() {
       update: jest.fn().mockResolvedValue({ id: 1 }),
       delete: jest.fn().mockResolvedValue({ id: 1 }),
     },
+    prestamoArchivo: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
     empleado: { findFirst: jest.fn() },
     prestamoMovimiento: { create: jest.fn() },
+    tipoDocumentoEmpleado: {
+      findFirst: jest.fn().mockResolvedValue({ id: 30 }),
+      create: jest.fn().mockResolvedValue({ id: 30 }),
+    },
+    empleadoDocumento: {
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: PrismaMock) => unknown) =>
@@ -46,6 +57,18 @@ const CREAR_BASE = {
   cuota_mensual: 100,
   fecha_otorgado: '2026-08-01',
 };
+
+const USUARIO_ID = 3;
+
+/** Convenio de descuento firmado, ya subido al storage. */
+const CONVENIO = [
+  {
+    archivo_url: 'documentos/convenio.pdf',
+    archivo_nombre: 'convenio.pdf',
+    archivo_tipo: 'application/pdf',
+    archivo_tamano: 2048,
+  },
+];
 
 /** Primer argumento de la primera llamada, tipado (sin `any` de mock.calls). */
 function primerArgumento<T>(mock: jest.Mock): T {
@@ -84,13 +107,24 @@ describe('PrestamosService — aislamiento multiempresa', () => {
     const { service, prisma } = build();
     prisma.empleado.findFirst.mockResolvedValue(null);
 
-    await expect(service.create(5, CREAR_BASE)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.empleado.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 7, empresa_id: 5 } }),
     );
     expect(prisma.prestamo.create).not.toHaveBeenCalled();
+  });
+
+  it('la regularización no adjunta a préstamos de otra empresa', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.agregarArchivos(1, 5, USUARIO_ID, CONVENIO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.prestamoArchivo.createMany).not.toHaveBeenCalled();
+    expect(prisma.empleadoDocumento.createMany).not.toHaveBeenCalled();
   });
 
   it('la edición no toca préstamos de otra empresa', async () => {
@@ -119,7 +153,12 @@ describe('PrestamosService.create', () => {
     const { service, prisma } = build();
     prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
 
-    await service.create(5, { ...CREAR_BASE, monto_total: 1200 });
+    await service.create(
+      5,
+      { ...CREAR_BASE, monto_total: 1200 },
+      USUARIO_ID,
+      CONVENIO,
+    );
 
     const datos = primerArgumento<{
       data: { saldo: number; monto_total: number; empresa_id: number };
@@ -133,7 +172,7 @@ describe('PrestamosService.create', () => {
     const { service, prisma } = build();
     prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
 
-    await service.create(5, CREAR_BASE);
+    await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
 
     const datos = primerArgumento<{
       data: { saldo: number | null; monto_total: number | null };
@@ -147,11 +186,12 @@ describe('PrestamosService.create', () => {
     prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
 
     await expect(
-      service.create(5, {
-        ...CREAR_BASE,
-        cuota_mensual: 500,
-        monto_total: 300,
-      }),
+      service.create(
+        5,
+        { ...CREAR_BASE, cuota_mensual: 500, monto_total: 300 },
+        USUARIO_ID,
+        CONVENIO,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.prestamo.create).not.toHaveBeenCalled();
   });
@@ -161,9 +201,140 @@ describe('PrestamosService.create', () => {
     prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
 
     await expect(
-      service.create(5, { ...CREAR_BASE, cuota_mensual: 0 }),
+      service.create(
+        5,
+        { ...CREAR_BASE, cuota_mensual: 0 },
+        USUARIO_ID,
+        CONVENIO,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.prestamo.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('PrestamosService.create — convenio obligatorio', () => {
+  it('SIN documento adjunto NO se registra el préstamo', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+
+    await expect(
+      service.create(5, CREAR_BASE, USUARIO_ID, []),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.prestamo.create).not.toHaveBeenCalled();
+  });
+
+  it('el convenio se rechaza ANTES de tocar la base', async () => {
+    const { service, prisma } = build();
+
+    await expect(
+      service.create(5, CREAR_BASE, USUARIO_ID, []),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    // Ni siquiera se consulta el empleado: falla en la primera guarda.
+    expect(prisma.empleado.findFirst).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('persiste el convenio colgado del préstamo', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+
+    await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
+
+    const datos = primerArgumento<{
+      data: {
+        archivos: {
+          create: {
+            archivo_url: string;
+            archivo_nombre: string;
+            archivo_tipo: string | null;
+            archivo_tamano: number | null;
+          }[];
+        };
+      };
+    }>(prisma.prestamo.create);
+    expect(datos.data.archivos.create).toEqual([
+      {
+        archivo_url: 'documentos/convenio.pdf',
+        archivo_nombre: 'convenio.pdf',
+        archivo_tipo: 'application/pdf',
+        archivo_tamano: 2048,
+      },
+    ]);
+  });
+
+  it('archiva el convenio en el legajo del empleado (un archivo, dos referencias)', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+
+    await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
+
+    const documentos = primerArgumento<{
+      data: {
+        empleado_id: number;
+        archivo_url: string;
+        subido_por_id: number;
+        tipo_documento_empleado_id: number;
+      }[];
+    }>(prisma.empleadoDocumento.createMany);
+    expect(documentos.data).toHaveLength(1);
+    expect(documentos.data[0].empleado_id).toBe(7);
+    expect(documentos.data[0].subido_por_id).toBe(USUARIO_ID);
+    // Reutiliza la MISMA url: no se duplica el storage.
+    expect(documentos.data[0].archivo_url).toBe('documentos/convenio.pdf');
+  });
+
+  it('crea el tipo de documento CONVENIO_PRESTAMO si la empresa no lo tiene', async () => {
+    const { service, prisma } = build();
+    prisma.empleado.findFirst.mockResolvedValue({ id: 7 });
+    prisma.tipoDocumentoEmpleado.findFirst.mockResolvedValue(null);
+
+    await service.create(5, CREAR_BASE, USUARIO_ID, CONVENIO);
+
+    const tipo = primerArgumento<{
+      data: { codigo: string; empresa_id: number };
+    }>(prisma.tipoDocumentoEmpleado.create);
+    expect(tipo.data.codigo).toBe('CONVENIO_PRESTAMO');
+    expect(tipo.data.empresa_id).toBe(5);
+  });
+});
+
+describe('PrestamosService.agregarArchivos — regularización', () => {
+  it('sin archivos no hace nada y rechaza', async () => {
+    const { service, prisma } = build();
+
+    await expect(
+      service.agregarArchivos(1, 5, USUARIO_ID, []),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.prestamo.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('adjunta el convenio a un préstamo ya registrado y lo archiva en el legajo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      tipo: 'PRESTAMO',
+      empleado_id: 7,
+    });
+
+    await service.agregarArchivos(1, 5, USUARIO_ID, CONVENIO);
+
+    const archivos = primerArgumento<{
+      data: { prestamo_id: number; archivo_url: string }[];
+    }>(prisma.prestamoArchivo.createMany);
+    expect(archivos.data).toEqual([
+      {
+        prestamo_id: 1,
+        archivo_url: 'documentos/convenio.pdf',
+        archivo_nombre: 'convenio.pdf',
+        archivo_tipo: 'application/pdf',
+        archivo_tamano: 2048,
+      },
+    ]);
+
+    const documentos = primerArgumento<{
+      data: { empleado_id: number }[];
+    }>(prisma.empleadoDocumento.createMany);
+    expect(documentos.data[0].empleado_id).toBe(7);
   });
 });
 
