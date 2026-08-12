@@ -29,8 +29,9 @@ import {
 } from '../dominio/tipos';
 import {
   DiasNoLaboradosPorMes,
-  diasNoLaboradosDelSemestre,
+  diasNoLaboradosComputables,
 } from '../dominio/conceptos/gratificacion';
+import { resolverMesesGratificacion } from './meses-gratificacion';
 import {
   ContratoConRegimen,
   EmpresaConRegimenDefault,
@@ -92,6 +93,12 @@ export interface RegimenPensionarioParaMapeo {
 /** Subset del empleado Prisma necesario para construir la entrada de cálculo. */
 export interface EmpleadoParaMapeo {
   sueldo_base: unknown;
+  /**
+   * Fecha de ingreso del trabajador (antigüedad real). Resuelve los meses del
+   * semestre que devengan la gratificación (Ley 27735 art. 6). Opcional por
+   * compatibilidad con fixtures; ausente/null → semestre completo.
+   */
+  fecha_ingreso?: Date | string | null;
   asignacion_familiar: boolean | null;
   /** Condición fiscal IR 5ta. null/undefined → domiciliado. */
   domiciliado?: boolean | null;
@@ -214,10 +221,24 @@ export function mapearEntradaCalculo(
     mapearDetalleTareo(detalle, indice, ventana),
   );
 
-  // Días no laborados del semestre que devenga la gratificación: los históricos
-  // de las planillas ya guardadas más los del mes en curso (el tareo de esta
-  // corrida manda sobre cualquier planilla previa del mismo mes). El dominio
-  // decide qué meses forman el semestre (Ley 27735 art. 1 y 5).
+  // Meses calendario COMPLETOS del semestre que devenga la gratificación
+  // (Ley 27735 art. 6 + D.S. 005-2002-TR art. 3.3). Se resuelve con la MISMA
+  // función que el camino de detalle para que ambos motores den lo mismo: el
+  // motor de régimen sobreescribe los montos load-bearing del DTO, así que si
+  // aquí no se inyecta el valor, `calcular-boleta` asume 6/6 y persiste la
+  // gratificación completa a quien ingresó a mitad del semestre.
+  const mesesGratificacion = resolverMesesGratificacion(
+    mes,
+    anio,
+    empleado.fecha_ingreso,
+  );
+
+  // Días no laborados que deducen la gratificación: los históricos de las
+  // planillas ya guardadas más los del mes en curso (el tareo de esta corrida
+  // manda sobre cualquier planilla previa del mismo mes). El dominio decide qué
+  // meses del semestre son computables (Ley 27735 art. 1, 5 y 6): con ingreso a
+  // mitad de semestre, los meses previos al ingreso ya no aportan sexto y sus
+  // días NO vuelven a deducir (D.S. 005-2002-TR art. 3.4).
   //
   // CRITERIO (documentado): las ausencias se imputan al MES DE LA PLANILLA, no
   // al mes calendario del día. Con ventana de día de corte (p. ej. 26 → 25) la
@@ -225,10 +246,14 @@ export function mapearEntradaCalculo(
   // cada ausencia se cuenta exactamente una vez y ninguna se pierde. Imputar
   // por fecha real solo el mes en curso, mientras el histórico viene keyado por
   // mes de planilla, haría que el mes del borde se contara dos veces.
-  const diasNoLaboradosSemestre = diasNoLaboradosDelSemestre(mes, {
-    ...params.diasNoLaboradosMesesPrevios,
-    [mes]: contarDiasNoLaboradosDelMes(detalles),
-  });
+  const diasNoLaboradosSemestre = diasNoLaboradosComputables(
+    mes,
+    mesesGratificacion,
+    {
+      ...params.diasNoLaboradosMesesPrevios,
+      [mes]: contarDiasNoLaboradosDelMes(detalles),
+    },
+  );
 
   return {
     regimenLaboral,
@@ -250,7 +275,7 @@ export function mapearEntradaCalculo(
       fecha: ventana.fechaFin,
     },
     tareo,
-    devengados: { diasNoLaboradosSemestre },
+    devengados: { mesesGratificacion, diasNoLaboradosSemestre },
     acumuladoRenta: params.acumuladoRenta ?? 0,
     retencionesPreviasRenta: params.retencionesPreviasRenta ?? 0,
     trabajadorDomiciliado: params.empleado.domiciliado ?? true,
