@@ -3,11 +3,22 @@
  * como funciones PURAS del dominio.
  *
  * Reproducen al céntimo la matemática del motor legacy (`gratificaciones.ts`,
- * `cts.ts`, `beneficios-truncos.ts`). La resolución de MESES/DÍAS del semestre
- * (que dependía de la fecha de ingreso vía luxon) se hace en el borde de
- * aplicación y se inyecta ya calculada, manteniendo el dominio libre de fechas
- * con timezone. Los factores legales (asignación familiar, tasa EsSalud de la
- * bonificación 30334) provienen del puerto `ParametrosLegales`.
+ * `cts.ts`, `beneficios-truncos.ts`) SALVO en dos puntos donde el legacy
+ * contradecía la ley y se corrigió deliberadamente:
+ *
+ *  1. Gratificación TRUNCA: se paga por meses calendario COMPLETOS del semestre
+ *     (Ley 27735 art. 7 / D.S. 005-2002-TR art. 5). El legacy contaba el mes del
+ *     cese aunque no se hubiera completado (cese el 09-jun pagaba 6/6).
+ *  2. Vacaciones TRUNCAS: dozavos y treintavos desde el ÚLTIMO ANIVERSARIO de
+ *     ingreso (D.L. 713 arts. 22-23). El legacy usaba el mes calendario del año,
+ *     asumiendo que todos ingresaron el 1 de enero e ignorando los días.
+ *
+ * La CTS trunca no cambió. La resolución de MESES/DÍAS del semestre para las
+ * gratificaciones y la CTS del período se sigue haciendo en el borde de
+ * aplicación y se inyecta ya calculada; las fechas de ingreso/cese llegan como
+ * fechas de CALENDARIO puras (sin timezone) desde el mismo borde. Los factores
+ * legales (asignación familiar, tasa EsSalud de la bonificación 30334)
+ * provienen del puerto `ParametrosLegales`.
  */
 import { redondear2 } from './redondeo';
 
@@ -65,22 +76,142 @@ export interface BeneficiosTruncos {
   totalBeneficiosSociales: number;
 }
 
+/** Entrada de los beneficios truncos de un empleado que cesa en el período. */
+export interface ParametrosBeneficiosTruncos {
+  empleadoCesa: boolean;
+  /** Mes de la planilla. Solo se usa como respaldo si no hay fecha de cese. */
+  mes: number;
+  diasTrabajados: number;
+  remComputableCts: number;
+  remComputableGratificacion: number;
+  sueldoBase: number;
+  tieneAsignacionFamiliar: boolean;
+  tieneFechaIngreso: boolean;
+  /** Monto de asignación familiar (0 si no aplica). */
+  asignacionFamiliarMonto: number;
+  /** Fecha real de ingreso: origen del récord trunco vacacional. */
+  fechaIngreso?: Date;
+  /** Fecha real de cese dentro del período. */
+  fechaCese?: Date;
+}
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+/** True si `fecha` es el último día de su mes calendario. */
+function esUltimoDiaDelMes(fecha: Date): boolean {
+  const ultimoDia = new Date(
+    fecha.getFullYear(),
+    fecha.getMonth() + 1,
+    0,
+  ).getDate();
+  return fecha.getDate() === ultimoDia;
+}
+
+/** Suma meses conservando el día, recortándolo si el mes destino es más corto. */
+function sumarMeses(fecha: Date, meses: number): Date {
+  const anio = fecha.getFullYear();
+  const mes = fecha.getMonth() + meses;
+  const ultimoDiaDestino = new Date(anio, mes + 1, 0).getDate();
+  return new Date(anio, mes, Math.min(fecha.getDate(), ultimoDiaDestino));
+}
+
+function diferenciaEnDias(desde: Date, hasta: Date): number {
+  return Math.round((hasta.getTime() - desde.getTime()) / MS_POR_DIA);
+}
+
+/** Récord trunco vacacional expresado en dozavos y treintavos. */
+interface RecordTruncoVacacional {
+  meses: number;
+  dias: number;
+}
+
 /**
- * Beneficios truncos para empleados que cesan en el período. Reproduce
- * `beneficios-truncos.ts` del legacy al céntimo.
+ * Último aniversario de la fecha de ingreso ocurrido en o antes del cese.
+ * Es el inicio del año de récord vacacional que quedó trunco.
+ */
+function ultimoAniversario(fechaIngreso: Date, fechaCese: Date): Date {
+  const candidato = new Date(
+    fechaCese.getFullYear(),
+    fechaIngreso.getMonth(),
+    fechaIngreso.getDate(),
+  );
+  if (candidato <= fechaCese && candidato >= fechaIngreso) return candidato;
+  const anterior = new Date(
+    fechaCese.getFullYear() - 1,
+    fechaIngreso.getMonth(),
+    fechaIngreso.getDate(),
+  );
+  return anterior >= fechaIngreso ? anterior : fechaIngreso;
+}
+
+/**
+ * Récord trunco vacacional: meses completos desde el último aniversario de
+ * ingreso más los días sueltos del mes incompleto (D.L. 713 arts. 22-23,
+ * reglamentado por el D.S. 012-92-TR art. 21: dozavos y treintavos).
  *
- * @param asignacionFamiliarMonto Monto de asignación familiar (0 si no aplica).
+ * CRITERIO DE LOS TREINTAVOS (documentado, es una decisión):
+ * el récord se cuenta como intervalo CERRADO [aniversario, fecha de cese] —
+ * ambos días inclusive. El día del cese es un día de vínculo laboral vigente y
+ * remunerado, así que suma treintavo. Es la misma convención inclusiva que ya
+ * usa el récord de CTS del motor (`resolverMesesCts`: `díasDelMes - díaIngreso
+ * + 1`), de modo que ambos beneficios cuentan igual y no hay un día que se
+ * pague en CTS y se pierda en vacaciones.
+ */
+function calcularRecordTruncoVacacional(
+  fechaIngreso: Date,
+  fechaCese: Date,
+): RecordTruncoVacacional {
+  if (fechaCese < fechaIngreso) return { meses: 0, dias: 0 };
+
+  const aniversario = ultimoAniversario(fechaIngreso, fechaCese);
+  // Fin EXCLUSIVO del intervalo cerrado [aniversario, cese].
+  const fin = new Date(
+    fechaCese.getFullYear(),
+    fechaCese.getMonth(),
+    fechaCese.getDate() + 1,
+  );
+
+  let meses = 0;
+  while (meses < 12 && sumarMeses(aniversario, meses + 1) <= fin) {
+    meses += 1;
+  }
+  return { meses, dias: diferenciaEnDias(sumarMeses(aniversario, meses), fin) };
+}
+
+/**
+ * Meses completos del semestre que dan derecho a gratificación trunca.
+ *
+ * Ley 27735 art. 7 y D.S. 005-2002-TR art. 5: la gratificación trunca se paga a
+ * razón de un sexto por MES CALENDARIO COMPLETO laborado en el semestre; los
+ * días sueltos del mes de cese NO generan sexto (a diferencia de la CTS, que sí
+ * los reconoce en treintavos).
+ *
+ * El semestre se determina por el mes del CESE, no por el mes de la planilla:
+ * con ventana de día de corte (26 → 25) la planilla de julio puede contener un
+ * cese ocurrido el 30 de junio, que trunca el semestre enero-junio.
+ */
+function resolverMesesGratificacionTrunca(
+  mesPlanilla: number,
+  fechaCese?: Date,
+): number {
+  const mesCese = fechaCese ? fechaCese.getMonth() + 1 : mesPlanilla;
+  const mesesDelSemestre = mesCese <= 6 ? mesCese : mesCese - 6;
+  // Sin fecha de cese (dato histórico incompleto) se conserva el
+  // comportamiento anterior: no hay evidencia para descontar el mes en curso.
+  if (!fechaCese || esUltimoDiaDelMes(fechaCese)) return mesesDelSemestre;
+  return Math.max(0, mesesDelSemestre - 1);
+}
+
+/**
+ * Beneficios truncos para empleados que cesan en el período.
+ *
+ * La CTS trunca conserva la fórmula histórica (D.S. 001-97-TR art. 21:
+ * dozavos por mes completo y treintavos por los días). La gratificación y las
+ * vacaciones truncas SÍ cambiaron respecto del legacy para ajustarse a la ley
+ * (ver `resolverMesesGratificacionTrunca` y `calcularRecordTruncoVacacional`).
  */
 export function calcularBeneficiosTruncosDetalle(
-  empleadoCesa: boolean,
-  mes: number,
-  diasTrabajados: number,
-  remComputableCts: number,
-  remComputableGratificacion: number,
-  sueldoBase: number,
-  tieneAsignacionFamiliar: boolean,
-  tieneFechaIngreso: boolean,
-  asignacionFamiliarMonto: number,
+  params: ParametrosBeneficiosTruncos,
 ): BeneficiosTruncos {
   const vacio: BeneficiosTruncos = {
     ctsTrunca: 0,
@@ -88,7 +219,20 @@ export function calcularBeneficiosTruncosDetalle(
     vacTruncas: 0,
     totalBeneficiosSociales: 0,
   };
-  if (!empleadoCesa) return vacio;
+  if (!params.empleadoCesa) return vacio;
+
+  const {
+    mes,
+    diasTrabajados,
+    remComputableCts,
+    remComputableGratificacion,
+    sueldoBase,
+    tieneAsignacionFamiliar,
+    tieneFechaIngreso,
+    asignacionFamiliarMonto,
+    fechaIngreso,
+    fechaCese,
+  } = params;
 
   let mesesDesdeUltimoCts = 0;
   if (mes <= 5) mesesDesdeUltimoCts = mes - 1 + 2;
@@ -100,17 +244,27 @@ export function calcularBeneficiosTruncosDetalle(
       (remComputableCts / 360) * diasTrabajados,
   );
 
-  const mesesDesdeInicioSemestre = mes <= 6 ? mes : mes - 6;
   const gratTrunca = redondear2(
-    (remComputableGratificacion / 6) * mesesDesdeInicioSemestre,
+    (remComputableGratificacion / 6) *
+      resolverMesesGratificacionTrunca(mes, fechaCese),
   );
 
   let vacTruncas = 0;
   if (tieneFechaIngreso) {
     const baseVac =
       sueldoBase + (tieneAsignacionFamiliar ? asignacionFamiliarMonto : 0);
-    const mesesTrabajadosAnio = Math.min(12, mes);
-    vacTruncas = redondear2((baseVac / 12) * mesesTrabajadosAnio);
+    if (fechaIngreso && fechaCese) {
+      const record = calcularRecordTruncoVacacional(fechaIngreso, fechaCese);
+      vacTruncas = redondear2(
+        (baseVac / 12) * record.meses + (baseVac / 360) * record.dias,
+      );
+    } else {
+      // Fallback histórico: sin las fechas reales no se puede ubicar el
+      // aniversario, así que se conserva la fórmula anterior (dozavos por mes
+      // calendario del año). No debería ocurrir en producción: un cese siempre
+      // trae fecha de cese, y el ingreso es obligatorio en el alta.
+      vacTruncas = redondear2((baseVac / 12) * Math.min(12, mes));
+    }
   }
 
   return {

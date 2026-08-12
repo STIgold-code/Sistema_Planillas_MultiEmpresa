@@ -108,6 +108,7 @@ export async function exportarPlanilla(
           adelanto_gratificacion: true,
           otros_descuentos: true,
           descuento_faltas: true,
+          descuento_dominical: true,
           descuento_permisos: true,
           descuento_tardanzas: true,
           descuento_sobregiro: true,
@@ -350,6 +351,9 @@ export async function exportarPlanilla(
         otros_descuentos: num(d.otros_descuentos),
         descuento_faltas: num(d.descuento_faltas),
         faltas_monto: num(d.descuento_faltas), // Alias para frontend
+        // Dominical proporcional por ausencias sin goce (D.L. 713 art. 4).
+        descuento_dominical: num(d.descuento_dominical),
+        dominical_monto: num(d.descuento_dominical), // Alias para frontend
         descuento_permisos: num(d.descuento_permisos),
         permisos_monto: num(d.descuento_permisos), // Alias para frontend
         descuento_tardanzas: num(d.descuento_tardanzas),

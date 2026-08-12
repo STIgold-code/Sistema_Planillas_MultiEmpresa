@@ -1206,6 +1206,10 @@ model PlanillaDetalle {
   prestamo                     Decimal  @default(0) @db.Decimal(10, 2)
   otros_descuentos             Decimal  @default(0) @db.Decimal(10, 2)
   descuento_faltas             Decimal  @default(0) @db.Decimal(10, 2)
+  // Recorte proporcional del descanso semanal obligatorio por ausencias sin
+  // goce (D.L. 713 art. 4). Columna propia y no un desglose de
+  // `descuento_faltas` para poder cuadrarlo por separado con la contadora.
+  descuento_dominical          Decimal  @default(0) @db.Decimal(10, 2)
   descuento_sobregiro          Decimal  @default(0) @db.Decimal(10, 2)
   descuento_reintegro          Decimal  @default(0) @db.Decimal(10, 2)
   retencion_judicial           Decimal  @default(0) @db.Decimal(10, 2)

@@ -6,6 +6,9 @@ import { DiaTareoDetalle } from './tipos-detalle';
 
 function dia(over: Partial<DiaTareoDetalle> = {}): DiaTareoDetalle {
   return {
+    // La clasificación no mira la fecha; se fija una cualquiera para completar
+    // el shape (el descuento dominical sí la usa, y tiene su propio spec).
+    fecha: new Date(2026, 5, 1),
     codigo: 'A',
     esLaborable: true,
     esFeriadoTrabajado: false,

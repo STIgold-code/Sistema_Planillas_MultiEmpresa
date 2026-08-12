@@ -643,6 +643,12 @@ export function dibujarBoletaA4(
       concepto: 'FALTAS',
       monto: Number(detalle.descuento_faltas),
     });
+  // Dominical proporcional por ausencias sin goce (D.L. 713 art. 4).
+  if (Number(detalle.descuento_dominical) > 0)
+    descuentos.push({
+      concepto: 'DESC. DOMINICAL',
+      monto: Number(detalle.descuento_dominical),
+    });
   if (Number(detalle.descuento_feriado) > 0)
     descuentos.push({
       concepto: 'DESC. FERIADO',

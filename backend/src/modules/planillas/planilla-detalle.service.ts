@@ -336,6 +336,10 @@ export class PlanillaDetalleService {
       dto.descuento_faltas,
       detalle.descuento_faltas,
     );
+    // El dominical (D.L. 713 art. 4) NO es editable a mano: sale del tareo en
+    // el cálculo. Se arrastra el valor persistido para que una edición manual
+    // de otro concepto no lo borre del total de descuentos.
+    const descuentoDominical = safeNumber(detalle.descuento_dominical);
     const descuentoSobregiro = getVal(
       dto.descuento_sobregiro,
       detalle.descuento_sobregiro,
@@ -363,6 +367,7 @@ export class PlanillaDetalleService {
       adelantoGratificacion +
       otrosDescuentos +
       descuentoFaltas +
+      descuentoDominical +
       descuentoSobregiro +
       descuentoReintegro +
       prestamo +

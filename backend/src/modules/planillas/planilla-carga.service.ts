@@ -134,7 +134,15 @@ export class PlanillaCargaService {
         },
         tareos: {
           where: tareoWhere,
-          include: { detalles: { include: { tipo_marcacion: true } } },
+          include: {
+            // Orden por día ordinal: la fecha real de cada día se deriva de él
+            // (descuento dominical, D.L. 713 art. 4) y el motor no debe
+            // depender del orden en que la BD devuelva las filas.
+            detalles: {
+              include: { tipo_marcacion: true },
+              orderBy: { dia: 'asc' },
+            },
+          },
         },
       },
     });

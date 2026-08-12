@@ -15,6 +15,7 @@ import {
   diaDeFecha,
   diasDelPeriodo,
   fechaCalendarioLocal,
+  fechaDeDia,
   VentanaPeriodo,
 } from '../../tareo/ventana-periodo';
 import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
@@ -36,6 +37,13 @@ export interface TipoMarcacionDetalle {
 }
 
 export interface DetalleTareoDetalle {
+  /**
+   * Día ORDINAL (1..N) dentro de la ventana del período — `TareoDetalle.dia`.
+   * Con él se deriva la fecha real del día. Opcional solo por compatibilidad
+   * con fixtures antiguos que arman el tareo como una lista ordenada; ahí se
+   * cae al orden de llegada.
+   */
+  dia?: number;
   horas: unknown;
   tipo_marcacion: TipoMarcacionDetalle | null;
 }
@@ -92,10 +100,22 @@ const aNumero = (valor: unknown): number => {
   return Number.isNaN(n) ? 0 : n;
 };
 
-function mapearDia(detalle: DetalleTareoDetalle): DiaTareoDetalle | null {
+/**
+ * Traduce una fila de tareo al día puro del dominio, derivando su FECHA REAL
+ * de calendario. `TareoDetalle.dia` es un ordinal dentro de la ventana: con día
+ * de corte el ordinal 1 no es el día 1 del mes, así que la fecha solo se puede
+ * resolver aquí, contra la ventana del período.
+ */
+function mapearDia(
+  detalle: DetalleTareoDetalle,
+  indice: number,
+  ventana: VentanaPeriodo,
+): DiaTareoDetalle | null {
   const tm = detalle.tipo_marcacion;
   if (!tm) return null;
+  const ordinal = detalle.dia ?? indice + 1;
   return {
+    fecha: fechaDeDia(ventana.fechaInicio, ordinal),
     codigo: tm.codigo,
     esLaborable: tm.es_laborable,
     esFeriadoTrabajado: tm.es_feriado_trabajado,
@@ -263,6 +283,26 @@ function resolverMesesCts(
   return { mesesCts, diasCts };
 }
 
+/**
+ * Fecha REAL de cese dentro de la ventana, como fecha de calendario pura.
+ * Prioriza el fin del contrato del período (misma prioridad que
+ * `calcularDiasCesadoNoLab`) y cae a `empleado.fecha_cese`. El cese el ÚLTIMO
+ * día de la ventana también cuenta: no deja días cesados, pero sí trunca los
+ * beneficios sociales.
+ */
+function resolverFechaCese(
+  empleado: EmpleadoParaDetalle,
+  ventana: VentanaPeriodo,
+): Date | undefined {
+  const candidatas = [empleado.contratos?.[0]?.fecha_fin, empleado.fecha_cese];
+  for (const candidata of candidatas) {
+    if (!candidata) continue;
+    const fecha = fechaCalendarioLocal(candidata);
+    if (fecha >= ventana.fechaInicio && fecha <= ventana.fechaFin) return fecha;
+  }
+  return undefined;
+}
+
 /** True si el empleado cesa dentro de la ventana del período. */
 function calcularEmpleadoCesa(
   empleado: EmpleadoParaDetalle,
@@ -285,7 +325,7 @@ export function mapearEntradaDetalle(
 
   const detalles = empleado.tareos?.[0]?.detalles ?? [];
   const dias = detalles
-    .map(mapearDia)
+    .map((detalle, indice) => mapearDia(detalle, indice, ventana))
     .filter((d): d is DiaTareoDetalle => d !== null);
 
   const diasNuevoNoLab = calcularDiasNuevoNoLab(empleado, ventana);
@@ -307,6 +347,13 @@ export function mapearEntradaDetalle(
     diasCesadoNoLab,
     empleadoCesa,
     tieneFechaIngreso: !!empleado.fecha_ingreso,
+    // Fechas de calendario puras (sin timezone) para el récord trunco
+    // vacacional (D.L. 713 arts. 22-23) y para saber si el mes del cese se
+    // completó (gratificación trunca, Ley 27735 art. 7).
+    fechaIngreso: empleado.fecha_ingreso
+      ? fechaCalendarioLocal(empleado.fecha_ingreso)
+      : undefined,
+    fechaCese: resolverFechaCese(empleado, ventana),
     tieneAsignacionFamiliar: !!empleado.asignacion_familiar,
     tieneSctr: !!empleado.sctr,
     empresaAportaSenati: !!params.empresaAportaSenati,

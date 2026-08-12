@@ -44,6 +44,13 @@ export interface PromediosDetalle {
  * `tipo_marcacion`). La clasificación por `codigo` vive en el dominio.
  */
 export interface DiaTareoDetalle {
+  /**
+   * Fecha REAL de calendario del día. `TareoDetalle.dia` es un ordinal dentro
+   * de la ventana del período, así que la fecha se deriva en el borde con
+   * `fechaDeDia`. La necesita el descuento dominical (D.L. 713 art. 4), que
+   * agrupa por semana calendario lunes → domingo.
+   */
+  fecha: Date;
   codigo: string;
   esLaborable: boolean;
   esFeriadoTrabajado: boolean;
@@ -85,6 +92,18 @@ export interface EntradaDetalle {
   empleadoCesa: boolean;
   /** True si el empleado tiene fecha de ingreso (requisito vacaciones truncas). */
   tieneFechaIngreso: boolean;
+  /**
+   * Fecha REAL de ingreso. El récord trunco vacacional se computa desde el
+   * ÚLTIMO ANIVERSARIO de ingreso (D.L. 713 arts. 22-23), no desde enero.
+   * Ausente en datos históricos sin fecha → fallback documentado.
+   */
+  fechaIngreso?: Date;
+  /**
+   * Fecha REAL de cese dentro de la ventana del período. Decide si el mes del
+   * cese se completó (gratificación trunca, Ley 27735 art. 7) y cierra el
+   * récord trunco vacacional.
+   */
+  fechaCese?: Date;
   /** True si el empleado tiene asignación familiar (base vacaciones truncas). */
   tieneAsignacionFamiliar: boolean;
   /** True si el empleado tiene SCTR activo (aportes del empleador). */
@@ -222,6 +241,12 @@ export interface DetalleCompleto {
   prestamo: number;
   otros_descuentos: number;
   descuento_faltas: number;
+  /**
+   * Recorte proporcional del descanso semanal obligatorio por ausencias sin
+   * goce (D.L. 713 art. 4). Columna propia para poder cuadrarlo con la
+   * planilla de la contadora.
+   */
+  descuento_dominical: number;
   descuento_permisos: number;
   descuento_tardanzas: number;
   descuento_sobregiro: number;
