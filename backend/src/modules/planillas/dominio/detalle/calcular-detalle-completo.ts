@@ -23,6 +23,7 @@ import { ParametrosLegales } from '../parametros/parametros-legales';
 import { DetalleCompleto, EntradaDetalle } from './tipos-detalle';
 import { redondear2 } from './redondeo';
 import { clasificarDiasTareo } from './clasificar-dias-tareo';
+import { calcularDescuentoDominical } from './descuento-dominical';
 import { calcularHorasExtrasDetalle } from './horas-extras-detalle';
 import { calcularDeduccionesPensionDetalle } from './deducciones-pension-detalle';
 import { calcularRentaQuintaDetalle } from './renta-quinta-detalle';
@@ -214,6 +215,15 @@ export function calcularDetalleCompleto(
   // ya las excluye. Descontarlas además sería un doble castigo al trabajador.
   // Se conserva el campo (en 0) por compatibilidad del DTO.
   const descuentoFaltas = 0;
+  // Dominical proporcional (D.L. 713 art. 4): lo que la falta SÍ recorta además
+  // de su propio día es el descanso semanal obligatorio de esa semana, en
+  // sextos. No es doble castigo: son dos conceptos distintos (el día no
+  // devengado ya salió de `diasLaborables`; esto recorta el séptimo día).
+  // Se gatea por días trabajados igual que permisos y tardanzas: sin días
+  // devengados no hay dominical del cual descontar.
+  const descuentoDominical = hayDiasTrabajados
+    ? calcularDescuentoDominical(entrada.dias, valorDiaNormal)
+    : 0;
   const descuentoPermisos = hayDiasTrabajados
     ? redondear2((sueldoBase / 30) * c.diasPermiso)
     : 0;
@@ -241,6 +251,7 @@ export function calcularDetalleCompleto(
   );
   const totalDescuentosOtros = redondear2(
     descuentoFaltas +
+      descuentoDominical +
       descuentoPermisos +
       descuentoTardanzas +
       prestamo +
@@ -283,17 +294,19 @@ export function calcularDetalleCompleto(
   const treintavoDiario = redondear2(sueldoBase / 30);
 
   // --- Beneficios truncos ---
-  const truncos = calcularBeneficiosTruncosDetalle(
-    entrada.empleadoCesa,
+  const truncos = calcularBeneficiosTruncosDetalle({
+    empleadoCesa: entrada.empleadoCesa,
     mes,
     diasTrabajados,
     remComputableCts,
     remComputableGratificacion,
     sueldoBase,
-    entrada.tieneAsignacionFamiliar,
-    entrada.tieneFechaIngreso,
-    params.asignacionFamiliar(fecha),
-  );
+    tieneAsignacionFamiliar: entrada.tieneAsignacionFamiliar,
+    tieneFechaIngreso: entrada.tieneFechaIngreso,
+    asignacionFamiliarMonto: params.asignacionFamiliar(fecha),
+    fechaIngreso: entrada.fechaIngreso,
+    fechaCese: entrada.fechaCese,
+  });
 
   const netoPagar = redondear2(totalIngresos - totalDescuentos);
 
@@ -409,6 +422,7 @@ export function calcularDetalleCompleto(
     prestamo: prestamo,
     otros_descuentos: 0,
     descuento_faltas: redondear2(descuentoFaltas),
+    descuento_dominical: redondear2(descuentoDominical),
     descuento_permisos: redondear2(descuentoPermisos),
     descuento_tardanzas: redondear2(descuentoTardanzas),
     descuento_sobregiro: 0,

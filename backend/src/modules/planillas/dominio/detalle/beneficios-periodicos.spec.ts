@@ -2,6 +2,7 @@ import {
   calcularGratificacionDetalle,
   calcularCtsDetalle,
   calcularBeneficiosTruncosDetalle,
+  ParametrosBeneficiosTruncos,
 } from './beneficios-periodicos';
 
 describe('calcularGratificacionDetalle', () => {
@@ -41,45 +42,191 @@ describe('calcularCtsDetalle', () => {
   });
 });
 
+/** Base común de un cese: sueldo 3600, computables 3000. */
+function truncos(
+  over: Partial<ParametrosBeneficiosTruncos> = {},
+): ParametrosBeneficiosTruncos {
+  return {
+    empleadoCesa: true,
+    mes: 6,
+    diasTrabajados: 30,
+    remComputableCts: 3000,
+    remComputableGratificacion: 3000,
+    sueldoBase: 3600,
+    tieneAsignacionFamiliar: false,
+    tieneFechaIngreso: true,
+    asignacionFamiliarMonto: 113,
+    ...over,
+  };
+}
+
 describe('calcularBeneficiosTruncosDetalle', () => {
   it('devuelve 0 si el empleado no cesa', () => {
     const r = calcularBeneficiosTruncosDetalle(
-      false,
-      6,
-      30,
-      3000,
-      3000,
-      3000,
-      false,
-      true,
-      113,
+      truncos({ empleadoCesa: false }),
     );
     expect(r.totalBeneficiosSociales).toBe(0);
   });
 
   it('incluye asignación familiar en la base de vacaciones truncas', () => {
     const conAf = calcularBeneficiosTruncosDetalle(
-      true,
-      6,
-      30,
-      3000,
-      3000,
-      3000,
-      true,
-      true,
-      113,
+      truncos({
+        tieneAsignacionFamiliar: true,
+        fechaIngreso: new Date(2026, 0, 1),
+        fechaCese: new Date(2026, 5, 9),
+      }),
     );
     const sinAf = calcularBeneficiosTruncosDetalle(
-      true,
-      6,
-      30,
-      3000,
-      3000,
-      3000,
-      false,
-      true,
-      113,
+      truncos({
+        fechaIngreso: new Date(2026, 0, 1),
+        fechaCese: new Date(2026, 5, 9),
+      }),
     );
     expect(conAf.vacTruncas).toBeGreaterThan(sinAf.vacTruncas);
+  });
+});
+
+/**
+ * FIX 2 — Gratificación trunca por meses calendario COMPLETOS.
+ * Ley 27735 art. 7 y D.S. 005-2002-TR art. 5: la grati trunca se paga a razón
+ * de un sexto por MES CALENDARIO COMPLETO laborado en el semestre. Los días
+ * sueltos del mes de cese no generan sexto.
+ */
+describe('gratificación trunca — solo meses calendario COMPLETOS (Ley 27735 art. 7)', () => {
+  it('cese el 09-jun paga 5/6 del semestre (junio no se completó)', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ mes: 6, fechaCese: new Date(2026, 5, 9) }),
+    );
+    expect(r.gratTrunca).toBe(2500); // 3000/6 × 5
+  });
+
+  it('cese el 30-jun (último día del mes) paga 6/6', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ mes: 6, fechaCese: new Date(2026, 5, 30) }),
+    );
+    expect(r.gratTrunca).toBe(3000); // 3000/6 × 6
+  });
+
+  it('cese el 31-jul paga 1/6 del semestre julio-diciembre', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ mes: 7, fechaCese: new Date(2026, 6, 31) }),
+    );
+    expect(r.gratTrunca).toBe(500); // 3000/6 × 1
+  });
+
+  it('cese el 15-jul paga 0/6: ningún mes del semestre se completó', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ mes: 7, fechaCese: new Date(2026, 6, 15) }),
+    );
+    expect(r.gratTrunca).toBe(0);
+  });
+
+  it('el mes del CESE manda sobre el mes de la planilla (ventana con día de corte)', () => {
+    // Planilla de julio con ventana 26-jun → 25-jul: el trabajador cesó el
+    // 30-jun, así que el semestre que trunca es enero-junio (6/6), no julio.
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ mes: 7, fechaCese: new Date(2026, 5, 30) }),
+    );
+    expect(r.gratTrunca).toBe(3000);
+  });
+
+  it('sin fecha de cese conserva el comportamiento histórico (mes en curso contado)', () => {
+    const r = calcularBeneficiosTruncosDetalle(truncos({ mes: 6 }));
+    expect(r.gratTrunca).toBe(3000);
+  });
+});
+
+/**
+ * FIX 3 — Vacaciones truncas: dozavos y treintavos desde el ANIVERSARIO de
+ * ingreso (D.L. 713 arts. 22-23; D.S. 012-92-TR art. 21), no desde enero.
+ */
+describe('vacaciones truncas — dozavos/treintavos desde el aniversario (D.L. 713 art. 22-23)', () => {
+  it('ingreso 01-ene-2026 y cese 09-jun-2026 → 5 dozavos + 9 treintavos', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        fechaIngreso: new Date(2026, 0, 1),
+        fechaCese: new Date(2026, 5, 9),
+      }),
+    );
+    // (3600/12)×5 + (3600/360)×9 = 1500 + 90 = 1590
+    expect(r.vacTruncas).toBe(1590);
+  });
+
+  it('aniversario a mitad de año: cuenta desde el último aniversario, no desde enero', () => {
+    // Ingreso 10-nov-2024, cese 09-jun-2026 → último aniversario 10-nov-2025.
+    // Del 10-nov al 09-jun hay 7 meses completos exactos y 0 días sueltos.
+    // Contado desde enero (el bug) habrían salido 6 dozavos.
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        fechaIngreso: new Date(2024, 10, 10),
+        fechaCese: new Date(2026, 5, 9),
+      }),
+    );
+    // (3600/12)×7 = 2100
+    expect(r.vacTruncas).toBe(2100);
+  });
+
+  it('cese exactamente EN el aniversario reinicia el récord (1 treintavo)', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 3,
+        fechaIngreso: new Date(2024, 2, 15),
+        fechaCese: new Date(2026, 2, 15),
+      }),
+    );
+    // El año de récord se cerró el 14-mar; el 15-mar abre uno nuevo → 1 día.
+    expect(r.vacTruncas).toBe(10); // 3600/360
+  });
+
+  it('cese el día ANTERIOR al aniversario paga el récord completo (12 dozavos)', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 3,
+        fechaIngreso: new Date(2024, 2, 15),
+        fechaCese: new Date(2026, 2, 14),
+      }),
+    );
+    expect(r.vacTruncas).toBe(3600); // (3600/12)×12
+  });
+
+  it('cese en el último día del mes no deja treintavos sueltos', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        fechaIngreso: new Date(2026, 0, 1),
+        fechaCese: new Date(2026, 5, 30),
+      }),
+    );
+    expect(r.vacTruncas).toBe(1800); // (3600/12)×6, sin días sueltos
+  });
+
+  it('sin fechas conserva el comportamiento histórico (dozavos por mes calendario)', () => {
+    const r = calcularBeneficiosTruncosDetalle(truncos({ mes: 6 }));
+    expect(r.vacTruncas).toBe(1800); // (3600/12)×6
+  });
+
+  it('sin fecha de ingreso no genera vacaciones truncas', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({ tieneFechaIngreso: false }),
+    );
+    expect(r.vacTruncas).toBe(0);
+  });
+});
+
+/** La CTS trunca NO cambia con estos fixes: sigue siendo meses + treintavos. */
+describe('CTS trunca — sin cambios (D.S. 001-97-TR)', () => {
+  it('mantiene (computable/12)×meses + (computable/360)×días trabajados', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        diasTrabajados: 9,
+        fechaIngreso: new Date(2026, 0, 1),
+        fechaCese: new Date(2026, 5, 9),
+      }),
+    );
+    // mes 6 → mesesDesdeUltimoCts = 6 - 5 = 1; (3000/12)×1 + (3000/360)×9
+    expect(r.ctsTrunca).toBe(325);
   });
 });

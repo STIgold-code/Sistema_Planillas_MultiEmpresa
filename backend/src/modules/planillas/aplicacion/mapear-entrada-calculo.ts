@@ -34,6 +34,7 @@ import {
 } from './resolver-regimen-laboral';
 import {
   calcularVentanaPeriodo,
+  fechaDeDia,
   VentanaPeriodo,
 } from '../../tareo/ventana-periodo';
 
@@ -66,6 +67,12 @@ const AUSENCIAS_SIN_GOCE = new Set(['F', 'S', 'SUS', 'LSG']);
 
 /** Subset del detalle de tareo que el mapeo lee. */
 export interface DetalleTareoParaMapeo {
+  /**
+   * Día ORDINAL (1..N) dentro de la ventana del período (`TareoDetalle.dia`),
+   * del que se deriva la fecha real. Opcional por compatibilidad con fixtures
+   * que arman el tareo como lista ordenada: ahí se usa el orden de llegada.
+   */
+  dia?: number;
   horas: unknown;
   tipo_marcacion: TipoMarcacionParaMapeo | null;
 }
@@ -115,14 +122,22 @@ function resolverHorasDia(detalle: DetalleTareoParaMapeo): number {
   return tm.horas_default ?? JORNADA_MAXIMA_DIARIA;
 }
 
-/** Mapea un detalle de tareo Prisma al shape puro del dominio. */
-function mapearDetalleTareo(detalle: DetalleTareoParaMapeo): DetalleTareo {
+/**
+ * Mapea un detalle de tareo Prisma al shape puro del dominio.
+ * La fecha se DERIVA del día ordinal contra la ventana del período (antes era
+ * un `new Date()` de placeholder, que con día de corte no significaba nada).
+ */
+function mapearDetalleTareo(
+  detalle: DetalleTareoParaMapeo,
+  indice: number,
+  ventana: VentanaPeriodo,
+): DetalleTareo {
   const tm = detalle.tipo_marcacion;
   const horas = resolverHorasDia(detalle);
   const horasExtras =
     horas > JORNADA_MAXIMA_DIARIA ? horas - JORNADA_MAXIMA_DIARIA : 0;
   return {
-    fecha: new Date(),
+    fecha: fechaDeDia(ventana.fechaInicio, detalle.dia ?? indice + 1),
     horasTrabajadas: horas,
     horasExtras,
     esNocturno: aNumero(tm?.horas_nocturnas) > 0,
@@ -171,7 +186,9 @@ export function mapearEntradaCalculo(
   const regimenLaboral = resolverRegimenLaboral(contratoPeriodo, empresa);
 
   const detalles = empleado.tareos?.[0]?.detalles ?? [];
-  const tareo = detalles.map(mapearDetalleTareo);
+  const tareo = detalles.map((detalle, indice) =>
+    mapearDetalleTareo(detalle, indice, ventana),
+  );
 
   return {
     regimenLaboral,
