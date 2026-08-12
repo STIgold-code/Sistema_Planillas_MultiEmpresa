@@ -66,6 +66,47 @@ describe('clasificarDiasTareo', () => {
     expect(c.diasVacaciones).toBe(1);
   });
 
+  it('marca la licencia CON goce laborable como YA remunerada en el proporcional', () => {
+    const c = clasificarDiasTareo([
+      ...Array.from({ length: 26 }, () => dia()),
+      ...Array.from({ length: 4 }, () =>
+        dia({
+          codigo: 'LCG',
+          esLaborable: true,
+          horasDetalle: 0,
+          horasDiurnas: 0,
+        }),
+      ),
+    ]);
+    expect(c.diasLicenciaConGoce).toBe(4);
+    // El día de licencia CON goce devenga: entra a `diasLaborables` y, por lo
+    // tanto, ya está pagado dentro del sueldo proporcional (sueldo/30 × días).
+    expect(c.diasLaborables).toBe(30);
+    expect(c.diasLicenciaConGoceEnLaborables).toBe(4);
+  });
+
+  it('cuenta las licencias con goce de la familia (LF, LP, LCG) ya remuneradas', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'LF', horasDetalle: 0, horasDiurnas: 0 }),
+      dia({ codigo: 'LP', horasDetalle: 0, horasDiurnas: 0 }),
+      dia({ codigo: 'LIC-G', horasDetalle: 0, horasDiurnas: 0 }),
+    ]);
+    expect(c.diasLicenciaFallecimiento).toBe(1);
+    expect(c.diasLicenciaPaternidad).toBe(1);
+    expect(c.diasLicenciaConGoce).toBe(1);
+    expect(c.diasLicenciaConGoceEnLaborables).toBe(3);
+  });
+
+  it('la licencia con goce NO laborable queda fuera del proporcional', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'LCG', esLaborable: false, horasDetalle: 0 }),
+    ]);
+    expect(c.diasLicenciaConGoce).toBe(1);
+    expect(c.diasLaborables).toBe(0);
+    // No entró al prorrateo: el concepto separado es el ÚNICO pago de ese día.
+    expect(c.diasLicenciaConGoceEnLaborables).toBe(0);
+  });
+
   it('acumula minutos de tardanza (T) desde las horas del detalle', () => {
     const c = clasificarDiasTareo([
       dia({ codigo: 'T', horasDetalle: 0.5, esLaborable: false }),

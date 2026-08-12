@@ -127,11 +127,25 @@ export function calcularDetalleCompleto(
   const asignacionFamiliar = entrada.tieneAsignacionFamiliar
     ? params.asignacionFamiliar(fecha)
     : 0;
+  // Licencias CON goce (LF, LP, LCG): días no laborados pero REMUNERADOS. El
+  // día se paga UNA sola vez. Cuando la nomenclatura los declara laborables
+  // —como hace la del cliente— ya entraron a `diasLaborables` y por lo tanto ya
+  // están pagados dentro del sueldo proporcional (sueldo / 30 × días); este
+  // concepto solo abona los días de licencia que NO quedaron en ese prorrateo.
+  // Antes se sumaban SIEMPRE, así que un mes de 30 días con 4 de licencia
+  // pagaba 34: doble pago del mismo día.
+  // El monto sigue siendo remuneración computable (integra
+  // `total_ingresos_afectos`: base de AFP/ONP, EsSalud y renta de 5ta).
+  const diasLicenciaConGoce =
+    c.diasLicenciaFallecimiento +
+    c.diasLicenciaPaternidad +
+    c.diasLicenciaConGoce;
+  const diasLicenciaGocePorAbonar = Math.max(
+    0,
+    diasLicenciaConGoce - c.diasLicenciaConGoceEnLaborables,
+  );
   const licenciaGoceMonto = redondear2(
-    (sueldoBase / 30) *
-      (c.diasLicenciaFallecimiento +
-        c.diasLicenciaPaternidad +
-        c.diasLicenciaConGoce),
+    (sueldoBase / 30) * diasLicenciaGocePorAbonar,
   );
 
   const totalIngresosAfectos = redondear2(

@@ -43,6 +43,26 @@ const CODIGOS_NO_LABORABLES = new Set([
   'LSG',
 ]);
 
+/**
+ * Familia de licencias CON goce (fallecimiento, paternidad y la genérica, con
+ * sus alias de nomenclatura). Son días NO laborados pero REMUNERADOS: la ley
+ * los paga como remuneración ordinaria, una sola vez.
+ *
+ * A diferencia de los subsidios o las vacaciones, la nomenclatura del cliente
+ * los declara `es_laborable = true` (ver `prisma/seed-tipos-marcacion.ts`), así
+ * que devengan dentro del sueldo proporcional. Se cuentan aparte para que el
+ * motor sepa qué días de licencia YA quedaron pagados ahí y no los abone una
+ * segunda vez como concepto separado.
+ */
+const CODIGOS_LICENCIA_CON_GOCE = new Set([
+  'LF',
+  'LIC-F',
+  'LP',
+  'LIC-P',
+  'LCG',
+  'LIC-G',
+]);
+
 /** Resultado de clasificar todos los días del tareo. */
 export interface ClasificacionTareo {
   diasFalta: number;
@@ -55,6 +75,13 @@ export interface ClasificacionTareo {
   diasLicenciaFallecimiento: number;
   diasLicenciaPaternidad: number;
   diasLicenciaConGoce: number;
+  /**
+   * Días de licencia CON goce (LF, LP, LCG) que entraron a `diasLaborables` y,
+   * por lo tanto, YA están remunerados dentro del sueldo proporcional
+   * (sueldo / 30 × días). El motor los resta al concepto separado de licencia
+   * para no pagar el mismo día dos veces.
+   */
+  diasLicenciaConGoceEnLaborables: number;
   turnoDia: number;
   turnoNoche: number;
   horas8: number;
@@ -87,6 +114,7 @@ function clasificacionVacia(): ClasificacionTareo {
     diasLicenciaFallecimiento: 0,
     diasLicenciaPaternidad: 0,
     diasLicenciaConGoce: 0,
+    diasLicenciaConGoceEnLaborables: 0,
     turnoDia: 0,
     turnoNoche: 0,
     horas8: 0,
@@ -178,6 +206,9 @@ export function clasificarDiasTareo(
     const esNoLaborable = CODIGOS_NO_LABORABLES.has(dia.codigo);
     if (dia.esLaborable && !esNoLaborable) {
       c.diasLaborables++;
+      if (CODIGOS_LICENCIA_CON_GOCE.has(dia.codigo)) {
+        c.diasLicenciaConGoceEnLaborables++;
+      }
       acumularJornada(c, dia);
     }
   }
