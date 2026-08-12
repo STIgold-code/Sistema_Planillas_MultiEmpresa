@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,6 +85,9 @@ export const empleadoSchema = z.object({
   turno: z.enum(['DIA', 'NOCHE']),
   regimen_pensionario_id: z.string().optional(),
   cuspp: z.string().optional(),
+  // Cadena vacia = "sin declarar": el backend recibe null y el motor cae a la
+  // comision sobre flujo. Solo tiene efecto en afiliados AFP.
+  tipo_comision_afp: z.enum(['', 'FLUJO', 'MIXTA']).optional(),
   asignacion_familiar: z.boolean(),
   sctr: z.boolean(),
   domiciliado: z.boolean(),
@@ -148,7 +151,7 @@ const fieldToTab: Record<string, string> = {
   area_id: 'laboral', cargo_id: 'laboral', sede_id: 'laboral',
   fecha_ingreso: 'laboral', fecha_planilla: 'laboral', fecha_cese: 'laboral',
   sueldo_base: 'laboral', tipo_pago: 'laboral', turno: 'laboral',
-  regimen_pensionario_id: 'laboral', cuspp: 'laboral',
+  regimen_pensionario_id: 'laboral', cuspp: 'laboral', tipo_comision_afp: 'laboral',
   asignacion_familiar: 'laboral', sctr: 'laboral', es_mype: 'laboral', domiciliado: 'laboral',
   banco_haberes_id: 'bancario', nro_cuenta_haberes: 'bancario', cci_haberes: 'bancario',
   banco_cts_id: 'bancario', nro_cuenta_cts: 'bancario', cci_cts: 'bancario',
@@ -217,6 +220,7 @@ export function useEmpleadoEditar() {
       turno: 'DIA',
       regimen_pensionario_id: '',
       cuspp: '',
+      tipo_comision_afp: '',
       asignacion_familiar: false,
       sctr: false,
       domiciliado: true,
@@ -240,6 +244,21 @@ export function useEmpleadoEditar() {
   const selectedDepartamentoId = form.watch('departamento_id');
   const selectedProvinciaId = form.watch('provincia_id');
   const watchedFechaCese = form.watch('fecha_cese');
+  const selectedRegimenPensionarioId = form.watch('regimen_pensionario_id');
+
+  // La modalidad de comisión solo existe en el SPP privado: el aportante a la
+  // ONP no elige comisión. De esta bandera dependen tanto el campo visible como
+  // el valor que se envía, para que nunca quede una modalidad huérfana en un
+  // trabajador de ONP (por ejemplo, si se lo cambia de AFP a ONP).
+  const esAfiliadoAfp = useMemo(
+    () =>
+      regimenes.some(
+        (regimen) =>
+          regimen.id.toString() === selectedRegimenPensionarioId &&
+          regimen.tipo === 'AFP',
+      ),
+    [regimenes, selectedRegimenPensionarioId],
+  );
 
   const isNewCese = !empleado?.fecha_cese && !!watchedFechaCese;
 
@@ -310,6 +329,7 @@ export function useEmpleadoEditar() {
           turno: empleadoRes.turno,
           regimen_pensionario_id: empleadoRes.regimen_pensionario_id?.toString() || '',
           cuspp: empleadoRes.cuspp || '',
+          tipo_comision_afp: empleadoRes.tipo_comision_afp || '',
           asignacion_familiar: empleadoRes.asignacion_familiar,
           sctr: empleadoRes.sctr,
           domiciliado: empleadoRes.domiciliado ?? true,
@@ -471,6 +491,10 @@ export function useEmpleadoEditar() {
         regimen_pensionario_id: data.regimen_pensionario_id
           ? parseInt(data.regimen_pensionario_id)
           : null,
+        // null limpia la modalidad: al pasar a ONP o al dejarla sin declarar, el
+        // trabajador vuelve al comportamiento por defecto (comisión sobre flujo).
+        tipo_comision_afp:
+          esAfiliadoAfp && data.tipo_comision_afp ? data.tipo_comision_afp : null,
         distrito_id: data.distrito_id ? parseInt(data.distrito_id) : null,
         fecha_cese: data.fecha_cese || null,
         foto_url: data.foto_url || null,
@@ -521,6 +545,7 @@ export function useEmpleadoEditar() {
     sedes,
     bancos,
     regimenes,
+    esAfiliadoAfp,
     departamentos,
     provincias,
     distritos,

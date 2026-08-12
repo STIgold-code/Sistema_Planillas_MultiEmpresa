@@ -89,6 +89,14 @@ export class PensionRatesSchedulerService implements OnModuleInit {
     }
   }
 
+  /**
+   * OJO — `comision_mixta_flujo` (componente sobre flujo de la comisión mixta,
+   * Ley 29903) NO se scrapea todavía: este parser lee tres números por AFP y la
+   * tabla de la SBS publica cuatro. La columna se carga por migración con las
+   * tasas vigentes y se corrige a mano desde maestros; el upsert de abajo no la
+   * toca, así que el valor cargado NUNCA se pisa con un scraping parcial. Al
+   * ampliar las regex hay que incorporarla aquí para cerrar el ciclo.
+   */
   private async procesarHTML(html: string) {
     const afpMap = [
       {

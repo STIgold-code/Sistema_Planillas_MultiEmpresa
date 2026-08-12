@@ -16,6 +16,8 @@ interface TasaPension {
   aporte_obligatorio: number;
   prima_seguro: number;
   comision_flujo: number;
+  /** Componente sobre flujo de la comision mixta (Ley 29903). */
+  comision_mixta_flujo?: number;
   updated_at: string;
 }
 
@@ -136,7 +138,8 @@ export function IndicadorTasasSBS() {
                     <th className="text-left font-medium pb-1">AFP</th>
                     <th className="text-right font-medium pb-1">Aporte</th>
                     <th className="text-right font-medium pb-1">Prima</th>
-                    <th className="text-right font-medium pb-1">Com.</th>
+                    <th className="text-right font-medium pb-1">Com. flujo</th>
+                    <th className="text-right font-medium pb-1">Com. mixta</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-200">
@@ -151,6 +154,9 @@ export function IndicadorTasasSBS() {
                       </td>
                       <td className="py-1 text-right tabular-nums text-amber-400">
                         {Number(afp.comision_flujo || 0).toFixed(2)}%
+                      </td>
+                      <td className="py-1 text-right tabular-nums text-amber-400">
+                        {Number(afp.comision_mixta_flujo || 0).toFixed(2)}%
                       </td>
                     </tr>
                   ))}

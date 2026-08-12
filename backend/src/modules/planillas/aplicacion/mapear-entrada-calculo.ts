@@ -21,12 +21,11 @@
  *    Es un cambio de comportamiento intencional respecto al legacy SOLO en este
  *    concepto; el resto de la paridad de montos se mantiene al céntimo.
  */
+import { DetalleTareo, EntradaCalculo } from '../dominio/tipos';
 import {
-  AfiliacionPensionaria,
-  DetalleTareo,
-  EntradaCalculo,
-  SistemaPensionario,
-} from '../dominio/tipos';
+  RegimenPensionarioParaAfiliacion,
+  resolverAfiliacionPensionaria,
+} from './resolver-afiliacion-pensionaria';
 import {
   DiasNoLaboradosPorMes,
   diasNoLaboradosComputables,
@@ -83,12 +82,7 @@ export interface DetalleTareoParaMapeo {
 }
 
 /** Subset del régimen pensionario que el mapeo lee (tasas como porcentaje). */
-export interface RegimenPensionarioParaMapeo {
-  tipo: string;
-  aporte_obligatorio: unknown;
-  prima_seguro: unknown;
-  comision_flujo: unknown;
-}
+export type RegimenPensionarioParaMapeo = RegimenPensionarioParaAfiliacion;
 
 /** Subset del empleado Prisma necesario para construir la entrada de cálculo. */
 export interface EmpleadoParaMapeo {
@@ -103,6 +97,11 @@ export interface EmpleadoParaMapeo {
   /** Condición fiscal IR 5ta. null/undefined → domiciliado. */
   domiciliado?: boolean | null;
   regimen_pensionario: RegimenPensionarioParaMapeo | null;
+  /**
+   * Modalidad de comisión AFP elegida por el afiliado (Ley 29903). Ausente/null
+   * → comisión sobre flujo, el comportamiento previo a modelar el dato.
+   */
+  tipo_comision_afp?: unknown;
   contratos: ContratoConRegimen[];
   tareos: { detalles: DetalleTareoParaMapeo[] }[];
 }
@@ -191,31 +190,6 @@ function contarDiasNoLaboradosDelMes(
   ).length;
 }
 
-/** Mapea el régimen pensionario Prisma (porcentajes) a la afiliación de dominio. */
-function mapearAfiliacion(
-  regimen: RegimenPensionarioParaMapeo | null,
-): AfiliacionPensionaria | null {
-  if (!regimen) return null;
-  if (regimen.tipo === 'ONP') {
-    return {
-      sistema: SistemaPensionario.ONP,
-      tasas: {
-        aporteObligatorio: aNumero(regimen.aporte_obligatorio) / 100,
-        primaSeguro: 0,
-        comisionFlujo: 0,
-      },
-    };
-  }
-  return {
-    sistema: SistemaPensionario.AFP,
-    tasas: {
-      aporteObligatorio: aNumero(regimen.aporte_obligatorio) / 100,
-      primaSeguro: aNumero(regimen.prima_seguro) / 100,
-      comisionFlujo: aNumero(regimen.comision_flujo) / 100,
-    },
-  };
-}
-
 /**
  * Construye el `EntradaCalculo` puro a partir de las filas Prisma del empleado.
  * El contrato del período (si existe) tiene prioridad para el régimen laboral.
@@ -279,7 +253,10 @@ export function mapearEntradaCalculo(
     // (`mapear-entrada-detalle.ts`, `tieneAsignacionFamiliar`). Ambos caminos
     // comparten ahora la MISMA fuente: `empleado.asignacion_familiar`.
     tieneHijos: !!empleado.asignacion_familiar,
-    afiliacion: mapearAfiliacion(empleado.regimen_pensionario),
+    afiliacion: resolverAfiliacionPensionaria(
+      empleado.regimen_pensionario,
+      empleado.tipo_comision_afp,
+    ),
     periodo: {
       anio,
       mes,

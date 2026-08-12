@@ -31,6 +31,7 @@ export default function EditarEmpleadoPage() {
     sedes,
     bancos,
     regimenes,
+    esAfiliadoAfp,
     departamentos,
     provincias,
     distritos,
@@ -121,6 +122,7 @@ export default function EditarEmpleadoPage() {
                 cargos={cargos}
                 sedes={sedes}
                 regimenes={regimenes}
+                esAfiliadoAfp={esAfiliadoAfp}
                 isNewCese={isNewCese}
                 consultandoSbs={consultandoSbs}
                 loading={loading}

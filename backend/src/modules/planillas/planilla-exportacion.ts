@@ -156,6 +156,7 @@ export async function exportarPlanilla(
               fecha_ingreso: true,
               fecha_cese: true,
               cuspp: true,
+              tipo_comision_afp: true,
               nro_cuenta_haberes: true,
               cci_haberes: true,
               fecha_nacimiento: true,
@@ -231,6 +232,9 @@ export async function exportarPlanilla(
         sistema_pensionario: emp.regimen_pensionario?.tipo || '',
         nombre_sistema_pensionario: emp.regimen_pensionario?.nombre || '',
         cuspp: emp.cuspp || '',
+        // Modalidad de comision AFP (Ley 29903): define cual de las dos tasas de
+        // la administradora se retuvo. Sin declarar, el motor aplica flujo.
+        tipo_comision_afp: emp.tipo_comision_afp || '',
 
         // =============================================
         // DÍAS DEL PERÍODO (desde PlanillaDetalle)
