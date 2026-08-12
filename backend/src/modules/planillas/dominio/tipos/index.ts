@@ -153,6 +153,13 @@ export interface DatosDevengados {
   sextoGratificacion: number;
   /** Días de vacaciones efectivamente gozados en el período. */
   diasVacaciones: number;
+  /**
+   * Días del semestre NO considerados tiempo efectivamente laborado (faltas,
+   * suspensión, licencia sin goce), sumados en el borde a partir de las
+   * planillas históricas del semestre más el tareo del mes en curso. Deducen la
+   * gratificación a razón de un treintavo del sexto (D.S. 005-2002-TR art. 3.4).
+   */
+  diasNoLaboradosSemestre: number;
 }
 
 /** Context passed to régimen-varying calculators (derived from EntradaCalculo). */

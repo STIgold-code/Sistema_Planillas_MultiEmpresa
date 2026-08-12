@@ -58,6 +58,8 @@ function resolverDevengados(
     sextoGratificacion:
       d.sextoGratificacion ?? redondear2(remuneracionComputable / 6),
     diasVacaciones: d.diasVacaciones ?? 0,
+    // Sin dato histórico no se presume ausencia del trabajador.
+    diasNoLaboradosSemestre: d.diasNoLaboradosSemestre ?? 0,
   };
 }
 

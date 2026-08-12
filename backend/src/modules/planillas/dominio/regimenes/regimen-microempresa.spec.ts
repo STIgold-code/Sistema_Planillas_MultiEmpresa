@@ -50,6 +50,7 @@ const ctx = (overrides: Partial<ContextoCalculo> = {}): ContextoCalculo => ({
     diasCts: 0,
     sextoGratificacion: 0,
     diasVacaciones: 0,
+    diasNoLaboradosSemestre: 0,
   },
   ...overrides,
 });

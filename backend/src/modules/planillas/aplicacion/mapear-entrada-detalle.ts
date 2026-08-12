@@ -19,6 +19,7 @@ import {
   VentanaPeriodo,
 } from '../../tareo/ventana-periodo';
 import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
+import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
 import {
   DescuentosPrestamosDetalle,
   DiaTareoDetalle,
@@ -93,6 +94,13 @@ export interface ParametrosMapeoDetalle {
    * módulo `prestamos` antes de calcular. Ausente = sin préstamos vigentes.
    */
   descuentosPrestamos?: DescuentosPrestamosDetalle;
+  /**
+   * Días no laborados (F, S/SUS, LSG) por MES CALENDARIO de los meses
+   * ANTERIORES del año, leídos de las planillas históricas
+   * (`PlanillaPromediosService`). Deducen la gratificación en treintavos
+   * (D.S. 005-2002-TR art. 3.4). Ausente = sin ausencias registradas.
+   */
+  diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
 }
 
 const aNumero = (valor: unknown): number => {
@@ -366,5 +374,6 @@ export function mapearEntradaDetalle(
     mesesCts: cts.mesesCts,
     diasCts: cts.diasCts,
     descuentosPrestamos: params.descuentosPrestamos,
+    diasNoLaboradosMesesPrevios: params.diasNoLaboradosMesesPrevios,
   };
 }
