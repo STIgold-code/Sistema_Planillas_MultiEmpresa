@@ -1,4 +1,9 @@
-import { calcularGratificacion, CLAVE_GRATIFICACION } from './gratificacion';
+import {
+  calcularGratificacion,
+  CLAVE_GRATIFICACION,
+  diasNoLaboradosComputables,
+  rangoMesesComputablesGratificacion,
+} from './gratificacion';
 import { ResumenTareo } from '../tipos';
 
 const resumenLleno: ResumenTareo = {
@@ -106,5 +111,56 @@ describe('gratificación — deducción de días no laborados (D.S. 005-2002-TR 
 
   it('nunca paga negativo: el piso es 0', () => {
     expect(grati(200)).toBe(0);
+  });
+});
+
+/**
+ * Meses computables y días que deducen cuando el trabajador ingresó a mitad de
+ * semestre (Ley 27735 art. 6 + D.S. 005-2002-TR art. 3.3-3.4).
+ */
+describe('rangoMesesComputablesGratificacion / diasNoLaboradosComputables', () => {
+  it('REGRESIÓN: con 6/6 el rango es el semestre entero', () => {
+    expect(rangoMesesComputablesGratificacion(7, 6)).toEqual({
+      desde: 1,
+      hasta: 6,
+    });
+    expect(rangoMesesComputablesGratificacion(12, 6)).toEqual({
+      desde: 7,
+      hasta: 12,
+    });
+  });
+
+  // La ordinaria se devenga desde el ingreso HACIA ADELANTE: los meses
+  // computables son los ÚLTIMOS del semestre (al revés que la trunca).
+  it('con 3/6 toma los tres ÚLTIMOS meses del semestre', () => {
+    expect(rangoMesesComputablesGratificacion(7, 3)).toEqual({
+      desde: 4,
+      hasta: 6,
+    });
+    expect(rangoMesesComputablesGratificacion(12, 3)).toEqual({
+      desde: 10,
+      hasta: 12,
+    });
+  });
+
+  it('sin meses computables no hay rango que deducir', () => {
+    expect(rangoMesesComputablesGratificacion(7, 0)).toBeNull();
+  });
+
+  it('fuera de julio/diciembre no hay gratificación ordinaria', () => {
+    expect(rangoMesesComputablesGratificacion(3, 6)).toBeNull();
+    expect(diasNoLaboradosComputables(3, 6, { 2: 5 })).toBe(0);
+  });
+
+  it('REGRESIÓN: con 6/6 suma los días de todo el semestre', () => {
+    expect(diasNoLaboradosComputables(7, 6, { 2: 3, 5: 2, 8: 9 })).toBe(5);
+  });
+
+  it('los días de meses anteriores al ingreso NO deducen otra vez', () => {
+    expect(diasNoLaboradosComputables(7, 3, { 2: 3, 5: 2 })).toBe(2);
+  });
+
+  it('sin meses computables no deduce nada', () => {
+    expect(diasNoLaboradosComputables(7, 0, { 2: 3, 5: 2 })).toBe(0);
   });
 });

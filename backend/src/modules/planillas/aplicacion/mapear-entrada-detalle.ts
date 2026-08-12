@@ -20,6 +20,9 @@ import {
 } from '../../tareo/ventana-periodo';
 import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
 import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
+// Los meses del semestre que devengan la gratificación se resuelven en un módulo
+// COMPARTIDO con `mapear-entrada-calculo`: los dos motores deben dar lo mismo.
+import { resolverMesesGratificacion } from './meses-gratificacion';
 import {
   DescuentosPrestamosDetalle,
   DiaTareoDetalle,
@@ -227,31 +230,6 @@ function calcularDiasCesadoNoLab(
     }
   }
   return 0;
-}
-
-/** Meses completos del semestre para gratificación (replica `gratificaciones.ts`). */
-function resolverMesesGratificacion(
-  mes: number,
-  anio: number,
-  fechaIngreso: Date | string | null,
-): number {
-  if (mes !== 7 && mes !== 12) return 6;
-  const ingreso = fechaIngreso ? leerFechaPrisma(fechaIngreso) : null;
-  const inicioSemestre =
-    mes === 7 ? new Date(anio, 0, 1) : new Date(anio, 6, 1);
-  if (!ingreso || ingreso.toJSDate() <= inicioSemestre) return 6;
-
-  const mesIngreso = ingreso.month;
-  const diaIngreso = ingreso.day;
-  if (mes === 7) {
-    let meses = 7 - mesIngreso;
-    if (diaIngreso > 1) meses = Math.max(0, meses - 1);
-    return meses;
-  }
-  const mesesDesdeIngreso = mesIngreso <= 6 ? 6 : 12 - mesIngreso + 1;
-  let meses = Math.min(6, mesesDesdeIngreso);
-  if (diaIngreso > 1 && mesIngreso >= 7) meses = Math.max(0, meses - 1);
-  return meses;
 }
 
 /** Meses/días del semestre para CTS (replica `cts.ts`). */

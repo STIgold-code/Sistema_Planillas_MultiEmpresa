@@ -255,3 +255,95 @@ describe('mapearEntradaCalculo', () => {
     expect(entrada.tieneHijos).toBe(false);
   });
 });
+
+/**
+ * Meses del semestre que devengan la gratificación (Ley 27735 art. 6 +
+ * D.S. 005-2002-TR art. 3.3-3.4). El mapper los resuelve en el borde y el motor
+ * los recibe ya calculados: sin esto `calcular-boleta` asumía SIEMPRE 6/6 y
+ * pagaba la gratificación completa a quien ingresó a mitad del semestre.
+ */
+describe('mapearEntradaCalculo — devengados.mesesGratificacion', () => {
+  const ingreso = (mes: number, dia: number): Date =>
+    new Date(Date.UTC(2026, mes - 1, dia));
+
+  it('sin fecha de ingreso registrada resuelve 6/6 (regresión)', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase(),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+    });
+
+    expect(entrada.devengados?.mesesGratificacion).toBe(6);
+  });
+
+  it('ingreso el 01-ene resuelve 6/6 (regresión)', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ fecha_ingreso: ingreso(1, 1) }),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+    });
+
+    expect(entrada.devengados?.mesesGratificacion).toBe(6);
+  });
+
+  it('ingreso el 01-abr resuelve 3/6 para la gratificación de julio', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ fecha_ingreso: ingreso(4, 1) }),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+    });
+
+    expect(entrada.devengados?.mesesGratificacion).toBe(3);
+  });
+
+  it('ingreso el 15-mar resuelve 3/6: el mes incompleto no suma sexto', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ fecha_ingreso: ingreso(3, 15) }),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+    });
+
+    expect(entrada.devengados?.mesesGratificacion).toBe(3);
+  });
+
+  it('ingreso el 01-jul resuelve 0/6 para la gratificación de julio', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ fecha_ingreso: ingreso(7, 1) }),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+    });
+
+    expect(entrada.devengados?.mesesGratificacion).toBe(0);
+  });
+
+  // Los meses previos al ingreso ya no suman sexto: descontar además sus días
+  // castigaría dos veces la misma ausencia (D.S. 005-2002-TR art. 3.4).
+  it('solo suma días no laborados de los meses que el trabajador devenga', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase({ fecha_ingreso: ingreso(4, 1) }),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+      diasNoLaboradosMesesPrevios: { 2: 3, 5: 2 },
+    });
+
+    expect(entrada.devengados?.diasNoLaboradosSemestre).toBe(2);
+  });
+
+  it('REGRESIÓN: con 6/6 suma los días no laborados de todo el semestre', () => {
+    const entrada = mapearEntradaCalculo({
+      empleado: empleadoBase(),
+      empresa: EMPRESA,
+      mes: 7,
+      anio: 2026,
+      diasNoLaboradosMesesPrevios: { 2: 3, 5: 2 },
+    });
+
+    expect(entrada.devengados?.diasNoLaboradosSemestre).toBe(5);
+  });
+});

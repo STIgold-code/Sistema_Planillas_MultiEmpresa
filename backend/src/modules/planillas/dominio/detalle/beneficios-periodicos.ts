@@ -28,7 +28,7 @@ import { redondear2 } from './redondeo';
 import {
   DIAS_SEMESTRE,
   DiasNoLaboradosPorMes,
-  diasNoLaboradosDelSemestre,
+  diasNoLaboradosComputables,
   sumarDiasNoLaborados,
 } from '../conceptos/gratificacion';
 
@@ -71,8 +71,11 @@ export function calcularGratificacionDetalle(
   if (mes !== 7 && mes !== 12) {
     return { gratificacionMonto: 0, bonifExtraordinariaMonto: 0 };
   }
-  const diasNoLaborados = diasNoLaboradosDelSemestre(
+  // Solo deducen los días de los meses que el trabajador realmente devenga: con
+  // ingreso a mitad de semestre, los meses previos ya no aportan sexto.
+  const diasNoLaborados = diasNoLaboradosComputables(
     mes,
+    mesesGratificacion,
     diasNoLaboradosPorMes,
   );
   const devengado = remuneracionComputable * (mesesGratificacion / 6);

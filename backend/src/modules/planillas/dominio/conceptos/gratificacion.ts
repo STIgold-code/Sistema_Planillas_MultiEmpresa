@@ -59,14 +59,42 @@ export function sumarDiasNoLaborados(
 }
 
 /**
- * Días no laborados que deduce la gratificación ORDINARIA de `mes` (7 o 12).
- * Fuera de julio/diciembre no hay gratificación ordinaria que deducir → 0.
+ * Meses calendario del semestre que el trabajador EFECTIVAMENTE devenga cuando
+ * ingresó a mitad de semestre (Ley 27735 art. 6, D.S. 005-2002-TR art. 3.3).
+ *
+ * La gratificación ordinaria se devenga desde el ingreso HACIA ADELANTE, así que
+ * los meses computables son los `mesesComputables` ÚLTIMOS del semestre — al
+ * revés que la TRUNCA, que toma los primeros hasta el mes del cese. Con el
+ * semestre completo (6) el rango es el semestre entero.
  */
-export function diasNoLaboradosDelSemestre(
+export function rangoMesesComputablesGratificacion(
   mes: number,
+  mesesComputables: number,
+): { desde: number; hasta: number } | null {
+  const semestre = rangoSemestreGratificacion(mes);
+  if (!semestre) return null;
+  const meses = Math.min(MESES_SEMESTRE, Math.floor(mesesComputables));
+  if (meses <= 0) return null;
+  return { desde: semestre.hasta - meses + 1, hasta: semestre.hasta };
+}
+
+/**
+ * Días no laborados que deducen la gratificación ORDINARIA de `mes` (7 o 12).
+ * Fuera de julio/diciembre no hay gratificación ordinaria que deducir → 0.
+ *
+ * CRITERIO (documentado, es una decisión): los treintavos del art. 3.4 se
+ * deducen ÚNICAMENTE dentro de los meses que el trabajador devenga. Los meses
+ * anteriores a su ingreso ya no aportan sexto alguno; volver a descontar sus
+ * días castigaría dos veces la misma ausencia. Es el mismo criterio que aplica
+ * la gratificación trunca al mes de cese incompleto
+ * (`diasNoLaboradosDeMesesCompletos` en `beneficios-periodicos.ts`).
+ */
+export function diasNoLaboradosComputables(
+  mes: number,
+  mesesComputables: number,
   porMes: DiasNoLaboradosPorMes,
 ): number {
-  const rango = rangoSemestreGratificacion(mes);
+  const rango = rangoMesesComputablesGratificacion(mes, mesesComputables);
   if (!rango) return 0;
   return sumarDiasNoLaborados(porMes, rango.desde, rango.hasta);
 }
