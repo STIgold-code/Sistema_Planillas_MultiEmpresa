@@ -49,6 +49,9 @@ const ctx = (overrides: Partial<ContextoCalculo> = {}): ContextoCalculo => ({
     sextoGratificacion: 500,
     diasVacaciones: 0,
     diasNoLaboradosSemestre: 0,
+    remuneracionCierreSemestre: 3000,
+    fechaCierreSemestre: new Date('2026-06-30'),
+    promedioVariablesGratificacion: 0,
   },
   ...overrides,
 });

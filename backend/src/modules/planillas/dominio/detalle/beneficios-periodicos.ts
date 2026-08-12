@@ -39,6 +39,66 @@ export interface GratificacionDetalle {
   bonifExtraordinariaMonto: number;
 }
 
+/** Las dos bases computables de gratificación: la ordinaria y la trunca. */
+export interface ComputablesGratificacion {
+  /** Base de la gratificación ORDINARIA (julio / diciembre). */
+  ordinaria: number;
+  /** Base de la gratificación TRUNCA del trabajador que cesa. */
+  trunca: number;
+}
+
+export interface ParametrosComputablesGratificacion {
+  /** Sin días devengados no hay base de beneficio que armar. */
+  hayDiasTrabajados: boolean;
+  /** Remuneración básica del PERÍODO (sueldo actual). */
+  sueldoPeriodo: number;
+  /** Remuneración básica vigente AL CIERRE del semestre (30-jun / 30-nov). */
+  sueldoCierreSemestre: number;
+  /** Asignación familiar vigente en el período (0 si no corresponde). */
+  asignacionFamiliarPeriodo: number;
+  /** Asignación familiar vigente al cierre del semestre (0 si no corresponde). */
+  asignacionFamiliarCierre: number;
+  /**
+   * Promedio computable de las remuneraciones VARIABLES regulares del semestre,
+   * ya filtrado por la regla de los tres meses y dividido entre seis.
+   */
+  promedioVariables: number;
+}
+
+/**
+ * Bases computables de la gratificación. Son DOS y no coinciden:
+ *
+ *  - ORDINARIA (D.S. 005-2002-TR art. 3.2): la remuneración VIGENTE AL CIERRE
+ *    del semestre — 30 de junio para la de julio, 30 de noviembre para la de
+ *    diciembre —, no la del mes en que se paga. Un aumento posterior al cierre
+ *    recién computa en el semestre siguiente. La asignación familiar se resuelve
+ *    a esa misma fecha, por integrar la remuneración computable (Ley 25129).
+ *  - TRUNCA (D.S. 005-2002-TR art. 5): la remuneración vigente al CESE, es
+ *    decir la del período que se está liquidando.
+ *
+ * El promedio de las remuneraciones variables regulares es el mismo en las dos:
+ * la regla de regularidad no distingue entre gratificación ordinaria y trunca.
+ */
+export function calcularComputablesGratificacion(
+  params: ParametrosComputablesGratificacion,
+): ComputablesGratificacion {
+  if (!params.hayDiasTrabajados) {
+    return { ordinaria: 0, trunca: 0 };
+  }
+  return {
+    ordinaria: redondear2(
+      params.sueldoCierreSemestre +
+        params.asignacionFamiliarCierre +
+        params.promedioVariables,
+    ),
+    trunca: redondear2(
+      params.sueldoPeriodo +
+        params.asignacionFamiliarPeriodo +
+        params.promedioVariables,
+    ),
+  };
+}
+
 /**
  * Gratificación (Ley 27735) + bonificación extraordinaria (Ley 30334).
  * Solo paga en julio (7) y diciembre (12).

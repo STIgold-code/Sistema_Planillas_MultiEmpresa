@@ -5,8 +5,10 @@
  * con los factores del régimen general:
  *   - Gratificación: 1 sueldo completo por semestre (factor 1).
  *   - CTS: 1 sueldo por semestre, incluye 1/6 de gratificación (factor 1).
- *   - Computable de gratificación y CTS: remuneración básica + asignación
- *     familiar, que es remuneración regular (Ley 25129).
+ *   - Computable de CTS: remuneración básica del período + asignación familiar,
+ *     que es remuneración regular (Ley 25129).
+ *   - Computable de gratificación: la vigente AL CIERRE del semestre + el
+ *     promedio de las variables regulares (D.S. 005-2002-TR art. 3.2).
  *   - Vacaciones: valoriza los días gozados del período (derecho 30 días/año).
  *   - Asignación familiar: 10% RMV si tiene hijos.
  *   - Salud: EsSalud 9% con piso RMV.
@@ -19,6 +21,7 @@ import { CalculadoraRegimen } from './calculadora-regimen.interface';
 import { ContextoCalculo, RegimenLaboral, ResultadoConcepto } from '../tipos';
 import { ParametrosLegales } from '../parametros/parametros-legales';
 import {
+  baseComputableGratificacion,
   calcularGratificacion,
   CLAVE_GRATIFICACION,
 } from '../conceptos/gratificacion';
@@ -58,17 +61,37 @@ export class RegimenGeneral implements CalculadoraRegimen {
   }
 
   /**
-   * Remuneración computable de gratificación y CTS: la remuneración regular del
-   * período. La asignación familiar es remuneración regular (Ley 25129), por lo
-   * que INTEGRA esta base — mismo criterio ya aplicado a la base de EsSalud.
+   * Remuneración computable de la CTS: la remuneración regular del PERÍODO
+   * (D.S. 001-97-TR art. 9). La asignación familiar es remuneración regular
+   * (Ley 25129), por lo que INTEGRA esta base — mismo criterio ya aplicado a la
+   * base de EsSalud.
    */
-  private computableBeneficios(
+  private computableCts(
     ctx: ContextoCalculo,
     params: ParametrosLegales,
   ): number {
     return computableConAsignacionFamiliar(
       ctx.remuneracionComputable,
       this.asignacionFamiliar(ctx, params),
+    );
+  }
+
+  /**
+   * Remuneración computable de la GRATIFICACIÓN: la vigente al CIERRE del
+   * semestre más el promedio de las variables regulares (D.S. 005-2002-TR
+   * art. 3.2 y remuneración regular). La asignación familiar se resuelve a esa
+   * misma fecha de cierre, porque es parte de la remuneración computable.
+   */
+  private computableGratificacion(
+    ctx: ContextoCalculo,
+    params: ParametrosLegales,
+  ): number {
+    return computableConAsignacionFamiliar(
+      baseComputableGratificacion(ctx.devengados),
+      calcularAsignacionFamiliar(
+        ctx.tieneHijos,
+        params.asignacionFamiliar(ctx.devengados.fechaCierreSemestre),
+      ),
     );
   }
 
@@ -79,7 +102,7 @@ export class RegimenGeneral implements CalculadoraRegimen {
     return calcularGratificacion(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: this.computableBeneficios(ctx, params),
+        remuneracionComputable: this.computableGratificacion(ctx, params),
         mesesTrabajados: ctx.devengados.mesesGratificacion,
         resumenTareo: ctx.resumenTareo,
         diasNoLaboradosSemestre: ctx.devengados.diasNoLaboradosSemestre,
@@ -92,7 +115,7 @@ export class RegimenGeneral implements CalculadoraRegimen {
     return calcularCts(
       {
         mes: ctx.periodo.mes,
-        remuneracionComputable: this.computableBeneficios(ctx, params),
+        remuneracionComputable: this.computableCts(ctx, params),
         sextoGratificacion: ctx.devengados.sextoGratificacion,
         mesesCts: ctx.devengados.mesesCts,
         diasCts: ctx.devengados.diasCts,

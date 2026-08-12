@@ -104,6 +104,19 @@ export interface ParametrosMapeoDetalle {
    * (D.S. 005-2002-TR art. 3.4). Ausente = sin ausencias registradas.
    */
   diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
+  /**
+   * Remuneración básica vigente al CIERRE del semestre (30-jun / 30-nov),
+   * resuelta contra el historial de contratos (D.S. 005-2002-TR art. 3.2).
+   * Ausente = sin evidencia histórica → se usa la básica del período.
+   */
+  remuneracionCierreSemestre?: number;
+  /** Fecha de cierre del semestre; ausente fuera de julio y diciembre. */
+  fechaCierreSemestre?: Date;
+  /**
+   * Promedio computable de las remuneraciones VARIABLES regulares del semestre,
+   * ya filtrado por la regla de los tres meses (D.S. 005-2002-TR). Ausente = 0.
+   */
+  promedioVariablesGratificacion?: number;
 }
 
 const aNumero = (valor: unknown): number => {
@@ -349,6 +362,9 @@ export function mapearEntradaDetalle(
       anio,
       empleado.fecha_ingreso,
     ),
+    sueldoCierreSemestre: params.remuneracionCierreSemestre,
+    fechaCierreSemestre: params.fechaCierreSemestre,
+    promedioVariablesGratificacion: params.promedioVariablesGratificacion,
     mesesCts: cts.mesesCts,
     diasCts: cts.diasCts,
     descuentosPrestamos: params.descuentosPrestamos,

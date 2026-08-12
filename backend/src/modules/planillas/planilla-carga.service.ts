@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CalculoWarning } from './planillas-calcular.service';
+import { ContratoVigencia } from './aplicacion/cierre-semestre-gratificacion';
 import {
   VentanaPeriodo,
   diasDelPeriodo,
@@ -146,6 +147,54 @@ export class PlanillaCargaService {
         },
       },
     });
+  }
+
+  /**
+   * Historial de contratos iniciados en o antes de `hasta`, con su remuneración
+   * pactada, agrupado por empleado.
+   *
+   * Sirve para resolver la remuneración VIGENTE AL CIERRE del semestre
+   * (D.S. 005-2002-TR art. 3.2), base de la gratificación ordinaria: si el
+   * trabajador tuvo un aumento después del 30-jun / 30-nov, `Empleado.sueldo_base`
+   * ya trae el sueldo NUEVO y no sirve para ese cálculo.
+   *
+   * Se excluyen los contratos ANULADOS (no rigieron nunca) y los que no tienen
+   * remuneración registrada (no aportan evidencia). El filtro por empresa evita
+   * leer contratos de otro tenant aunque llegue un id ajeno.
+   */
+  async cargarContratosVigencia(
+    empresaId: number,
+    empleadoIds: number[],
+    hasta: Date,
+  ): Promise<Map<number, ContratoVigencia[]>> {
+    const contratos = await this.prisma.contrato.findMany({
+      where: {
+        empleado_id: { in: empleadoIds },
+        empleado: { empresa_id: empresaId },
+        estado: { in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'] },
+        fecha_inicio: { lte: hasta },
+        remuneracion: { not: null },
+      },
+      select: {
+        empleado_id: true,
+        fecha_inicio: true,
+        fecha_fin: true,
+        remuneracion: true,
+      },
+      orderBy: { fecha_inicio: 'asc' },
+    });
+
+    const mapa = new Map<number, ContratoVigencia[]>();
+    for (const contrato of contratos) {
+      const previos = mapa.get(contrato.empleado_id) ?? [];
+      previos.push({
+        fecha_inicio: contrato.fecha_inicio,
+        fecha_fin: contrato.fecha_fin,
+        remuneracion: contrato.remuneracion,
+      });
+      mapa.set(contrato.empleado_id, previos);
+    }
+    return mapa;
   }
 
   async cargarAcumuladosIR(

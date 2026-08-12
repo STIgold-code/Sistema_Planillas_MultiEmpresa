@@ -23,6 +23,11 @@
  */
 import { ParametrosLegales } from '../dominio/parametros/parametros-legales';
 import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
+import { promedioComputableVariables } from '../dominio/conceptos/remuneracion-variable';
+import {
+  ContratoVigencia,
+  resolverCierreSemestreGratificacion,
+} from './cierre-semestre-gratificacion';
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { calcularDetalleCompleto } from '../dominio/detalle/calcular-detalle-completo';
@@ -76,6 +81,14 @@ export interface ParametrosCalculoDetalle {
    * y el de régimen. Ausente = sin ausencias registradas.
    */
   diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
+  /**
+   * Historial de contratos del trabajador (vigencias + remuneración pactada).
+   * Resuelve la remuneración VIGENTE AL CIERRE del semestre, que es la base de
+   * la gratificación ordinaria (D.S. 005-2002-TR art. 3.2) y puede diferir del
+   * sueldo actual si hubo aumento después del 30-jun / 30-nov. Ausente = sin
+   * historial: se usa el sueldo actual.
+   */
+  contratosVigencia?: ContratoVigencia[];
 }
 
 /**
@@ -90,6 +103,19 @@ export function calcularDetalleEmpleado(
 ): DetalleLegacy {
   const { empleado, empresa, mes, anio } = params;
 
+  // Computable de la gratificación ordinaria, resuelta UNA sola vez y entregada
+  // a los DOS motores para que no puedan desalinearse:
+  //  - remuneración vigente al cierre del semestre (D.S. 005-2002-TR art. 3.2);
+  //  - promedio de las variables regulares del semestre (regla de 3 meses / 6).
+  const cierreSemestre = resolverCierreSemestreGratificacion(
+    mes,
+    anio,
+    params.contratosVigencia,
+  );
+  const promedioVariablesGratificacion = promedioComputableVariables(
+    params.promedios.variablesSemestre,
+  );
+
   const entrada = mapearEntradaCalculo({
     empleado,
     empresa,
@@ -99,6 +125,9 @@ export function calcularDetalleEmpleado(
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
     diasNoLaboradosMesesPrevios: params.diasNoLaboradosMesesPrevios,
+    remuneracionCierreSemestre: cierreSemestre.remuneracion,
+    fechaCierreSemestre: cierreSemestre.fecha,
+    promedioVariablesGratificacion,
   });
 
   const calculadora = crearCalculadoraRegimen(entrada.regimenLaboral);
@@ -117,6 +146,9 @@ export function calcularDetalleEmpleado(
     empresaAportaSenati: !!empresa.aporta_senati,
     descuentosPrestamos: params.descuentosPrestamos,
     diasNoLaboradosMesesPrevios: params.diasNoLaboradosMesesPrevios,
+    remuneracionCierreSemestre: cierreSemestre.remuneracion,
+    fechaCierreSemestre: cierreSemestre.fecha,
+    promedioVariablesGratificacion,
   });
   const detalleCompleto = calcularDetalleCompleto(
     entradaDetalle,

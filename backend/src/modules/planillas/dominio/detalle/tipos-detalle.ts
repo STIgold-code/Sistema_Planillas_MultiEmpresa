@@ -16,6 +16,7 @@
  */
 import { AfiliacionPensionaria } from '../tipos';
 import { DiasNoLaboradosPorMes } from '../conceptos/gratificacion';
+import { VariablesSemestreGratificacion } from '../conceptos/remuneracion-variable';
 
 /**
  * Descuentos por préstamos y adelantos ya resueltos en el borde de aplicación
@@ -33,11 +34,29 @@ export interface DescuentosPrestamosDetalle {
 
 /** Promedios históricos del semestre (alimentan grati y CTS). */
 export interface PromediosDetalle {
+  /** Promedio simple del semestre: computable de CTS y columna del DTO. */
   promedioHorasExtras: number;
+  /** Promedio simple del semestre: computable de CTS y columna del DTO. */
   promedioComisiones: number;
+  /**
+   * Promedio simple de bonificaciones del semestre. NO integra ninguna base:
+   * las bonificaciones entran a la gratificación por `variablesSemestre`, que
+   * sí aplica la regla de regularidad, y nunca formaron parte de la computable
+   * de CTS. Se conserva como estadística del período.
+   */
   promedioBonificaciones: number;
   /** 1/6 de la última gratificación; 0 → se deriva del sueldo base. */
   ultimaGratificacion: number;
+  /**
+   * Remuneraciones VARIABLES percibidas en el semestre que devenga la
+   * gratificación, con su suma y los meses de percepción. Alimentan el promedio
+   * computable del D.S. 005-2002-TR (regla de los tres meses, divisor seis).
+   * Ausente = sin evidencia de regularidad: no integran la gratificación.
+   *
+   * Es un dato DISTINTO de los promedios simples de arriba, que siguen
+   * alimentando la CTS y las columnas `promedio_*` del DTO.
+   */
+  variablesSemestre?: VariablesSemestreGratificacion;
 }
 
 /**
@@ -115,6 +134,25 @@ export interface EntradaDetalle {
   trabajadorDomiciliado: boolean;
   /** Meses completos del semestre para gratificación (resuelto en el borde). */
   mesesGratificacion: number;
+  /**
+   * Remuneración básica VIGENTE AL CIERRE del semestre (30-jun / 30-nov), base
+   * de la gratificación ORDINARIA (D.S. 005-2002-TR art. 3.2). Se resuelve en
+   * el borde contra el historial de contratos. Ausente = sin evidencia
+   * histórica: se usa la básica del período.
+   */
+  sueldoCierreSemestre?: number;
+  /**
+   * Fecha de cierre del semestre. Resuelve los parámetros legales versionados
+   * que integran la computable de la gratificación (asignación familiar = 10%
+   * de la RMV). Ausente → se usa `fechaReferenciaParametros`.
+   */
+  fechaCierreSemestre?: Date;
+  /**
+   * Promedio computable que aportan las remuneraciones VARIABLES regulares del
+   * semestre, ya filtrado por la regla de los tres meses y dividido entre seis
+   * (`promedioComputableVariables`). Ausente = 0.
+   */
+  promedioVariablesGratificacion?: number;
   /**
    * Días NO considerados tiempo efectivamente laborado (faltas, suspensión,
    * licencia sin goce) por MES CALENDARIO de los meses ANTERIORES del año,

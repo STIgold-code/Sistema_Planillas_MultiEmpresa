@@ -30,6 +30,7 @@ import { calcularRentaQuintaDetalle } from './renta-quinta-detalle';
 import { totalizarDescuentos } from './totalizar-descuentos';
 import {
   calcularGratificacionDetalle,
+  calcularComputablesGratificacion,
   calcularCtsDetalle,
   calcularBeneficiosTruncosDetalle,
 } from './beneficios-periodicos';
@@ -170,12 +171,23 @@ export function calcularDetalleCompleto(
   // gatea por días trabajados igual que el resto de bases de la estructura.
   const asigFamBase = hayDiasTrabajados ? asignacionFamiliar : 0;
 
-  const remComputableGratificacion =
-    gratBase +
-    asigFamBase +
-    entrada.promedios.promedioHorasExtras +
-    entrada.promedios.promedioComisiones +
-    entrada.promedios.promedioBonificaciones;
+  // La computable de la gratificación NO es la del mes en que se paga: la
+  // ORDINARIA se congela al cierre del semestre y la TRUNCA se liquida al cese
+  // (ver `calcularComputablesGratificacion`). La asignación familiar se resuelve
+  // a la fecha que corresponde a cada una, por integrar la remuneración
+  // computable (Ley 25129).
+  const computablesGrati = calcularComputablesGratificacion({
+    hayDiasTrabajados,
+    sueldoPeriodo: gratBase,
+    sueldoCierreSemestre: entrada.sueldoCierreSemestre ?? sueldoBase,
+    asignacionFamiliarPeriodo: asigFamBase,
+    asignacionFamiliarCierre: entrada.tieneAsignacionFamiliar
+      ? params.asignacionFamiliar(entrada.fechaCierreSemestre ?? fecha)
+      : 0,
+    promedioVariables: entrada.promedioVariablesGratificacion ?? 0,
+  });
+
+  const remComputableGratificacion = computablesGrati.ordinaria;
   const grat = calcularGratificacionDetalle(
     mes,
     remComputableGratificacion,
@@ -317,7 +329,7 @@ export function calcularDetalleCompleto(
     mes,
     diasTrabajados,
     remComputableCts,
-    remComputableGratificacion,
+    remComputableGratificacion: computablesGrati.trunca,
     sueldoBase,
     tieneAsignacionFamiliar: entrada.tieneAsignacionFamiliar,
     tieneFechaIngreso: entrada.tieneFechaIngreso,
