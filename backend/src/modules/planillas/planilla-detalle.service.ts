@@ -336,10 +336,13 @@ export class PlanillaDetalleService {
       dto.descuento_faltas,
       detalle.descuento_faltas,
     );
-    // El dominical (D.L. 713 art. 4) NO es editable a mano: sale del tareo en
-    // el cálculo. Se arrastra el valor persistido para que una edición manual
-    // de otro concepto no lo borre del total de descuentos.
+    // Recortes que NO son editables a mano: salen del tareo en el cálculo. Se
+    // arrastra el valor persistido para que una edición manual de otro concepto
+    // no los borre del total de descuentos.
     const descuentoDominical = safeNumber(detalle.descuento_dominical);
+    const descuentoPermisos = safeNumber(detalle.descuento_permisos);
+    const descuentoTardanzas = safeNumber(detalle.descuento_tardanzas);
+    const descuentoFeriado = safeNumber(detalle.descuento_feriado);
     const descuentoSobregiro = getVal(
       dto.descuento_sobregiro,
       detalle.descuento_sobregiro,
@@ -355,11 +358,13 @@ export class PlanillaDetalleService {
     );
     const renta5ta = getVal(dto.renta_5ta, detalle.renta_5ta);
 
-    const totalDescuentos =
-      afpAporte +
-      afpPrima +
-      afpComision +
-      onp +
+    // Misma regla que el cálculo completo (`totalizarDescuentos`): el total de
+    // ley es la SUMA de las columnas que se persisten y que imprime la boleta,
+    // nunca un total aparte. `afp_seguro` no entra: es el espejo de la prima.
+    const totalDescuentosLey =
+      afpAporte + afpPrima + afpComision + onp + renta5ta;
+
+    const totalDescuentosOtros =
       adelantoQuincena +
       adelantoVacacional +
       otrosAdelantos +
@@ -368,11 +373,15 @@ export class PlanillaDetalleService {
       otrosDescuentos +
       descuentoFaltas +
       descuentoDominical +
+      descuentoPermisos +
+      descuentoTardanzas +
+      descuentoFeriado +
       descuentoSobregiro +
       descuentoReintegro +
       prestamo +
-      retencionJudicial +
-      renta5ta;
+      retencionJudicial;
+
+    const totalDescuentos = totalDescuentosLey + totalDescuentosOtros;
 
     // ESSALUD (aporte empleador - no se descuenta del trabajador)
     // Essalud = IF(Rem_Afecta < RMV, ESSALUD_MINIMO, Rem_Afecta × 9%)
@@ -471,6 +480,8 @@ export class PlanillaDetalleService {
           totalIngresosNoAfectos,
           totalIngresos,
           totalDescuentos,
+          totalDescuentosLey,
+          totalDescuentosOtros,
           essaludEmpleador,
           remuneracionAfecta,
           netoPagar,

@@ -27,6 +27,7 @@ import { calcularDescuentoDominical } from './descuento-dominical';
 import { calcularHorasExtrasDetalle } from './horas-extras-detalle';
 import { calcularDeduccionesPensionDetalle } from './deducciones-pension-detalle';
 import { calcularRentaQuintaDetalle } from './renta-quinta-detalle';
+import { totalizarDescuentos } from './totalizar-descuentos';
 import {
   calcularGratificacionDetalle,
   calcularCtsDetalle,
@@ -274,19 +275,8 @@ export function calcularDetalleCompleto(
     redondear2(entrada.descuentosPrestamos?.adelantoGratificacion ?? 0),
   );
 
-  const totalDescuentosLey = redondear2(
-    ded.afpAporte + ded.afpPrima + ded.afpComision + ded.onp + renta5ta,
-  );
-  const totalDescuentosOtros = redondear2(
-    descuentoFaltas +
-      descuentoDominical +
-      descuentoPermisos +
-      descuentoTardanzas +
-      prestamo +
-      adelantoQuincena +
-      adelantoGratificacion,
-  );
-  const totalDescuentos = redondear2(totalDescuentosLey + totalDescuentosOtros);
+  // Los totales de descuento y el neto NO se calculan aquí: los deriva
+  // `totalizarDescuentos` de las columnas ya armadas, al final de la función.
 
   // --- Aportes del empleador ---
   const essaludEmpleador =
@@ -337,9 +327,11 @@ export function calcularDetalleCompleto(
     diasNoLaboradosPorMes,
   });
 
-  const netoPagar = redondear2(totalIngresos - totalDescuentos);
-
-  return {
+  // `totalizarDescuentos` cierra el DTO: suma las columnas de descuento, deriva
+  // el espejo `quinta_categoria` y el neto. Es el MISMO paso que el borde de
+  // aplicación vuelve a aplicar después de pisar las columnas load-bearing con
+  // los montos del motor de régimen, así que ambos caminos totalizan igual.
+  return totalizarDescuentos({
     total_dias: TOTAL_DIAS_MES,
     dias_trabajados: diasTrabajados,
     dias_no_laborados: diasNoTrabajados,
@@ -459,17 +451,11 @@ export function calcularDetalleCompleto(
     retencion_judicial: 0,
     descuento_feriado: 0,
     sctr: 0,
-    quinta_categoria: redondear2(renta5ta),
 
     total_ingresos_afectos: redondear2(totalIngresosAfectos),
     total_ingresos_no_afectos: redondear2(totalIngresosNoAfectos),
     total_ingresos: redondear2(totalIngresos),
-    total_descuentos: redondear2(totalDescuentos),
-    total_descuentos_ley: redondear2(totalDescuentosLey),
-    total_descuentos_otros: redondear2(totalDescuentosOtros),
     remuneracion_afecta: redondear2(remuneracionAfecta),
-    neto_pagar: redondear2(netoPagar),
-    neto_mes: redondear2(netoPagar),
     total_haberes: redondear2(totalIngresos),
 
     essalud_empleador: redondear2(essaludEmpleador),
@@ -498,5 +484,5 @@ export function calcularDetalleCompleto(
     total_beneficios_sociales: redondear2(truncos.totalBeneficiosSociales),
 
     observaciones: '',
-  };
+  });
 }
