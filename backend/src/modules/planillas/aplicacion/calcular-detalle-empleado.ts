@@ -14,6 +14,9 @@
  *      de régimen. Para GENERAL ambos coinciden al céntimo (probado por
  *      `paridad-detalle-completo.spec` y `paridad-camino-real.spec`); para los
  *      demás régimenes el motor manda.
+ *   5. REDERIVA los totales de descuento y el neto sobre las columnas ya
+ *      pisadas (`totalizarDescuentos`), para que el neto cuadre al céntimo con
+ *      lo que la boleta suma e imprime.
  *
  * Esta capa NO importa Nest ni Prisma. El servicio Nest inyecta las filas y los
  * parámetros legales.
@@ -23,8 +26,10 @@ import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { calcularDetalleCompleto } from '../dominio/detalle/calcular-detalle-completo';
+import { totalizarDescuentos } from '../dominio/detalle/totalizar-descuentos';
 import {
   DescuentosPrestamosDetalle,
+  DetalleCompleto,
   PromediosDetalle,
 } from '../dominio/detalle/tipos-detalle';
 import { asegurarRegimenCertificado } from './guardia-certificacion';
@@ -122,9 +127,18 @@ export function calcularDetalleEmpleado(
   const boleta = calcularBoleta(entrada, calculadora, params.parametros);
   const montos = extraerMontosLoadBearing(boleta);
 
+  const detalleConMontos: DetalleCompleto = { ...detalleCompleto, ...montos };
+
+  // 5. REDERIVA los totales de descuento y el neto DESPUÉS del pisado. El motor
+  //    de régimen acaba de reemplazar las columnas `onp`, `afp_*` y `renta_5ta`,
+  //    que son las que imprime la boleta; si se conservaran los totales del paso
+  //    2 —calculados sobre la base del DTO— el neto respondería a un descuento
+  //    distinto del que ve el trabajador. `total_descuentos_ley` es SIEMPRE la
+  //    suma de esas columnas, nunca un recálculo paralelo con tasas.
+  const detalle = totalizarDescuentos(detalleConMontos);
+
   return {
-    ...detalleCompleto,
-    ...montos,
+    ...detalle,
     // Snapshot del régimen laboral efectivamente resuelto y usado para este
     // empleado (contrato > default de empresa). Se persiste tal cual en
     // PlanillaDetalle.regimen_laboral: la planilla es una FOTO del cálculo y el

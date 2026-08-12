@@ -78,6 +78,8 @@ export interface ValoresDetalleCalculado {
   totalIngresosNoAfectos: number;
   totalIngresos: number;
   totalDescuentos: number;
+  totalDescuentosLey: number;
+  totalDescuentosOtros: number;
   essaludEmpleador: number;
   remuneracionAfecta: number;
   netoPagar: number;
@@ -162,15 +164,21 @@ export function construirDataActualizacionDetalle(
     prestamo: round2(v.prestamo),
     retencion_judicial: round2(v.retencionJudicial),
     renta_5ta: round2(v.renta5ta),
+    // Espejo legacy de `renta_5ta`: la boleta lo usa de respaldo, así que debe
+    // seguir el valor vigente y no quedarse con el del cálculo anterior.
+    quinta_categoria: round2(v.renta5ta),
 
     // Totales
     total_ingresos_afectos: round2(v.totalIngresosAfectos),
     total_ingresos_no_afectos: round2(v.totalIngresosNoAfectos),
     total_ingresos: round2(v.totalIngresos),
     total_descuentos: round2(v.totalDescuentos),
+    total_descuentos_ley: round2(v.totalDescuentosLey),
+    total_descuentos_otros: round2(v.totalDescuentosOtros),
     essalud_empleador: round2(v.essaludEmpleador),
     remuneracion_afecta: round2(v.remuneracionAfecta),
     neto_pagar: round2(v.netoPagar),
+    neto_mes: round2(v.netoPagar),
 
     // Otros
     observaciones: v.observaciones,

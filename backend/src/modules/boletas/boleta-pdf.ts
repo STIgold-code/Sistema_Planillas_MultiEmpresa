@@ -615,13 +615,16 @@ export function dibujarBoletaA4(
       concepto: 'AFP COMISIÓN',
       monto: Number(detalle.afp_comision),
     });
-  if (Number(detalle.afp_seguro) > 0)
+  // `afp_seguro` es el espejo legacy de `afp_prima` (mismo importe): se imprime
+  // UNA sola vez, si no el subtotal AFP/ONP contaría la prima dos veces y la
+  // boleta no cuadraría consigo misma.
+  if (Number(detalle.afp_prima) > 0)
+    afpOnp.push({ concepto: 'AFP PRIMA', monto: Number(detalle.afp_prima) });
+  if (Number(detalle.afp_seguro) > 0 && !Number(detalle.afp_prima))
     afpOnp.push({
       concepto: 'AFP SEGURO',
       monto: Number(detalle.afp_seguro),
     });
-  if (Number(detalle.afp_prima) > 0)
-    afpOnp.push({ concepto: 'AFP PRIMA', monto: Number(detalle.afp_prima) });
   if (Number(detalle.onp) > 0)
     afpOnp.push({ concepto: 'ONP (13%)', monto: Number(detalle.onp) });
   if (Number(detalle.renta_5ta) > 0)
