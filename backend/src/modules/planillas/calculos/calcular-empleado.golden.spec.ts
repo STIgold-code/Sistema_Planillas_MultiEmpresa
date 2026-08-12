@@ -11,6 +11,14 @@
  * the new engine byte-for-byte. The describe/test titles are intentionally
  * unchanged so the existing `__snapshots__` keys (the regression contract) stay
  * valid — any drift in the new engine output fails here.
+ *
+ * CAMBIO LEGAL REGISTRADO (gap C5 del comparativo BENITES MALPICA): el escenario
+ * "AFP - gratificación julio + bonificación 30334" subió su `renta_5ta` de 46.67
+ * a 68.27. La bonificación extraordinaria de la Ley 30334 (270 = 9% de 3 000) es
+ * un ingreso EXTRAORDINARIO del mes y se grava íntegro en él (D.S. 122-94-EF art.
+ * 40 inc. e): 270 × 8% (tramo aplicable) = 21.60, que fluye al total de ley y
+ * baja el neto en el mismo importe. Ningún otro escenario cambia: fuera de julio
+ * y diciembre no se paga bonificación.
  */
 import {
   ESCENARIOS_GENERAL,
