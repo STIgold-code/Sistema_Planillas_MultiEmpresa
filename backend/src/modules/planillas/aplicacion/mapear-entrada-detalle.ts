@@ -18,7 +18,10 @@ import {
   fechaDeDia,
   VentanaPeriodo,
 } from '../../tareo/ventana-periodo';
-import { AfiliacionPensionaria, SistemaPensionario } from '../dominio/tipos';
+import {
+  RegimenPensionarioParaAfiliacion,
+  resolverAfiliacionPensionaria,
+} from './resolver-afiliacion-pensionaria';
 import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
 // Los meses del semestre que devengan la gratificación se resuelven en un módulo
 // COMPARTIDO con `mapear-entrada-calculo`: los dos motores deben dar lo mismo.
@@ -52,12 +55,7 @@ export interface DetalleTareoDetalle {
   tipo_marcacion: TipoMarcacionDetalle | null;
 }
 
-export interface RegimenPensionarioDetalle {
-  tipo: string;
-  aporte_obligatorio: unknown;
-  prima_seguro: unknown;
-  comision_flujo: unknown;
-}
+export type RegimenPensionarioDetalle = RegimenPensionarioParaAfiliacion;
 
 export interface ContratoDetalle {
   fecha_inicio: Date | string;
@@ -74,6 +72,11 @@ export interface EmpleadoParaDetalle {
   /** Condición fiscal IR 5ta. null/undefined → domiciliado. */
   domiciliado?: boolean | null;
   regimen_pensionario: RegimenPensionarioDetalle | null;
+  /**
+   * Modalidad de comisión AFP elegida por el afiliado (Ley 29903). Ausente/null
+   * → comisión sobre flujo, el comportamiento previo a modelar el dato.
+   */
+  tipo_comision_afp?: unknown;
   contratos: ContratoDetalle[];
   tareos: { detalles: DetalleTareoDetalle[] }[];
 }
@@ -147,30 +150,6 @@ function mapearDia(
     horasNocturnas: aNumero(tm.horas_nocturnas),
     horasDetalle: aNumero(detalle.horas),
     horasDefault: tm.horas_default,
-  };
-}
-
-function mapearAfiliacion(
-  regimen: RegimenPensionarioDetalle | null,
-): AfiliacionPensionaria | null {
-  if (!regimen) return null;
-  if (regimen.tipo === 'ONP') {
-    return {
-      sistema: SistemaPensionario.ONP,
-      tasas: {
-        aporteObligatorio: aNumero(regimen.aporte_obligatorio) / 100,
-        primaSeguro: 0,
-        comisionFlujo: 0,
-      },
-    };
-  }
-  return {
-    sistema: SistemaPensionario.AFP,
-    tasas: {
-      aporteObligatorio: aNumero(regimen.aporte_obligatorio) / 100,
-      primaSeguro: aNumero(regimen.prima_seguro) / 100,
-      comisionFlujo: aNumero(regimen.comision_flujo) / 100,
-    },
   };
 }
 
@@ -337,7 +316,10 @@ export function mapearEntradaDetalle(
     mes,
     anio,
     dias,
-    afiliacion: mapearAfiliacion(empleado.regimen_pensionario),
+    afiliacion: resolverAfiliacionPensionaria(
+      empleado.regimen_pensionario,
+      empleado.tipo_comision_afp,
+    ),
     promedios: params.promedios,
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,

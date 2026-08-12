@@ -1,6 +1,6 @@
 'use client';
 
-import { Empleado } from '@/types';
+import { Empleado, ETIQUETAS_TIPO_COMISION_AFP } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 
@@ -94,6 +94,18 @@ export function TabLaboral({ empleado, formatDate, formatCurrency }: TabLaboralP
                 <dt className="text-xs sm:text-sm text-muted-foreground shrink-0 sm:w-36">CUSPP:</dt>
                 <dd className="font-mono font-medium">{empleado.cuspp || '-'}</dd>
               </div>
+              {empleado.regimen_pensionario?.tipo === 'AFP' && (
+                <div className="flex flex-col sm:flex-row sm:gap-2">
+                  <dt className="text-xs sm:text-sm text-muted-foreground shrink-0 sm:w-36">
+                    Comision AFP:
+                  </dt>
+                  <dd className="font-medium">
+                    {empleado.tipo_comision_afp
+                      ? ETIQUETAS_TIPO_COMISION_AFP[empleado.tipo_comision_afp]
+                      : 'Sin declarar (se aplica flujo)'}
+                  </dd>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>

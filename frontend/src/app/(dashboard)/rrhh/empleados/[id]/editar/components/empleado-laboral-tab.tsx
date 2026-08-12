@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -15,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Loader2, Search } from 'lucide-react';
 import type { EmpleadoFormValues, RegimenPensionario } from '../useEmpleadoEditar';
+import { ETIQUETAS_TIPO_COMISION_AFP } from '@/types';
 import type { Area, Cargo, Sede } from '@/types';
 
 interface Props {
@@ -23,6 +25,8 @@ interface Props {
   cargos: Cargo[];
   sedes: Sede[];
   regimenes: RegimenPensionario[];
+  /** Solo el afiliado a una AFP elige modalidad de comision (Ley 29903). */
+  esAfiliadoAfp: boolean;
   isNewCese: boolean;
   consultandoSbs: boolean;
   loading: boolean;
@@ -35,6 +39,7 @@ export function EmpleadoLaboralTab({
   cargos,
   sedes,
   regimenes,
+  esAfiliadoAfp,
   isNewCese,
   consultandoSbs,
   loading,
@@ -257,6 +262,37 @@ export function EmpleadoLaboralTab({
             </FormItem>
           )}
         />
+
+        {esAfiliadoAfp && (
+          <FormField
+            control={form.control}
+            name="tipo_comision_afp"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de comision AFP</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin declarar" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="FLUJO">
+                      {ETIQUETAS_TIPO_COMISION_AFP.FLUJO}
+                    </SelectItem>
+                    <SelectItem value="MIXTA">
+                      {ETIQUETAS_TIPO_COMISION_AFP.MIXTA}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Si no la declaras, se descuenta la comision sobre flujo.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="col-span-full flex flex-wrap gap-4 sm:gap-6 mt-4">
           <FormField

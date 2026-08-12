@@ -36,10 +36,28 @@ export enum SistemaPensionario {
   ONP = 'ONP',
 }
 
+/**
+ * Modalidad de comisión que el afiliado eligió en su AFP (Ley 29903).
+ * - FLUJO: un único porcentaje sobre la remuneración del mes.
+ * - MIXTA: un porcentaje MENOR sobre la remuneración + una comisión anual sobre
+ *   el saldo del fondo, que la AFP cobra directamente y NUNCA se retiene en
+ *   planilla. En la boleta solo se descuenta el componente sobre flujo.
+ */
+export enum TipoComisionAfp {
+  FLUJO = 'FLUJO',
+  MIXTA = 'MIXTA',
+}
+
 /** AFP rates (already as fractions, e.g. 0.10 for 10%). */
 export interface TasasAfp {
   aporteObligatorio: number;
   primaSeguro: number;
+  /**
+   * Tasa de comisión sobre la REMUNERACIÓN que se retiene en planilla, YA
+   * resuelta según el `tipo_comision_afp` del afiliado: la comisión sobre flujo
+   * pura si es FLUJO, el componente sobre flujo de la mixta si es MIXTA. El
+   * componente sobre SALDO de la mixta no se retiene y por eso no vive aquí.
+   */
   comisionFlujo: number;
 }
 

@@ -15,6 +15,8 @@ export interface EmpleadoBoletaPdf {
   // El número de cuenta de haberes aún no existe como campo del modelo Empleado;
   // se mantiene opcional para no romper el contrato cuando la consulta no lo provee.
   numero_cuenta_haberes?: string | null;
+  /** Código Único del SPP del afiliado. Vacío/null en aportantes a la ONP. */
+  cuspp?: string | null;
   cargo?: { nombre: string } | null;
   regimen_pensionario?: { nombre: string | null; tipo: string | null } | null;
   banco_haberes?: { nombre: string } | null;
@@ -262,9 +264,17 @@ export function dibujarBoletaA4(
 
   // =============================================
   // DATOS DEL EMPLEADO - FILA 2
-  // Columnas: F/INGRESO 25% | CONDICIÓN 25% | SUELDO BASE 25% | BANCO/CTA 25%
+  // Columnas: F/INGRESO 18% | CONDICIÓN 16% | CUSPP 22% | SUELDO BASE 20% |
+  //           BANCO/CTA 24%
+  // El CUSPP es el código de identificación del afiliado en el SPP: la boleta
+  // peruana lo imprime junto al régimen pensionario para que el trabajador pueda
+  // cotejar su aporte contra el estado de cuenta de su AFP.
   // =============================================
-  const col2W = anchoTotal / 4;
+  const colIngreso = anchoTotal * 0.18;
+  const colCondicion = anchoTotal * 0.16;
+  const colCuspp = anchoTotal * 0.22;
+  const colSueldo = anchoTotal * 0.2;
+  const colBanco = anchoTotal * 0.24;
 
   doc.strokeColor(COLOR_NEGRO);
   doc.rect(startX, y, anchoTotal, datosRowH).stroke();
@@ -275,22 +285,30 @@ export function dibujarBoletaA4(
     const fi = new Date(empleado.fecha_ingreso);
     fechaIngresoStr = formatFecha(fi);
   }
-  drawDatoCell(startX, col2W, 'F/INGRESO', fechaIngresoStr);
+  let x2 = startX;
+  drawDatoCell(x2, colIngreso, 'F/INGRESO', fechaIngresoStr);
+  x2 += colIngreso;
 
   // CONDICIÓN
   const condicion =
     empleado.estado === 'ACTIVO' ? 'ACTIVO' : empleado.estado || '-';
-  drawDatoCell(startX + col2W, col2W, 'CONDICIÓN', condicion);
+  drawDatoCell(x2, colCondicion, 'CONDICIÓN', condicion);
+  x2 += colCondicion;
+
+  // CUSPP — solo tiene sentido para el afiliado a una AFP; el aportante a la ONP
+  // no tiene código SPP, así que se deja el guion en vez de un vacío ambiguo.
+  const cusppEmpleado =
+    empleado.regimen_pensionario?.tipo === 'AFP'
+      ? (empleado.cuspp || '').toUpperCase() || '-'
+      : '-';
+  drawDatoCell(x2, colCuspp, 'CUSPP', cusppEmpleado);
+  x2 += colCuspp;
 
   // SUELDO BASE
   const sueldoBase =
     Number(detalle.sueldo_base) || Number(detalle.haber_mensual) || 0;
-  drawDatoCell(
-    startX + col2W * 2,
-    col2W,
-    'SUELDO BASE',
-    `S/. ${formatMonto(sueldoBase)}`,
-  );
+  drawDatoCell(x2, colSueldo, 'SUELDO BASE', `S/. ${formatMonto(sueldoBase)}`);
+  x2 += colSueldo;
 
   // BANCO / CTA
   const bancoNombre = empleado.banco_haberes?.nombre || '';
@@ -298,7 +316,7 @@ export function dibujarBoletaA4(
   const bancoCta = bancoNombre
     ? `${bancoNombre.substring(0, 4)} ${ctaBanco.substring(0, 8)}..`
     : '-';
-  drawDatoCell(startX + col2W * 3, col2W, 'BANCO / CTA', bancoCta, true);
+  drawDatoCell(x2, colBanco, 'BANCO / CTA', bancoCta, true);
 
   y += datosRowH + 4;
 

@@ -33,6 +33,8 @@ interface DetalleExportacion {
   cuenta: string;
   cci: string;
   cuspp: string;
+  /** Modalidad de comision AFP: FLUJO, MIXTA o vacio si no se declaro. */
+  tipo_comision_afp: string;
   fecha_ingreso: string;
   fecha_cese: string;
   sistema_pensionario: string;
@@ -741,7 +743,7 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       // ========================================
       const wsAFP = workbook.addWorksheet('AFP-ONP');
 
-      const afpHeaders = ['N°', 'DNI', 'APELLIDOS Y NOMBRES', 'CUSPP', 'TIPO', 'NOMBRE', 'REM. ASEG.', 'APORTE', 'PRIMA', 'COM.', 'TOTAL'];
+      const afpHeaders = ['N°', 'DNI', 'APELLIDOS Y NOMBRES', 'CUSPP', 'TIPO', 'NOMBRE', 'MODALIDAD', 'REM. ASEG.', 'APORTE', 'PRIMA', 'COM.', 'TOTAL'];
       const afpHeaderRow = wsAFP.getRow(1);
       afpHeaders.forEach((h, i) => {
         const cell = afpHeaderRow.getCell(i + 1);
@@ -768,13 +770,17 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
         row.getCell(4).value = d.cuspp || '';
         row.getCell(5).value = d.sistema_pensionario || '';
         row.getCell(6).value = d.nombre_sistema_pensionario || '';
-        row.getCell(7).value = Number(d.rem_computable_afp) || 0;
-        row.getCell(8).value = aporte || onp;
-        row.getCell(9).value = prima;
-        row.getCell(10).value = comision;
-        row.getCell(11).value = total;
+        // Modalidad con la que se retuvo la comision; vacia = no declarada, en
+        // cuyo caso el motor aplico la comision sobre flujo.
+        row.getCell(7).value =
+          d.sistema_pensionario === 'AFP' ? d.tipo_comision_afp || 'FLUJO (por defecto)' : '';
+        row.getCell(8).value = Number(d.rem_computable_afp) || 0;
+        row.getCell(9).value = aporte || onp;
+        row.getCell(10).value = prima;
+        row.getCell(11).value = comision;
+        row.getCell(12).value = total;
 
-        [7, 8, 9, 10, 11].forEach(c => { row.getCell(c).numFmt = '#,##0.00'; });
+        [8, 9, 10, 11, 12].forEach(c => { row.getCell(c).numFmt = '#,##0.00'; });
 
         if (i % 2 === 1) {
           row.eachCell((cell) => {
@@ -786,12 +792,12 @@ export async function exportarPlanillaExcel(id: number): Promise<void> {
       const afpTotalRow = wsAFP.getRow(detalles.length + 2);
       afpTotalRow.getCell(1).value = 'TOTAL';
       afpTotalRow.getCell(1).font = { bold: true };
-      afpTotalRow.getCell(11).value = totalAFP;
-      afpTotalRow.getCell(11).numFmt = '#,##0.00';
-      afpTotalRow.getCell(11).font = { bold: true };
-      afpTotalRow.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAD3' } };
+      afpTotalRow.getCell(12).value = totalAFP;
+      afpTotalRow.getCell(12).numFmt = '#,##0.00';
+      afpTotalRow.getCell(12).font = { bold: true };
+      afpTotalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9EAD3' } };
 
-      [5, 10, 30, 14, 6, 16, 11, 11, 10, 10, 11].forEach((w, i) => { wsAFP.getColumn(i + 1).width = w; });
+      [5, 10, 30, 14, 6, 16, 20, 11, 11, 10, 10, 11].forEach((w, i) => { wsAFP.getColumn(i + 1).width = w; });
 
       // ========================================
       // HOJA 6: ALERTAS Y CONTROL

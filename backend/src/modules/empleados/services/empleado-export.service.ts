@@ -7,6 +7,10 @@ import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import {
+  normalizarTipoComisionAfp,
+  resolverTasaComisionAfp,
+} from '../../planillas/dominio/conceptos/comision-afp';
+import {
   ahoraPeru,
   sumarDiasPeru,
   formatearFechaPeru,
@@ -255,6 +259,7 @@ export class EmpleadoExportService {
       { header: 'MontoAdelanto', key: 'monto_adelanto', width: 14 },
       { header: 'RegimenPensionario', key: 'regimen_pensionario', width: 22 },
       { header: 'Cuspp', key: 'cuspp', width: 16 },
+      { header: 'TipoComisionAFP', key: 'tipo_comision_afp', width: 16 },
       { header: 'AporteObligatorioRP', key: 'aporte_obligatorio', width: 18 },
       { header: 'ComisionRP', key: 'comision_rp', width: 12 },
       { header: 'PrimaSeguroRP', key: 'prima_seguro', width: 14 },
@@ -366,10 +371,23 @@ export class EmpleadoExportService {
           ? `${regimen.nombre} - ${regimen.tipo || 'FLUJO'}`
           : 'NO DEFINIDO',
         cuspp: emp.cuspp || '',
+        // Modalidad declarada; vacia = no cargada, y entonces se aplica flujo.
+        tipo_comision_afp: emp.tipo_comision_afp || '',
         aporte_obligatorio: regimen
           ? Number(regimen.aporte_obligatorio) || 0.1
           : 0,
-        comision_rp: regimen ? Number(regimen.comision_flujo) || 0 : 0,
+        // Comision EFECTIVAMENTE aplicable al trabajador: la de flujo o la
+        // mixta, segun su modalidad declarada (Ley 29903). Antes se exportaba
+        // siempre la de flujo, aunque el descuento real fuera otro.
+        comision_rp: regimen
+          ? resolverTasaComisionAfp(
+              {
+                flujo: Number(regimen.comision_flujo) || 0,
+                mixtaFlujo: Number(regimen.comision_mixta_flujo) || 0,
+              },
+              normalizarTipoComisionAfp(emp.tipo_comision_afp),
+            )
+          : 0,
         prima_seguro: regimen ? Number(regimen.prima_seguro) || 0.0137 : 0,
         banco_haberes: emp.banco_haberes?.nombre || 'NO DEFINIDO',
         nro_cuenta_haberes: emp.nro_cuenta_haberes || '',

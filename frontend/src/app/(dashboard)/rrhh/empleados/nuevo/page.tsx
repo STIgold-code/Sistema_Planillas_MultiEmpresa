@@ -23,6 +23,7 @@ export default function NuevoEmpleadoPage() {
     sedes,
     bancos,
     regimenes,
+    esAfiliadoAfp,
     departamentos,
     provincias,
     distritos,
@@ -92,6 +93,7 @@ export default function NuevoEmpleadoPage() {
                 cargos={cargos}
                 sedes={sedes}
                 regimenes={regimenes}
+                esAfiliadoAfp={esAfiliadoAfp}
                 consultandoSbs={consultandoSbs}
                 handleConsultarSbs={handleConsultarSbs}
               />

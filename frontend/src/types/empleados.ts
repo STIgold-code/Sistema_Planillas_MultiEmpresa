@@ -3,6 +3,20 @@
 import type { Area, Banco, Cargo, Sede } from './core';
 import type { Contrato, EstadoContrato, EstadoVinculo } from './contratos';
 
+/**
+ * Modalidad de comisión del afiliado a una AFP (Ley 29903 art. 8).
+ * - FLUJO: un porcentaje único sobre la remuneración del mes.
+ * - MIXTA: un porcentaje menor sobre la remuneración más una comisión anual
+ *   sobre el saldo del fondo, que la AFP cobra aparte y no va en la boleta.
+ */
+export type TipoComisionAfp = 'FLUJO' | 'MIXTA';
+
+/** Etiquetas de la modalidad de comisión, para selectores y fichas. */
+export const ETIQUETAS_TIPO_COMISION_AFP: Record<TipoComisionAfp, string> = {
+  FLUJO: 'Sobre flujo (solo remuneración)',
+  MIXTA: 'Mixta (remuneración + saldo)',
+};
+
 // Tipos para datos JSON del empleado
 export interface Estudio {
   institucion: string;
@@ -170,6 +184,11 @@ export interface Empleado {
   regimen_pensionario_id?: number;
   regimen_pensionario?: { id: number; nombre: string; tipo: string };
   cuspp?: string;
+  /**
+   * Modalidad de comisión elegida en la AFP (Ley 29903). Solo aplica a afiliados
+   * AFP. Ausente/null = dato no cargado: el cálculo usa la comisión sobre flujo.
+   */
+  tipo_comision_afp?: TipoComisionAfp | null;
   // Beneficios
   asignacion_familiar: boolean;
   sctr: boolean;

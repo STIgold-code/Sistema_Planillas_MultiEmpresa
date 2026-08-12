@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -92,6 +92,9 @@ export const empleadoSchema = z.object({
   // Pensiones
   regimen_pensionario_id: z.string().optional(),
   cuspp: z.string().optional(),
+  // Cadena vacía = "sin declarar": el backend recibe null y el motor cae a la
+  // comisión sobre flujo. Solo tiene efecto en afiliados AFP.
+  tipo_comision_afp: z.enum(['', 'FLUJO', 'MIXTA']).optional(),
   // Beneficios
   asignacion_familiar: z.boolean(),
   sctr: z.boolean(),
@@ -204,6 +207,7 @@ export function useEmpleadoNuevo() {
       turno: 'DIA',
       regimen_pensionario_id: '',
       cuspp: '',
+      tipo_comision_afp: '',
       asignacion_familiar: false,
       sctr: false,
       domiciliado: true,
@@ -224,6 +228,21 @@ export function useEmpleadoNuevo() {
 
   const selectedDepartamentoId = form.watch('departamento_id');
   const selectedProvinciaId = form.watch('provincia_id');
+  const selectedRegimenPensionarioId = form.watch('regimen_pensionario_id');
+
+  // La modalidad de comisión solo existe en el SPP privado: el aportante a la
+  // ONP no elige comisión. De esta bandera dependen tanto el campo visible como
+  // el valor que se envía, para que nunca quede una modalidad huérfana en un
+  // trabajador de ONP.
+  const esAfiliadoAfp = useMemo(
+    () =>
+      regimenes.some(
+        (regimen) =>
+          regimen.id.toString() === selectedRegimenPensionarioId &&
+          regimen.tipo === 'AFP',
+      ),
+    [regimenes, selectedRegimenPensionarioId],
+  );
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -362,6 +381,10 @@ export function useEmpleadoNuevo() {
         regimen_pensionario_id: data.regimen_pensionario_id
           ? parseInt(data.regimen_pensionario_id)
           : undefined,
+        // Solo viaja si el trabajador está afiliado a una AFP y declaró su
+        // modalidad; en cualquier otro caso se omite y el motor usa flujo.
+        tipo_comision_afp:
+          esAfiliadoAfp && data.tipo_comision_afp ? data.tipo_comision_afp : undefined,
         distrito_id: data.distrito_id ? parseInt(data.distrito_id) : undefined,
         // Eliminar campos que ya no existen en el modelo
         departamento_id: undefined,
@@ -394,6 +417,7 @@ export function useEmpleadoNuevo() {
     sedes,
     bancos,
     regimenes,
+    esAfiliadoAfp,
     // Ubigeos
     departamentos,
     provincias,

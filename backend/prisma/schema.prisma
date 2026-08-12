@@ -315,7 +315,13 @@ model RegimenPensionario {
   nombre              String      @unique @db.VarChar(100)
   tipo                TipoRegimen
   aporte_obligatorio  Decimal?    @default(0) @db.Decimal(5, 2)
+  // Comisión sobre flujo PURA: la paga el afiliado de modalidad FLUJO.
   comision_flujo      Decimal?    @default(0) @db.Decimal(5, 2)
+  // Componente sobre FLUJO de la comisión MIXTA: es lo único de la modalidad
+  // mixta que se retiene en planilla (el resto lo cobra la AFP contra el fondo).
+  comision_mixta_flujo Decimal?   @default(0) @db.Decimal(5, 2)
+  // Comisión anual sobre el SALDO del fondo (modalidad mixta). Informativa: la
+  // cobra la AFP directamente y NUNCA entra al descuento de la boleta.
   comision_saldo      Decimal?    @default(0) @db.Decimal(5, 2)
   prima_seguro        Decimal?    @default(0) @db.Decimal(5, 2)
   remuneracion_maxima Decimal?    @default(0) @db.Decimal(10, 2)
@@ -414,6 +420,10 @@ model Empleado {
   turno                          TurnoTipo                      @default(DIA)
   regimen_pensionario_id         Int?
   cuspp                          String?                        @db.VarChar(20)
+  // Modalidad de comisión elegida por el afiliado en su AFP (Ley 29903 art. 8).
+  // null = dato aún no cargado → el motor aplica la comisión sobre FLUJO, que es
+  // el comportamiento vigente antes de modelar la modalidad.
+  tipo_comision_afp              TipoComisionAfp?
   asignacion_familiar            Boolean                        @default(false)
   sctr                           Boolean                        @default(false)
   // Condición fiscal IR 5ta (Art. 54/76 LIR): false = no domiciliado (30% plano).
@@ -2182,6 +2192,16 @@ enum TipoRegimen {
   AFP
   ONP
   SIN_REGIMEN
+}
+
+// Modalidad de comisión que el afiliado eligió en su AFP (Ley 29903 art. 8).
+// FLUJO: un porcentaje único sobre la remuneración del mes.
+// MIXTA: un porcentaje MENOR sobre la remuneración + una comisión anual sobre el
+// saldo del fondo, que la AFP cobra contra el fondo y NO se retiene en planilla.
+// Solo aplica a afiliados AFP; la ONP no cobra comisión.
+enum TipoComisionAfp {
+  FLUJO
+  MIXTA
 }
 
 // Régimen laboral peruano (D.L. 728, REMYPE, etc.). Determina cómo se calcula la

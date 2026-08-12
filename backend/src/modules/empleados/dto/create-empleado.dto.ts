@@ -21,6 +21,7 @@ import {
   EstadoEmpleado,
   TipoPago,
   TurnoTipo,
+  TipoComisionAfp,
 } from '@prisma/client';
 
 // Sub-DTOs para datos JSON
@@ -224,6 +225,14 @@ export class CreateEmpleadoDto {
   @IsString()
   @IsOptional()
   cuspp?: string;
+
+  /**
+   * Modalidad de comisión elegida en la AFP (Ley 29903 art. 8). Solo aplica a
+   * afiliados AFP; omitirla deja el descuento en la comisión sobre flujo.
+   */
+  @IsEnum(TipoComisionAfp)
+  @IsOptional()
+  tipo_comision_afp?: TipoComisionAfp;
 
   // Beneficios
   @IsBoolean()
