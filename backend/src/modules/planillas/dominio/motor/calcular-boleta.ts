@@ -175,6 +175,15 @@ export function calcularBoleta(
     baseCotizacion,
     entrada.afiliacion,
   );
+  // La gratificación ya entra a la base por la PROYECCIÓN anual (art. 40 inc. a:
+  // 12 remuneraciones + 2 gratificaciones), pero la bonificación extraordinaria
+  // de la Ley 30334 no: es un ingreso EXTRAORDINARIO del mes y se grava íntegro
+  // en el mes en que se percibe (art. 40 inc. e). Su inafectación alcanza solo a
+  // EsSalud, ONP y AFP — no al impuesto a la renta.
+  const montoBonificacion = bonificacion.conceptos.reduce(
+    (acc, c) => acc + c.monto,
+    0,
+  );
   const rentaQuinta = calcularRentaQuinta(
     baseCotizacion,
     entrada.periodo.mes,
@@ -183,6 +192,7 @@ export function calcularBoleta(
     entrada.acumuladoRenta ?? 0,
     entrada.retencionesPreviasRenta ?? 0,
     entrada.trabajadorDomiciliado ?? true,
+    montoBonificacion,
   );
 
   // 6. Consolidar y totalizar. La bonificación 30334 se inserta junto a la

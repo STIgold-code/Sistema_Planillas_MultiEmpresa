@@ -11,11 +11,18 @@
  * 3. Restar 7 UIT (deducción fija para dependientes).
  * 4. Aplicar tasas progresivas por tramo.
  * 5. Descontar retenciones previas y dividir entre meses restantes.
+ * 6. Inciso e): los ingresos EXTRAORDINARIOS del mes no se proyectan — se suman
+ *    a la renta del ejercicio y su impuesto adicional se retiene íntegro en el
+ *    mes en que se ponen a disposición.
  *
  * Régimen-agnostic: depende solo de la remuneración, el mes y los parámetros.
  */
 import { ParametrosLegales } from '../parametros/parametros-legales';
-import { ResultadoConcepto, TramoIR } from '../tipos';
+import { ResultadoConcepto } from '../tipos';
+import {
+  impuestoAnualPorTramos,
+  impuestoIngresosExtraordinarios,
+} from './escala-impuesto-renta';
 
 export const CLAVE_RENTA_5TA = 'renta_5ta';
 
@@ -34,28 +41,11 @@ const redondear2 = (v: number): number => {
   return Number.isNaN(r) ? 0 : r;
 };
 
-function impuestoAnualPorTramos(
-  rentaNeta: number,
-  uit: number,
-  tramos: TramoIR[],
-): number {
-  let impuesto = 0;
-  let restante = rentaNeta;
-  let limiteAnterior = 0;
-
-  for (const tramo of tramos) {
-    const limite = tramo.hasta * uit;
-    const base = Math.min(restante, limite - limiteAnterior);
-    if (base > 0) {
-      impuesto += base * tramo.tasa;
-      restante -= base;
-      limiteAnterior = limite;
-    }
-    if (restante <= 0) break;
-  }
-  return impuesto;
-}
-
+/**
+ * @param ingresosExtraordinariosMes Montos distintos de la remuneración
+ * ordinaria puestos a disposición ESTE mes (bonificación extraordinaria de la
+ * Ley 30334, utilidades, reintegros). Ver `impuestoIngresosExtraordinarios`.
+ */
 export function calcularRentaQuinta(
   remuneracionMensual: number,
   mes: number,
@@ -64,11 +54,15 @@ export function calcularRentaQuinta(
   acumuladoAnterior = 0,
   retencionesPrevias = 0,
   domiciliado = true,
+  ingresosExtraordinariosMes = 0,
 ): ResultadoConcepto {
-  if (remuneracionMensual <= 0) return { conceptos: [] };
+  const extraordinarios = Math.max(0, ingresosExtraordinariosMes);
+  if (remuneracionMensual <= 0 && extraordinarios <= 0)
+    return { conceptos: [] };
 
   // NO DOMICILIADO: retención mensual definitiva del 30% sobre la renta del
-  // mes, sin deducción ni proyección (Art. 54 inc. f y Art. 76 LIR).
+  // mes, sin deducción ni proyección (Art. 54 inc. f y Art. 76 LIR). Los
+  // extraordinarios del mes también son renta puesta a disposición.
   if (!domiciliado) {
     return {
       conceptos: [
@@ -76,7 +70,9 @@ export function calcularRentaQuinta(
           clave: CLAVE_RENTA_5TA,
           descripcion: 'Retención IR 5ta categoría (no domiciliado 30%)',
           tipo: 'descuento',
-          monto: redondear2(remuneracionMensual * TASA_NO_DOMICILIADO),
+          monto: redondear2(
+            (remuneracionMensual + extraordinarios) * TASA_NO_DOMICILIADO,
+          ),
         },
       ],
     };
@@ -94,13 +90,27 @@ export function calcularRentaQuinta(
   if (mes <= 12) gratificaciones += remuneracionMensual;
 
   const rentaBrutaAnual = rentaProyectada + gratificaciones;
-  const rentaNetaAnual = Math.max(0, rentaBrutaAnual - DEDUCCION_UIT * uit);
-  if (rentaNetaAnual <= 0) return { conceptos: [] };
+  const deduccion = DEDUCCION_UIT * uit;
+  const rentaNetaAnual = Math.max(0, rentaBrutaAnual - deduccion);
 
+  // Cuota ordinaria del mes (incisos a–d): impuesto anual proyectado menos lo
+  // ya retenido, prorrateado entre los meses que faltan del ejercicio.
   const impuestoAnual = impuestoAnualPorTramos(rentaNetaAnual, uit, tramos);
   const pendiente = Math.max(0, impuestoAnual - retencionesPrevias);
-  const retencionMensual = redondear2(pendiente / mesesRestantes);
+  const cuotaOrdinaria = pendiente / mesesRestantes;
 
+  // Inciso e): el extraordinario del mes no se proyecta — su impuesto adicional
+  // se retiene íntegro en este mes.
+  const impuestoExtraordinarios = impuestoIngresosExtraordinarios(
+    rentaBrutaAnual,
+    extraordinarios,
+    impuestoAnual,
+    deduccion,
+    uit,
+    tramos,
+  );
+
+  const retencionMensual = redondear2(cuotaOrdinaria + impuestoExtraordinarios);
   if (retencionMensual <= 0) return { conceptos: [] };
 
   return {
