@@ -122,6 +122,7 @@ describe('calcular-boleta — orquestación por régimen (C-3, C-4)', () => {
         diasCts: 0,
         sextoGratificacion: 0,
         diasVacaciones: 0,
+        diasNoLaboradosSemestre: 0,
       },
       categoriaConstruccion: CategoriaConstruccion.OPERARIO,
     };

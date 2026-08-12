@@ -62,6 +62,19 @@ export function calcularDetalleCompleto(
   const diasSubsidio =
     c.diasSubsidioIncapacidad + c.diasSubsidioMaternidad + c.diasDescansoMedico;
 
+  // Días NO considerados tiempo efectivamente laborado (D.S. 005-2002-TR
+  // art. 3.4): faltas, suspensión y licencia sin goce. Los subsidios, el
+  // descanso vacacional y las licencias CON goce quedan fuera porque el art. 2
+  // del mismo reglamento los asimila a tiempo laborado.
+  const diasNoLaboradosDelMes =
+    c.diasFalta + c.diasSuspension + c.diasLicenciaSinGoce;
+  // El mes en curso SIEMPRE manda sobre lo que hubiera guardado una planilla
+  // previa del mismo mes (recálculo): su tareo es el dato vigente.
+  const diasNoLaboradosPorMes: Record<number, number> = {
+    ...entrada.diasNoLaboradosMesesPrevios,
+    [mes]: diasNoLaboradosDelMes,
+  };
+
   // --- Estructura salarial (bases) ---
   const remBasica = hayDiasTrabajados ? sueldoBase : 0;
   const he25Estructura = hayDiasTrabajados
@@ -153,6 +166,7 @@ export function calcularDetalleCompleto(
     remComputableGratificacion,
     entrada.mesesGratificacion,
     params.essaludTasa(fecha),
+    diasNoLaboradosPorMes,
   );
 
   const sextoGratificacion =
@@ -306,6 +320,7 @@ export function calcularDetalleCompleto(
     asignacionFamiliarMonto: params.asignacionFamiliar(fecha),
     fechaIngreso: entrada.fechaIngreso,
     fechaCese: entrada.fechaCese,
+    diasNoLaboradosPorMes,
   });
 
   const netoPagar = redondear2(totalIngresos - totalDescuentos);

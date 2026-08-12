@@ -28,6 +28,10 @@ import {
   SistemaPensionario,
 } from '../dominio/tipos';
 import {
+  DiasNoLaboradosPorMes,
+  diasNoLaboradosDelSemestre,
+} from '../dominio/conceptos/gratificacion';
+import {
   ContratoConRegimen,
   EmpresaConRegimenDefault,
   resolverRegimenLaboral,
@@ -108,6 +112,12 @@ export interface ParametrosMapeoEntrada {
   ventanaPeriodo?: VentanaPeriodo;
   acumuladoRenta?: number;
   retencionesPreviasRenta?: number;
+  /**
+   * Días no laborados (F, S/SUS, LSG) por MES CALENDARIO de los meses
+   * ANTERIORES del año, leídos de las planillas históricas. El mes en curso se
+   * deriva aquí del propio tareo. Ausente = sin ausencias registradas.
+   */
+  diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
 }
 
 /** Resuelve las horas del día con la prioridad detalle > nomenclatura > default. */
@@ -145,6 +155,20 @@ function mapearDetalleTareo(
     asistio:
       (tm?.es_laborable ?? false) && !AUSENCIAS_SIN_GOCE.has(tm?.codigo ?? ''),
   };
+}
+
+/**
+ * Días del tareo NO considerados tiempo efectivamente laborado
+ * (D.S. 005-2002-TR art. 3.4): faltas, suspensión y licencia sin goce. Los
+ * subsidios, el descanso vacacional y las licencias CON goce NO cuentan aquí
+ * porque el art. 2 del mismo reglamento los asimila a tiempo laborado.
+ */
+function contarDiasNoLaboradosDelMes(
+  detalles: DetalleTareoParaMapeo[],
+): number {
+  return detalles.filter((d) =>
+    AUSENCIAS_SIN_GOCE.has(d.tipo_marcacion?.codigo ?? ''),
+  ).length;
 }
 
 /** Mapea el régimen pensionario Prisma (porcentajes) a la afiliación de dominio. */
@@ -190,6 +214,22 @@ export function mapearEntradaCalculo(
     mapearDetalleTareo(detalle, indice, ventana),
   );
 
+  // Días no laborados del semestre que devenga la gratificación: los históricos
+  // de las planillas ya guardadas más los del mes en curso (el tareo de esta
+  // corrida manda sobre cualquier planilla previa del mismo mes). El dominio
+  // decide qué meses forman el semestre (Ley 27735 art. 1 y 5).
+  //
+  // CRITERIO (documentado): las ausencias se imputan al MES DE LA PLANILLA, no
+  // al mes calendario del día. Con ventana de día de corte (p. ej. 26 → 25) la
+  // planilla de julio incluye días de junio, pero las ventanas son DISJUNTAS:
+  // cada ausencia se cuenta exactamente una vez y ninguna se pierde. Imputar
+  // por fecha real solo el mes en curso, mientras el histórico viene keyado por
+  // mes de planilla, haría que el mes del borde se contara dos veces.
+  const diasNoLaboradosSemestre = diasNoLaboradosDelSemestre(mes, {
+    ...params.diasNoLaboradosMesesPrevios,
+    [mes]: contarDiasNoLaboradosDelMes(detalles),
+  });
+
   return {
     regimenLaboral,
     remuneracionBasica: aNumero(empleado.sueldo_base),
@@ -210,6 +250,7 @@ export function mapearEntradaCalculo(
       fecha: ventana.fechaFin,
     },
     tareo,
+    devengados: { diasNoLaboradosSemestre },
     acumuladoRenta: params.acumuladoRenta ?? 0,
     retencionesPreviasRenta: params.retencionesPreviasRenta ?? 0,
     trabajadorDomiciliado: params.empleado.domiciliado ?? true,

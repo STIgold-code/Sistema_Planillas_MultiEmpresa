@@ -3,7 +3,7 @@
  * como funciones PURAS del dominio.
  *
  * Reproducen al céntimo la matemática del motor legacy (`gratificaciones.ts`,
- * `cts.ts`, `beneficios-truncos.ts`) SALVO en dos puntos donde el legacy
+ * `cts.ts`, `beneficios-truncos.ts`) SALVO en tres puntos donde el legacy
  * contradecía la ley y se corrigió deliberadamente:
  *
  *  1. Gratificación TRUNCA: se paga por meses calendario COMPLETOS del semestre
@@ -12,6 +12,10 @@
  *  2. Vacaciones TRUNCAS: dozavos y treintavos desde el ÚLTIMO ANIVERSARIO de
  *     ingreso (D.L. 713 arts. 22-23). El legacy usaba el mes calendario del año,
  *     asumiendo que todos ingresaron el 1 de enero e ignorando los días.
+ *  3. Gratificación ORDINARIA y TRUNCA: los días NO considerados tiempo
+ *     efectivamente laborado se deducen a razón de un treintavo del sexto
+ *     (D.S. 005-2002-TR art. 3.4, texto según D.S. 017-2002-TR). El legacy
+ *     pagaba el semestre completo aunque el trabajador hubiera faltado.
  *
  * La CTS trunca no cambió. La resolución de MESES/DÍAS del semestre para las
  * gratificaciones y la CTS del período se sigue haciendo en el borde de
@@ -21,6 +25,14 @@
  * provienen del puerto `ParametrosLegales`.
  */
 import { redondear2 } from './redondeo';
+import {
+  DIAS_SEMESTRE,
+  DiasNoLaboradosPorMes,
+  diasNoLaboradosDelSemestre,
+  sumarDiasNoLaborados,
+} from '../conceptos/gratificacion';
+
+export type { DiasNoLaboradosPorMes };
 
 export interface GratificacionDetalle {
   gratificacionMonto: number;
@@ -31,21 +43,42 @@ export interface GratificacionDetalle {
  * Gratificación (Ley 27735) + bonificación extraordinaria (Ley 30334).
  * Solo paga en julio (7) y diciembre (12).
  *
+ * DEDUCCIÓN DE DÍAS NO LABORADOS — D.S. 005-2002-TR art. 3.4 (texto vigente
+ * según D.S. 017-2002-TR): "El tiempo de servicios para efectos del cálculo se
+ * determina por cada mes calendario completo laborado en el período
+ * correspondiente. Los días que no se consideren tiempo efectivamente laborado
+ * se deducirán a razón de un treintavo de la fracción correspondiente."
+ * La fracción es el sexto del semestre → cada día descuenta `computable / 180`.
+ * NO deducen los días asimilados a tiempo laborado por el art. 2 del mismo
+ * reglamento (descanso vacacional, licencia CON goce, descansos con subsidio de
+ * seguridad social y los que la ley declare expresamente como laborados).
+ *
+ * La bonificación extraordinaria (Ley 30334) se calcula sobre la gratificación
+ * YA deducida, porque su base legal es "el monto de la gratificación".
+ *
  * @param mesesGratificacion Meses completos del semestre (resueltos en el borde).
  * @param essaludTasa Tasa EsSalud vigente (base de la bonificación 30334).
+ * @param diasNoLaboradosPorMes Días no laborados por mes calendario del año.
+ *   Ausente = sin ausencias registradas (no se presume ausencia sin dato).
  */
 export function calcularGratificacionDetalle(
   mes: number,
   remuneracionComputable: number,
   mesesGratificacion: number,
   essaludTasa: number,
+  diasNoLaboradosPorMes: DiasNoLaboradosPorMes = {},
 ): GratificacionDetalle {
   if (mes !== 7 && mes !== 12) {
     return { gratificacionMonto: 0, bonifExtraordinariaMonto: 0 };
   }
-  const gratificacionMonto = redondear2(
-    remuneracionComputable * (mesesGratificacion / 6),
+  const diasNoLaborados = diasNoLaboradosDelSemestre(
+    mes,
+    diasNoLaboradosPorMes,
   );
+  const devengado = remuneracionComputable * (mesesGratificacion / 6);
+  const deduccion =
+    (remuneracionComputable / DIAS_SEMESTRE) * Math.max(0, diasNoLaborados);
+  const gratificacionMonto = redondear2(Math.max(0, devengado - deduccion));
   return {
     gratificacionMonto,
     bonifExtraordinariaMonto: redondear2(gratificacionMonto * essaludTasa),
@@ -93,6 +126,12 @@ export interface ParametrosBeneficiosTruncos {
   fechaIngreso?: Date;
   /** Fecha real de cese dentro del período. */
   fechaCese?: Date;
+  /**
+   * Días NO considerados tiempo efectivamente laborado por mes calendario del
+   * año. Solo deducen los que caen DENTRO de los meses completos que la trunca
+   * reconoce. Ausente = sin ausencias registradas.
+   */
+  diasNoLaboradosPorMes?: DiasNoLaboradosPorMes;
 }
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -203,6 +242,36 @@ function resolverMesesGratificacionTrunca(
 }
 
 /**
+ * Días no laborados que deduce la gratificación TRUNCA.
+ *
+ * CRITERIO (documentado, es una decisión): la trunca solo reconoce MESES
+ * CALENDARIO COMPLETOS del semestre (Ley 27735 art. 7), así que los treintavos
+ * del art. 3.4 se deducen ÚNICAMENTE dentro de esos meses. Los días no
+ * laborados del mes de cese incompleto ya están excluidos por partida doble —
+ * ese mes no aporta sexto alguno —, y volver a descontarlos sería castigar dos
+ * veces la misma ausencia.
+ *
+ * Los meses completos son los `mesesCompletos` PRIMEROS del semestre del cese
+ * (enero-junio o julio-diciembre): la trunca se devenga desde el inicio del
+ * semestre hacia adelante.
+ */
+function diasNoLaboradosDeMesesCompletos(
+  mesPlanilla: number,
+  mesesCompletos: number,
+  fechaCese?: Date,
+  porMes: DiasNoLaboradosPorMes = {},
+): number {
+  if (mesesCompletos <= 0) return 0;
+  const mesCese = fechaCese ? fechaCese.getMonth() + 1 : mesPlanilla;
+  const primerMesDelSemestre = mesCese <= 6 ? 1 : 7;
+  return sumarDiasNoLaborados(
+    porMes,
+    primerMesDelSemestre,
+    primerMesDelSemestre + mesesCompletos - 1,
+  );
+}
+
+/**
  * Beneficios truncos para empleados que cesan en el período.
  *
  * La CTS trunca conserva la fórmula histórica (D.S. 001-97-TR art. 21:
@@ -232,6 +301,7 @@ export function calcularBeneficiosTruncosDetalle(
     asignacionFamiliarMonto,
     fechaIngreso,
     fechaCese,
+    diasNoLaboradosPorMes,
   } = params;
 
   let mesesDesdeUltimoCts = 0;
@@ -244,9 +314,19 @@ export function calcularBeneficiosTruncosDetalle(
       (remComputableCts / 360) * diasTrabajados,
   );
 
+  const mesesGratTrunca = resolverMesesGratificacionTrunca(mes, fechaCese);
+  const diasNoLaboradosTrunca = diasNoLaboradosDeMesesCompletos(
+    mes,
+    mesesGratTrunca,
+    fechaCese,
+    diasNoLaboradosPorMes,
+  );
   const gratTrunca = redondear2(
-    (remComputableGratificacion / 6) *
-      resolverMesesGratificacionTrunca(mes, fechaCese),
+    Math.max(
+      0,
+      (remComputableGratificacion / 6) * mesesGratTrunca -
+        (remComputableGratificacion / DIAS_SEMESTRE) * diasNoLaboradosTrunca,
+    ),
   );
 
   let vacTruncas = 0;

@@ -19,6 +19,7 @@
  * parámetros legales.
  */
 import { ParametrosLegales } from '../dominio/parametros/parametros-legales';
+import { DiasNoLaboradosPorMes } from '../dominio/conceptos/gratificacion';
 import { calcularBoleta } from '../dominio/motor/calcular-boleta';
 import { crearCalculadoraRegimen } from '../dominio/regimenes/regimen.factory';
 import { calcularDetalleCompleto } from '../dominio/detalle/calcular-detalle-completo';
@@ -62,6 +63,14 @@ export interface ParametrosCalculoDetalle {
    * neto ya sale con el descuento y el recálculo NO los pierde.
    */
   descuentosPrestamos?: DescuentosPrestamosDetalle;
+  /**
+   * Días no laborados (F, S/SUS, LSG) por MES CALENDARIO de los meses
+   * ANTERIORES del año, leídos de las planillas históricas
+   * (`PlanillaPromediosService`). Alimentan la deducción en treintavos de la
+   * gratificación (D.S. 005-2002-TR art. 3.4) en AMBOS motores: el DTO completo
+   * y el de régimen. Ausente = sin ausencias registradas.
+   */
+  diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
 }
 
 /**
@@ -84,6 +93,7 @@ export function calcularDetalleEmpleado(
     ventanaPeriodo: params.ventanaPeriodo,
     acumuladoRenta: params.acumuladoRenta,
     retencionesPreviasRenta: params.retencionesPreviasRenta,
+    diasNoLaboradosMesesPrevios: params.diasNoLaboradosMesesPrevios,
   });
 
   const calculadora = crearCalculadoraRegimen(entrada.regimenLaboral);
@@ -101,6 +111,7 @@ export function calcularDetalleEmpleado(
     promedios: params.promedios,
     empresaAportaSenati: !!empresa.aporta_senati,
     descuentosPrestamos: params.descuentosPrestamos,
+    diasNoLaboradosMesesPrevios: params.diasNoLaboradosMesesPrevios,
   });
   const detalleCompleto = calcularDetalleCompleto(
     entradaDetalle,

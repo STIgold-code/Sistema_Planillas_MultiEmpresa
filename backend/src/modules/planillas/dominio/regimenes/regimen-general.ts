@@ -82,6 +82,7 @@ export class RegimenGeneral implements CalculadoraRegimen {
         remuneracionComputable: this.computableBeneficios(ctx, params),
         mesesTrabajados: ctx.devengados.mesesGratificacion,
         resumenTareo: ctx.resumenTareo,
+        diasNoLaboradosSemestre: ctx.devengados.diasNoLaboradosSemestre,
       },
       1,
     );

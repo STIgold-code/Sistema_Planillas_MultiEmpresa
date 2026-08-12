@@ -190,6 +190,10 @@ export class PlanillasCalcularService {
             promedioBonificaciones: promedios.promedioBonificaciones,
             ultimaGratificacion: promedios.ultimaGratificacion,
           },
+          // Ausencias sin goce de los meses ANTERIORES del semestre: deducen la
+          // gratificación en treintavos (D.S. 005-2002-TR art. 3.4). Las del mes
+          // en curso salen del tareo de esta misma corrida.
+          diasNoLaboradosMesesPrevios: promedios.diasNoLaboradosPorMes,
           parametros: parametrosLegales,
           descuentosPrestamos:
             descuentosPrestamosPorEmpleado.get(empleado.id) ??

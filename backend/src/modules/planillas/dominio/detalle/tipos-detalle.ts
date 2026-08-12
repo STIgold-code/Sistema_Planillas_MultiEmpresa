@@ -15,6 +15,7 @@
  * Naming en español (dominio).
  */
 import { AfiliacionPensionaria } from '../tipos';
+import { DiasNoLaboradosPorMes } from '../conceptos/gratificacion';
 
 /**
  * Descuentos por préstamos y adelantos ya resueltos en el borde de aplicación
@@ -114,6 +115,13 @@ export interface EntradaDetalle {
   trabajadorDomiciliado: boolean;
   /** Meses completos del semestre para gratificación (resuelto en el borde). */
   mesesGratificacion: number;
+  /**
+   * Días NO considerados tiempo efectivamente laborado (faltas, suspensión,
+   * licencia sin goce) por MES CALENDARIO de los meses ANTERIORES del año,
+   * leídos de las planillas ya guardadas. El mes en curso NO viene aquí: sale
+   * del propio tareo de esta corrida. Ausente = sin ausencias registradas.
+   */
+  diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
   /** Meses completos del semestre para CTS (resuelto en el borde). */
   mesesCts: number;
   /** Días sueltos del semestre para CTS (resuelto en el borde). */

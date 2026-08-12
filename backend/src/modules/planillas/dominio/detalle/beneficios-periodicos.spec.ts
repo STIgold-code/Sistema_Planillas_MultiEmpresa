@@ -137,6 +137,127 @@ describe('gratificación trunca — solo meses calendario COMPLETOS (Ley 27735 a
 });
 
 /**
+ * FIX 4 — Deducción de los días NO laborados del semestre.
+ * D.S. 005-2002-TR art. 3.4 (texto según D.S. 017-2002-TR): "El tiempo de
+ * servicios para efectos del cálculo se determina por cada mes calendario
+ * completo laborado en el período correspondiente. Los días que no se consideren
+ * tiempo efectivamente laborado se deducirán a razón de un treintavo de la
+ * fracción correspondiente."
+ *
+ * Computable 1800 → un treintavo del sexto = 1800/180 = S/ 10 por día.
+ */
+describe('gratificación ordinaria — deducción de días no laborados (D.S. 005-2002-TR art. 3.4)', () => {
+  it('REGRESIÓN: sin ausencias registradas paga el íntegro y la bonif 9% completa', () => {
+    const r = calcularGratificacionDetalle(7, 1800, 6, 0.09);
+    expect(r.gratificacionMonto).toBe(1800);
+    expect(r.bonifExtraordinariaMonto).toBe(162);
+  });
+
+  it('julio deduce los días de ENERO a JUNIO (caso real FRANCISCO: 5 días → 175/180)', () => {
+    const r = calcularGratificacionDetalle(7, 1800, 6, 0.09, {
+      2: 3,
+      4: 2,
+    });
+    expect(r.gratificacionMonto).toBe(1750);
+  });
+
+  it('julio IGNORA los días del semestre siguiente (julio-diciembre)', () => {
+    const r = calcularGratificacionDetalle(7, 1800, 6, 0.09, {
+      7: 4,
+      11: 6,
+    });
+    expect(r.gratificacionMonto).toBe(1800);
+  });
+
+  it('diciembre deduce de JULIO a DICIEMBRE, mes en curso incluido (caso real GARRO: 9 días)', () => {
+    const r = calcularGratificacionDetalle(12, 1800, 6, 0.09, {
+      1: 5, // semestre anterior: no deduce
+      8: 5,
+      10: 2,
+      12: 2, // mes en curso
+    });
+    expect(r.gratificacionMonto).toBe(1710); // 1800 × 171/180
+  });
+
+  it('la bonificación extraordinaria 9% se calcula sobre la grati YA deducida', () => {
+    const r = calcularGratificacionDetalle(7, 1800, 6, 0.09, { 3: 5 });
+    expect(r.gratificacionMonto).toBe(1750);
+    expect(r.bonifExtraordinariaMonto).toBe(157.5); // 1750 × 9%
+  });
+
+  it('nunca paga negativo: el piso es 0', () => {
+    const r = calcularGratificacionDetalle(7, 1800, 6, 0.09, { 3: 200 });
+    expect(r.gratificacionMonto).toBe(0);
+    expect(r.bonifExtraordinariaMonto).toBe(0);
+  });
+});
+
+describe('gratificación trunca — treintavos DENTRO de los meses completos', () => {
+  it('REGRESIÓN: cese el 30-jun sin ausencias sigue pagando 6/6', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        remComputableGratificacion: 1800,
+        fechaCese: new Date(2026, 5, 30),
+        diasNoLaboradosPorMes: {},
+      }),
+    );
+    expect(r.gratTrunca).toBe(1800);
+  });
+
+  it('cese el 30-jun con 5 días no laborados en enero-junio paga 175/180', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        remComputableGratificacion: 1800,
+        fechaCese: new Date(2026, 5, 30),
+        diasNoLaboradosPorMes: { 1: 2, 3: 3 },
+      }),
+    );
+    expect(r.gratTrunca).toBe(1750);
+  });
+
+  it('cese el 09-jun ignora los días de JUNIO: junio no es mes completo', () => {
+    // 5 meses completos (ene-may) = 1500, menos 1 treintavo del sexto por el
+    // día de febrero. Los 4 días de junio no se deducen porque junio no aporta
+    // sexto alguno.
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        remComputableGratificacion: 1800,
+        fechaCese: new Date(2026, 5, 9),
+        diasNoLaboradosPorMes: { 2: 1, 6: 4 },
+      }),
+    );
+    expect(r.gratTrunca).toBe(1490);
+  });
+
+  it('cese el 30-nov solo mira julio-noviembre (semestre del cese)', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 11,
+        remComputableGratificacion: 1800,
+        fechaCese: new Date(2026, 10, 30),
+        diasNoLaboradosPorMes: { 3: 6, 7: 3 },
+      }),
+    );
+    expect(r.gratTrunca).toBe(1470); // 1800 × 5/6 − 3 × 10
+  });
+
+  it('nunca paga negativo: el piso es 0', () => {
+    const r = calcularBeneficiosTruncosDetalle(
+      truncos({
+        mes: 6,
+        remComputableGratificacion: 1800,
+        fechaCese: new Date(2026, 5, 30),
+        diasNoLaboradosPorMes: { 1: 200 },
+      }),
+    );
+    expect(r.gratTrunca).toBe(0);
+  });
+});
+
+/**
  * FIX 3 — Vacaciones truncas: dozavos y treintavos desde el ANIVERSARIO de
  * ingreso (D.L. 713 arts. 22-23; D.S. 012-92-TR art. 21), no desde enero.
  */
