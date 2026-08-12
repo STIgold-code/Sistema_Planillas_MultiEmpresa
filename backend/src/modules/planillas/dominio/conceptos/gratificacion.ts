@@ -13,7 +13,12 @@
  * Régimen-variable: vive detrás de `CalculadoraRegimen`. Cada estrategia decide
  * si lo invoca y con qué proporción.
  */
-import { ConceptoBoleta, ResultadoConcepto, ResumenTareo } from '../tipos';
+import {
+  ConceptoBoleta,
+  DatosDevengados,
+  ResultadoConcepto,
+  ResumenTareo,
+} from '../tipos';
 
 export const CLAVE_GRATIFICACION = 'gratificacion';
 
@@ -97,6 +102,34 @@ export function diasNoLaboradosComputables(
   const rango = rangoMesesComputablesGratificacion(mes, mesesComputables);
   if (!rango) return 0;
   return sumarDiasNoLaborados(porMes, rango.desde, rango.hasta);
+}
+
+/**
+ * Remuneración REGULAR computable de la gratificación, ANTES de sumarle la
+ * asignación familiar (que cada estrategia decide si otorga).
+ *
+ * Dos reglas de la misma norma, juntas en un solo lugar para que ningún régimen
+ * las reimplemente a medias:
+ *  - D.S. 005-2002-TR art. 3.2: la remuneración computable es la VIGENTE AL
+ *    CIERRE del semestre (30 de junio / 30 de noviembre), no la del mes en que
+ *    se paga el beneficio. Un aumento posterior al cierre recién computa en el
+ *    semestre siguiente.
+ *  - D.S. 005-2002-TR, remuneración regular: a esa básica se le incorpora el
+ *    promedio de las remuneraciones VARIABLES regulares del semestre (horas
+ *    extras, comisiones, bonificaciones), ya filtrado en `promedioVariables-
+ *    Gratificacion` por la regla de los tres meses y el divisor seis.
+ *
+ * Es la base de la GRATIFICACIÓN ORDINARIA. La CTS conserva la computable del
+ * período (D.S. 001-97-TR art. 9) y la gratificación TRUNCA la vigente al cese
+ * (D.S. 005-2002-TR art. 5): ninguna de las dos usa esta función.
+ */
+export function baseComputableGratificacion(
+  devengados: DatosDevengados,
+): number {
+  return redondear2(
+    devengados.remuneracionCierreSemestre +
+      devengados.promedioVariablesGratificacion,
+  );
 }
 
 export interface EntradaGratificacion {

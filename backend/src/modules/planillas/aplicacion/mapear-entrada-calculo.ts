@@ -125,6 +125,19 @@ export interface ParametrosMapeoEntrada {
    * deriva aquí del propio tareo. Ausente = sin ausencias registradas.
    */
   diasNoLaboradosMesesPrevios?: DiasNoLaboradosPorMes;
+  /**
+   * Remuneración básica vigente al CIERRE del semestre (30-jun / 30-nov),
+   * resuelta contra el historial de contratos (D.S. 005-2002-TR art. 3.2).
+   * Ausente = sin evidencia histórica → se usa la básica del período.
+   */
+  remuneracionCierreSemestre?: number;
+  /** Fecha de cierre del semestre; ausente fuera de julio y diciembre. */
+  fechaCierreSemestre?: Date;
+  /**
+   * Promedio computable de las remuneraciones VARIABLES regulares del semestre,
+   * ya filtrado por la regla de los tres meses (D.S. 005-2002-TR). Ausente = 0.
+   */
+  promedioVariablesGratificacion?: number;
 }
 
 /** Resuelve las horas del día con la prioridad detalle > nomenclatura > default. */
@@ -275,7 +288,21 @@ export function mapearEntradaCalculo(
       fecha: ventana.fechaFin,
     },
     tareo,
-    devengados: { mesesGratificacion, diasNoLaboradosSemestre },
+    // La computable de la GRATIFICACIÓN se resuelve al cierre del semestre y
+    // con el promedio de las variables regulares (D.S. 005-2002-TR art. 3.2 y
+    // remuneración regular). Ambos datos vienen ya resueltos del borde: el
+    // motor de régimen SOBREESCRIBE `gratificacion_monto` del DTO, así que si
+    // no se inyectan aquí, la grati se paga con el sueldo de hoy y sin el
+    // promedio, aunque el DTO auxiliar sí los haya contemplado.
+    devengados: {
+      mesesGratificacion,
+      diasNoLaboradosSemestre,
+      remuneracionCierreSemestre:
+        params.remuneracionCierreSemestre ?? aNumero(empleado.sueldo_base),
+      fechaCierreSemestre: params.fechaCierreSemestre ?? ventana.fechaFin,
+      promedioVariablesGratificacion:
+        params.promedioVariablesGratificacion ?? 0,
+    },
     acumuladoRenta: params.acumuladoRenta ?? 0,
     retencionesPreviasRenta: params.retencionesPreviasRenta ?? 0,
     trabajadorDomiciliado: params.empleado.domiciliado ?? true,

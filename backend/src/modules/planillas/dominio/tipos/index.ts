@@ -160,6 +160,27 @@ export interface DatosDevengados {
    * gratificación a razón de un treintavo del sexto (D.S. 005-2002-TR art. 3.4).
    */
   diasNoLaboradosSemestre: number;
+  /**
+   * Remuneración BÁSICA vigente al CIERRE del semestre (30-jun / 30-nov), base
+   * de la gratificación ordinaria (Ley 27735 art. 3 y D.S. 005-2002-TR
+   * art. 3.2). Se resuelve en el borde contra el historial de contratos; sin
+   * evidencia histórica el borde inyecta la básica del período.
+   */
+  remuneracionCierreSemestre: number;
+  /**
+   * Fecha de cierre del semestre. Resuelve los parámetros legales versionados
+   * que integran la computable de la gratificación (asignación familiar = 10%
+   * de la RMV). Fuera de julio y diciembre el borde inyecta la fecha del
+   * período: no hay gratificación ordinaria y el valor no se usa.
+   */
+  fechaCierreSemestre: Date;
+  /**
+   * Promedio computable que aportan las remuneraciones VARIABLES regulares del
+   * semestre (horas extras, comisiones, bonificaciones). Llega ya filtrado por
+   * la regla de los tres meses y dividido entre seis
+   * (`promedioComputableVariables`, D.S. 005-2002-TR).
+   */
+  promedioVariablesGratificacion: number;
 }
 
 /** Context passed to régimen-varying calculators (derived from EntradaCalculo). */

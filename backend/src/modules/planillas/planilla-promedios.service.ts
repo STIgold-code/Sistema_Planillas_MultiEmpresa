@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { round2, safeNumber } from './planillas.config';
+import { rangoSemestreGratificacion } from './dominio/conceptos/gratificacion';
+import {
+  RemuneracionVariableSemestre,
+  VariablesSemestreGratificacion,
+} from './dominio/conceptos/remuneracion-variable';
 
 /**
  * Promedios históricos de los últimos 6 meses que alimentan el cálculo de CTS y
@@ -24,6 +29,37 @@ export interface PromediosHistoricos {
    * confundirse con el diciembre en curso.
    */
   diasNoLaboradosPorMes: Record<number, number>;
+  /**
+   * Remuneraciones VARIABLES percibidas dentro del SEMESTRE que devenga la
+   * gratificación del período (enero-junio para julio, julio-diciembre para
+   * diciembre), con su suma y los meses en que se percibieron. El dominio
+   * decide con ellas si el concepto es remuneración regular (D.S. 005-2002-TR).
+   *
+   * CRITERIO (documentado, es una decisión): solo entran los meses del semestre
+   * que YA tienen planilla calculada. El mes en curso no aporta su propia
+   * variable: para julio el semestre es enero-junio (julio pertenece al
+   * semestre de diciembre) y para diciembre el promedio se toma del histórico
+   * julio-noviembre, que es el dato disponible en la oportunidad legal de pago
+   * (Ley 27735 art. 5: primera quincena de diciembre).
+   *
+   * Ausente fuera de julio y diciembre: no hay gratificación ordinaria.
+   */
+  variablesSemestre?: VariablesSemestreGratificacion;
+}
+
+/** Acumulador por mes calendario de un concepto variable del semestre. */
+type MontosPorMes = Map<number, number>;
+
+/** Cierra un acumulador: total del semestre y meses con percepción efectiva. */
+function resumirVariable(montos: MontosPorMes): RemuneracionVariableSemestre {
+  let totalSemestre = 0;
+  let mesesPercibidos = 0;
+  for (const monto of montos.values()) {
+    if (monto <= 0) continue;
+    totalSemestre += monto;
+    mesesPercibidos++;
+  }
+  return { totalSemestre: round2(totalSemestre), mesesPercibidos };
 }
 
 /**
@@ -91,6 +127,11 @@ export class PlanillaPromediosService {
     let mesesConDatos = 0;
     let ultimaGratificacion = 0;
     const diasNoLaboradosPorMes: Record<number, number> = {};
+    // Semestre que devenga la gratificación de este período (null fuera de
+    // julio y diciembre). Acota qué meses alimentan las variables regulares.
+    const semestre = rangoSemestreGratificacion(mes);
+    const horasExtrasPorMes: MontosPorMes = new Map();
+    const bonificacionesPorMes: MontosPorMes = new Map();
 
     for (const detalle of detallesAnteriores) {
       if (detalle.planilla.anio === anio) {
@@ -108,11 +149,29 @@ export class PlanillaPromediosService {
         safeNumber(detalle.horas_extras) ||
         safeNumber(detalle.horas_extras_25) +
           safeNumber(detalle.horas_extras_35);
-      totalHorasExtras += he;
-      totalBonificaciones +=
+      const bonificaciones =
         safeNumber(detalle.bonificaciones) +
         safeNumber(detalle.bonificacion_nocturna);
+      totalHorasExtras += he;
+      totalBonificaciones += bonificaciones;
       mesesConDatos++;
+
+      const mesDetalle = detalle.planilla.mes;
+      const esDelSemestre =
+        semestre !== null &&
+        detalle.planilla.anio === anio &&
+        mesDetalle >= semestre.desde &&
+        mesDetalle <= semestre.hasta;
+      if (esDelSemestre) {
+        horasExtrasPorMes.set(
+          mesDetalle,
+          (horasExtrasPorMes.get(mesDetalle) ?? 0) + he,
+        );
+        bonificacionesPorMes.set(
+          mesDetalle,
+          (bonificacionesPorMes.get(mesDetalle) ?? 0) + bonificaciones,
+        );
+      }
 
       if (
         (detalle.planilla.mes === 7 || detalle.planilla.mes === 12) &&
@@ -130,6 +189,18 @@ export class PlanillaPromediosService {
       mesesConDatos > 0 ? round2(totalBonificaciones / mesesConDatos) : 0;
     const mesesTrabajadosSemestre = Math.min(mesesConDatos, 6);
 
+    // El motor no tiene fuente de comisiones todavía: se declara como concepto
+    // sin percepción en vez de omitirlo, para que la regla de regularidad se
+    // aplique igual a los tres conceptos variables.
+    const variablesSemestre: VariablesSemestreGratificacion | undefined =
+      semestre === null
+        ? undefined
+        : {
+            horasExtras: resumirVariable(horasExtrasPorMes),
+            comisiones: { totalSemestre: 0, mesesPercibidos: 0 },
+            bonificaciones: resumirVariable(bonificacionesPorMes),
+          };
+
     return {
       promedioHorasExtras,
       promedioComisiones: 0,
@@ -138,6 +209,7 @@ export class PlanillaPromediosService {
       diasTrabajadosSemestre: 0,
       ultimaGratificacion,
       diasNoLaboradosPorMes,
+      variablesSemestre,
     };
   }
 }

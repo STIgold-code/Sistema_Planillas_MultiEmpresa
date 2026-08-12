@@ -1,9 +1,56 @@
 import {
+  calcularComputablesGratificacion,
   calcularGratificacionDetalle,
   calcularCtsDetalle,
   calcularBeneficiosTruncosDetalle,
   ParametrosBeneficiosTruncos,
+  ParametrosComputablesGratificacion,
 } from './beneficios-periodicos';
+
+describe('calcularComputablesGratificacion', () => {
+  const base = (
+    overrides: Partial<ParametrosComputablesGratificacion> = {},
+  ): ParametrosComputablesGratificacion => ({
+    hayDiasTrabajados: true,
+    sueldoPeriodo: 2000,
+    sueldoCierreSemestre: 1800,
+    asignacionFamiliarPeriodo: 113,
+    asignacionFamiliarCierre: 113,
+    promedioVariables: 0,
+    ...overrides,
+  });
+
+  it('la ORDINARIA se congela al cierre del semestre (art. 3.2)', () => {
+    expect(calcularComputablesGratificacion(base()).ordinaria).toBe(1913);
+  });
+
+  it('la TRUNCA usa la remuneración del período, no la del cierre (art. 5)', () => {
+    expect(calcularComputablesGratificacion(base()).trunca).toBe(2113);
+  });
+
+  it('el promedio de variables regulares entra a las DOS bases', () => {
+    const r = calcularComputablesGratificacion(
+      base({ promedioVariables: 185.25 }),
+    );
+    expect(r.ordinaria).toBe(2098.25);
+    expect(r.trunca).toBe(2298.25);
+  });
+
+  it('sin días devengados no hay base de gratificación', () => {
+    const r = calcularComputablesGratificacion(
+      base({ hayDiasTrabajados: false, promedioVariables: 185.25 }),
+    );
+    expect(r).toEqual({ ordinaria: 0, trunca: 0 });
+  });
+
+  it('la asignación familiar puede diferir entre el cierre y el período', () => {
+    const r = calcularComputablesGratificacion(
+      base({ asignacionFamiliarCierre: 102.5 }),
+    );
+    expect(r.ordinaria).toBe(1902.5);
+    expect(r.trunca).toBe(2113);
+  });
+});
 
 describe('calcularGratificacionDetalle', () => {
   it('paga semestre completo en julio con bonificación 30334 (9%)', () => {

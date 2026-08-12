@@ -60,6 +60,14 @@ function resolverDevengados(
     diasVacaciones: d.diasVacaciones ?? 0,
     // Sin dato histórico no se presume ausencia del trabajador.
     diasNoLaboradosSemestre: d.diasNoLaboradosSemestre ?? 0,
+    // Sin historial de contratos la única evidencia del sueldo del cierre es el
+    // sueldo actual (D.S. 005-2002-TR art. 3.2: se conserva el comportamiento
+    // previo en lugar de inventar un monto).
+    remuneracionCierreSemestre:
+      d.remuneracionCierreSemestre ?? entrada.remuneracionBasica,
+    fechaCierreSemestre: d.fechaCierreSemestre ?? entrada.periodo.fecha,
+    // Sin dato del semestre no se presume percepción de remuneración variable.
+    promedioVariablesGratificacion: d.promedioVariablesGratificacion ?? 0,
   };
 }
 

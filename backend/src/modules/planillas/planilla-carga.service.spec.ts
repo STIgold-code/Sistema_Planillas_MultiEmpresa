@@ -46,3 +46,69 @@ describe('PlanillaCargaService.resolverPeriodoTareo — IDOR cross-tenant (C-5)'
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+describe('PlanillaCargaService.cargarContratosVigencia', () => {
+  function build(contratos: unknown[]) {
+    const findMany = jest.fn().mockResolvedValue(contratos);
+    const prisma = { contrato: { findMany } };
+    const service = new PlanillaCargaService(prisma as never);
+    return { service, findMany };
+  }
+
+  it('scopea por empresa, descarta anulados y exige remuneración registrada', async () => {
+    const { service, findMany } = build([]);
+    const cierre = new Date(2026, 5, 30);
+
+    await service.cargarContratosVigencia(7, [1, 2], cierre);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        empleado_id: { in: [1, 2] },
+        empleado: { empresa_id: 7 },
+        estado: { in: ['ACTIVO', 'PENDIENTE', 'RENOVADO', 'CESADO'] },
+        fecha_inicio: { lte: cierre },
+        remuneracion: { not: null },
+      },
+      select: {
+        empleado_id: true,
+        fecha_inicio: true,
+        fecha_fin: true,
+        remuneracion: true,
+      },
+      orderBy: { fecha_inicio: 'asc' },
+    });
+  });
+
+  it('agrupa el historial por empleado conservando todas sus vigencias', async () => {
+    const { service } = build([
+      {
+        empleado_id: 4,
+        fecha_inicio: new Date(Date.UTC(2020, 0, 1)),
+        fecha_fin: new Date(Date.UTC(2026, 5, 30)),
+        remuneracion: 1800,
+      },
+      {
+        empleado_id: 4,
+        fecha_inicio: new Date(Date.UTC(2026, 6, 1)),
+        fecha_fin: null,
+        remuneracion: 2000,
+      },
+      {
+        empleado_id: 11,
+        fecha_inicio: new Date(Date.UTC(2021, 0, 1)),
+        fecha_fin: null,
+        remuneracion: 1600,
+      },
+    ]);
+
+    const mapa = await service.cargarContratosVigencia(
+      7,
+      [4, 11],
+      new Date(2026, 5, 30),
+    );
+
+    expect(mapa.get(4)).toHaveLength(2);
+    expect(mapa.get(11)).toHaveLength(1);
+    expect(mapa.get(99)).toBeUndefined();
+  });
+});

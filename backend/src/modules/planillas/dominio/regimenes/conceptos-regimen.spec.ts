@@ -104,6 +104,9 @@ const ctxBase = (
     sextoGratificacion: 0,
     diasVacaciones: 0,
     diasNoLaboradosSemestre: 0,
+    remuneracionCierreSemestre: 3000,
+    fechaCierreSemestre: new Date('2026-06-30'),
+    promedioVariablesGratificacion: 0,
   },
   ...overrides,
 });
@@ -132,6 +135,9 @@ describe('conceptosRegimen() — contrato de composición W1', () => {
         sextoGratificacion: 500,
         diasVacaciones: 0,
         diasNoLaboradosSemestre: 0,
+        remuneracionCierreSemestre: 3000,
+        fechaCierreSemestre: new Date('2026-06-30'),
+        promedioVariablesGratificacion: 0,
       },
     });
     const cs = claves(

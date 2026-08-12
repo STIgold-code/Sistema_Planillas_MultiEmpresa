@@ -4,6 +4,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ahoraPeru } from '../../common/utils/datetime.util';
 import { RegimenNoCertificadoError } from './aplicacion/guardia-certificacion';
 import { calcularDetalleEmpleado } from './aplicacion/calcular-detalle-empleado';
+import {
+  ContratoVigencia,
+  fechaCierreSemestreGratificacion,
+} from './aplicacion/cierre-semestre-gratificacion';
 import { EmpleadoParaMapeo } from './aplicacion/mapear-entrada-calculo';
 import { EmpleadoParaDetalle } from './aplicacion/mapear-entrada-detalle';
 import { PlanillaPromediosService } from './planilla-promedios.service';
@@ -130,6 +134,22 @@ export class PlanillasCalcularService {
         fechaFinPeriodo,
       );
 
+    // Historial de contratos hasta el CIERRE del semestre: la gratificación
+    // ordinaria se paga con la remuneración vigente al 30-jun / 30-nov
+    // (D.S. 005-2002-TR art. 3.2), no con el sueldo de hoy. Solo se consulta en
+    // los meses que devengan gratificación.
+    const fechaCierreSemestre = fechaCierreSemestreGratificacion(
+      planilla.mes,
+      planilla.anio,
+    );
+    const contratosVigenciaPorEmpleado = fechaCierreSemestre
+      ? await this.carga.cargarContratosVigencia(
+          empresaId,
+          empleados.map((e) => e.id),
+          fechaCierreSemestre,
+        )
+      : new Map<number, ContratoVigencia[]>();
+
     const detalles: Prisma.PlanillaDetalleCreateManyInput[] = [];
     const warnings: CalculoWarning[] = [];
     let totalBruto = 0;
@@ -189,7 +209,14 @@ export class PlanillasCalcularService {
             promedioComisiones: promedios.promedioComisiones,
             promedioBonificaciones: promedios.promedioBonificaciones,
             ultimaGratificacion: promedios.ultimaGratificacion,
+            // Variables del semestre (horas extras, comisiones, bonificaciones):
+            // el dominio decide con ellas si son remuneración REGULAR y entran a
+            // la computable de la gratificación (D.S. 005-2002-TR).
+            variablesSemestre: promedios.variablesSemestre,
           },
+          // Historial de contratos: resuelve la remuneración vigente al cierre
+          // del semestre, base de la gratificación ordinaria (art. 3.2).
+          contratosVigencia: contratosVigenciaPorEmpleado.get(empleado.id),
           // Ausencias sin goce de los meses ANTERIORES del semestre: deducen la
           // gratificación en treintavos (D.S. 005-2002-TR art. 3.4). Las del mes
           // en curso salen del tareo de esta misma corrida.

@@ -123,6 +123,9 @@ describe('calcular-boleta — orquestación por régimen (C-3, C-4)', () => {
         sextoGratificacion: 0,
         diasVacaciones: 0,
         diasNoLaboradosSemestre: 0,
+        remuneracionCierreSemestre: 2680,
+        fechaCierreSemestre: entrada.periodo.fecha,
+        promedioVariablesGratificacion: 0,
       },
       categoriaConstruccion: CategoriaConstruccion.OPERARIO,
     };
