@@ -121,11 +121,14 @@ export class PlantillasContratoDocsService {
     );
     const key = `plantillas/${filename}`;
 
-    // Subir a Wasabi o Local
+    // Subir a Wasabi o Local.
+    // MULTIEMPRESA: la propiedad se registra con la empresa DUEÑA de la
+    // plantilla (parametro explicito), no con la del contexto del request.
     const storedPath = await this.uploadsService.uploadFile(
       fileBuffer,
       key,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      { empresa_id: empresaId },
     );
 
     // Eliminar archivo temporal local
@@ -511,10 +514,13 @@ export class PlantillasContratoDocsService {
     );
     const key = `plantillas/${filename}`;
 
+    // MULTIEMPRESA: empresa duena = la de la plantilla (validada en
+    // findPlantilla), no la del contexto del request.
     const storedPath = await this.uploadsService.uploadFile(
       fileBuffer,
       key,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      { empresa_id: empresaId },
     );
 
     // Eliminar archivo temporal

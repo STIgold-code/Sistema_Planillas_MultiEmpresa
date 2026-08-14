@@ -87,10 +87,14 @@ export class PostulanteDocumentosService {
       filename,
     );
 
+    // MULTIEMPRESA: la propiedad del archivo se registra con la empresa del
+    // POSTULANTE, no con la del contexto del request (un superadmin operando
+    // sobre otra empresa dependeria del header de empresa activa).
     const storedPath = await this.uploadsService.uploadFile(
       file.buffer,
       key,
       file.mimetype,
+      { empresa_id: postulante.empresa_id, subido_por_id: usuarioId ?? null },
     );
 
     const documento = await this.prisma.postulanteDocumento.create({
@@ -169,10 +173,12 @@ export class PostulanteDocumentosService {
       filename,
     );
 
+    // MULTIEMPRESA: empresa duena = la del postulante.
     const storedPath = await this.uploadsService.uploadFile(
       file.buffer,
       key,
       file.mimetype,
+      { empresa_id: postulante.empresa_id, subido_por_id: usuarioId },
     );
 
     let nuevoDocumento: Prisma.PostulanteDocumentoGetPayload<{

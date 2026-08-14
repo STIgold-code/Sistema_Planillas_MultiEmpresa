@@ -2,7 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { UploadsService } from './uploads.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RequestContextService } from '../../common/context/request-context.service';
 import type { Archivo } from '@prisma/client';
+
+/**
+ * El almacenamiento local escribe en disco (y el constructor del servicio crea
+ * los directorios de uploads). Se aísla el sistema de archivos para que estos
+ * tests validen solo el comportamiento del servicio, sin efectos colaterales.
+ */
+jest.mock('fs', () => ({
+  ...jest.requireActual<typeof import('fs')>('fs'),
+  existsSync: jest.fn().mockReturnValue(true),
+  mkdirSync: jest.fn(),
+  writeFileSync: jest.fn(),
+}));
 
 /**
  * Tests del bloqueo de mass assignment cross-tenant en resolverKeyPropia.
@@ -78,5 +91,131 @@ describe('UploadsService.resolverKeyPropia (anti mass-assignment / IDOR)', () =>
       service.resolverKeyPropia(null, EMPRESA_A),
     ).resolves.toBeNull();
     expect(prisma.archivo.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `uploadFile` sube el binario pero durante mucho tiempo NO registraba la
+ * propiedad en `archivos`. El endpoint protegido /files/key/:key autoriza
+ * contra ese registro, así que esos documentos respondían 404 aunque el archivo
+ * existiera en el storage: se subían documentos que después no se podían ver.
+ */
+describe('UploadsService.uploadFile (registro de propiedad)', () => {
+  /** Argumentos del upsert que registra la propiedad del archivo. */
+  interface ArgsUpsertArchivo {
+    where: { key: string };
+    create: {
+      key: string;
+      empresa_id: number;
+      categoria: string;
+      publico: boolean;
+      subido_por_id: number | null;
+      mime: string | null;
+      size: number | null;
+    };
+  }
+
+  let service: UploadsService;
+  let prisma: { archivo: { upsert: jest.Mock; findUnique: jest.Mock } };
+  let upserts: ArgsUpsertArchivo[];
+
+  const EMPRESA_DUENA = 42;
+  const CONTEXTO_VACIO = RequestContextService.createEmptyContext();
+
+  beforeEach(async () => {
+    upserts = [];
+    prisma = {
+      archivo: {
+        upsert: jest.fn().mockImplementation((args: ArgsUpsertArchivo) => {
+          upserts.push(args);
+          return Promise.resolve(null);
+        }),
+        findUnique: jest.fn(),
+      },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [UploadsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+
+    service = module.get<UploadsService>(UploadsService);
+  });
+
+  it('registra el archivo subido con el empresa_id EXPLICITO del dueño', async () => {
+    const contenido = Buffer.from('contenido-pdf');
+
+    const key = await service.uploadFile(
+      contenido,
+      'documentos/7/doc_contrato.pdf',
+      'application/pdf',
+      { empresa_id: EMPRESA_DUENA, subido_por_id: 3 },
+    );
+
+    expect(key).toBe('documentos/7/doc_contrato.pdf');
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0].where).toEqual({ key: 'documentos/7/doc_contrato.pdf' });
+    expect(upserts[0].create).toMatchObject({
+      key: 'documentos/7/doc_contrato.pdf',
+      empresa_id: EMPRESA_DUENA,
+      // La categoría se deriva del primer segmento de la key.
+      categoria: 'documentos',
+      publico: false,
+      subido_por_id: 3,
+      mime: 'application/pdf',
+      size: contenido.length,
+    });
+  });
+
+  it('el empresa_id explícito GANA sobre el del contexto del request', async () => {
+    // Escenario real: superadmin con empresa activa 1 sube un documento de un
+    // postulante de la empresa 42. Sin el parámetro explícito el archivo
+    // quedaría registrado en la empresa 1 y sería inaccesible para la 42.
+    await RequestContextService.run(
+      { ...CONTEXTO_VACIO, empresaId: 1, userId: 99 },
+      async () => {
+        await service.uploadFile(
+          Buffer.from('x'),
+          'postulantes/5/doc_cv.pdf',
+          'application/pdf',
+          { empresa_id: EMPRESA_DUENA, subido_por_id: 3 },
+        );
+      },
+    );
+
+    expect(upserts[0].create).toMatchObject({
+      empresa_id: EMPRESA_DUENA,
+      categoria: 'postulantes',
+      subido_por_id: 3,
+    });
+  });
+
+  it('sin empresa explícita cae al contexto del request', async () => {
+    await RequestContextService.run(
+      { ...CONTEXTO_VACIO, empresaId: 8, userId: 99 },
+      async () => {
+        await service.uploadFile(
+          Buffer.from('x'),
+          'plantillas/plantilla_base.docx',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+      },
+    );
+
+    expect(upserts[0].create).toMatchObject({
+      empresa_id: 8,
+      categoria: 'plantillas',
+      subido_por_id: 99,
+    });
+  });
+
+  it('sin empresa resoluble NO registra propiedad', async () => {
+    await service.uploadFile(
+      Buffer.from('x'),
+      'temp/suelto.pdf',
+      'application/pdf',
+    );
+
+    expect(prisma.archivo.upsert).not.toHaveBeenCalled();
+    expect(upserts).toHaveLength(0);
   });
 });
