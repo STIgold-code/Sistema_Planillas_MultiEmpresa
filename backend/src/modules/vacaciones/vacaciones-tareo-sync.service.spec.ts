@@ -67,6 +67,19 @@ const PERIODO_JULIO_CALENDARIO: PeriodoMock = {
   fecha_fin: fechaBd(2026, 7, 31),
 };
 
+/** Filtro en lote sobre `TareoDetalle`: un tareo y un conjunto de ordinales. */
+interface WhereLoteDetalle {
+  tareo_id: number;
+  dia: { in: number[] };
+}
+
+/** Fila de `TareoDetalle` en un createMany: sin tipo => detalle vacío del tareo. */
+interface DetalleCreado {
+  tareo_id: number;
+  dia: number;
+  tipo_marcacion_id?: number | null;
+}
+
 function construirPrisma(periodos: PeriodoMock[]) {
   const capturado: { periodos?: ArgsFindManyPeriodos } = {};
   const periodoFindMany = jest
@@ -93,28 +106,44 @@ function construirPrisma(periodos: PeriodoMock[]) {
     tareo: { findFirst: tareoFindFirst, create: jest.fn() },
     empleado: { findUnique: jest.fn().mockResolvedValue(null) },
     tareoDetalle: {
-      findFirst: jest
+      // Por defecto el tareo ya tiene creados todos sus detalles, así que el
+      // marcado en lote resuelve todo por updateMany. Los tests que ejercitan
+      // los días faltantes sobreescriben este mock.
+      findMany: jest
         .fn()
-        .mockImplementation(
-          ({ where }: { where: { tareo_id: number; dia: number } }) => {
-            diasMarcados.push({ tareo_id: where.tareo_id, dia: where.dia });
-            return Promise.resolve({ id: where.tareo_id * 100 + where.dia });
-          },
+        .mockImplementation(({ where }: { where: WhereLoteDetalle }) =>
+          Promise.resolve(where.dia.in.map((dia) => ({ dia }))),
         ),
-      update: jest.fn().mockResolvedValue({}),
-      create: jest.fn().mockResolvedValue({}),
       createMany: jest
         .fn()
-        .mockImplementation(({ data }: { data: DiaMarcado[] }) => {
-          detallesCreados.push(...data);
+        .mockImplementation(({ data }: { data: DetalleCreado[] }) => {
+          for (const fila of data) {
+            // Sin tipo_marcacion_id => es la creación inicial del tareo;
+            // con tipo => es un día de vacaciones marcado directo al crear.
+            const destino =
+              fila.tipo_marcacion_id == null ? detallesCreados : diasMarcados;
+            destino.push({ tareo_id: fila.tareo_id, dia: fila.dia });
+          }
           return Promise.resolve({ count: data.length });
         }),
       updateMany: jest
         .fn()
-        .mockImplementation(({ where }: { where: DiaMarcado }) => {
-          diasLimpiados.push({ tareo_id: where.tareo_id, dia: where.dia });
-          return Promise.resolve({ count: 1 });
-        }),
+        .mockImplementation(
+          ({
+            where,
+            data,
+          }: {
+            where: WhereLoteDetalle;
+            data: { tipo_marcacion_id: number | null };
+          }) => {
+            const destino =
+              data.tipo_marcacion_id === null ? diasLimpiados : diasMarcados;
+            for (const dia of where.dia.in) {
+              destino.push({ tareo_id: where.tareo_id, dia });
+            }
+            return Promise.resolve({ count: where.dia.in.length });
+          },
+        ),
     },
     tareoJustificacion: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -252,5 +281,94 @@ describe('VacacionesTareoSyncService — períodos por solape de ventana', () =>
     expect(resultado.diasMarcados).toBe(11);
     expect(ordinalesDe(diasLimpiados, 100)).toEqual([25, 26, 27, 28, 29, 30]);
     expect(ordinalesDe(diasLimpiados, 110)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+/**
+ * El marcado y la reversión deben resolverse en un número FIJO de consultas por
+ * período, no una por día: una vacación de 30 días generaba ~60 round-trips
+ * secuenciales a la BD.
+ */
+describe('VacacionesTareoSyncService — marcado y reversión en lote', () => {
+  it('marca todo el período con findMany + updateMany, sin una consulta por día', async () => {
+    const { service, prisma, diasMarcados } = construirPrisma([
+      PERIODO_JULIO_CALENDARIO,
+    ]);
+
+    await service.sincronizarConTareo(SOLICITUD, 1);
+
+    // 11 días => 1 findMany + 1 updateMany, y ningún createMany de marcación.
+    expect(prisma.tareoDetalle.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.tareoDetalle.createMany).not.toHaveBeenCalled();
+
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenCalledWith({
+      where: {
+        tareo_id: 200,
+        dia: { in: [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30] },
+      },
+      data: { tipo_marcacion_id: 9 },
+    });
+    expect(ordinalesDe(diasMarcados, 200)).toHaveLength(11);
+  });
+
+  it('los días sin detalle previo se crean marcados en un solo createMany', async () => {
+    const { service, prisma, diasMarcados } = construirPrisma([
+      PERIODO_JULIO_CALENDARIO,
+    ]);
+    // Solo existen los detalles del 20 al 24; del 25 al 30 faltan.
+    prisma.tareoDetalle.findMany.mockResolvedValue([
+      { dia: 20 },
+      { dia: 21 },
+      { dia: 22 },
+      { dia: 23 },
+      { dia: 24 },
+    ]);
+
+    const resultado = await service.sincronizarConTareo(SOLICITUD, 1);
+
+    expect(resultado.diasMarcados).toBe(11);
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.tareoDetalle.createMany).toHaveBeenCalledTimes(1);
+    expect(prisma.tareoDetalle.createMany).toHaveBeenCalledWith({
+      data: [25, 26, 27, 28, 29, 30].map((dia) => ({
+        tareo_id: 200,
+        dia,
+        tipo_marcacion_id: 9,
+      })),
+    });
+    expect(ordinalesDe(diasMarcados, 200)).toEqual([
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    ]);
+  });
+
+  it('la reversión usa un único updateMany por período con dia IN (...)', async () => {
+    const { service, prisma } = construirPrisma([
+      PERIODO_JULIO_CON_CORTE,
+      PERIODO_AGOSTO_CON_CORTE,
+    ]);
+
+    await service.revertirSincronizacion(SOLICITUD);
+
+    // Dos períodos afectados => exactamente dos updateMany, no uno por día.
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { tareo_id: 100, dia: { in: [25, 26, 27, 28, 29, 30] } },
+      data: { tipo_marcacion_id: null },
+    });
+    expect(prisma.tareoDetalle.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { tareo_id: 110, dia: { in: [1, 2, 3, 4, 5] } },
+      data: { tipo_marcacion_id: null },
+    });
+  });
+
+  it('la reversión suma los días REALMENTE limpiados, no los esperados', async () => {
+    const { service, prisma } = construirPrisma([PERIODO_JULIO_CALENDARIO]);
+    // El tareo solo tenía 4 de los 11 días con detalle persistido.
+    prisma.tareoDetalle.updateMany.mockResolvedValue({ count: 4 });
+
+    const resultado = await service.revertirSincronizacion(SOLICITUD);
+
+    expect(resultado.diasMarcados).toBe(4);
   });
 });

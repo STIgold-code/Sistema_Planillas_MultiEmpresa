@@ -204,10 +204,15 @@ export class EmpleadoDocumentosService {
     this.logger.log(`Key generada: ${key}`);
     this.logger.log('Subiendo archivo...');
 
+    // MULTIEMPRESA: la propiedad del archivo se registra con la empresa del
+    // EMPLEADO (ya validada arriba), no con la del contexto del request: un
+    // superadmin subiendo para otra empresa dejaria el archivo registrado en la
+    // empresa equivocada y por tanto inaccesible.
     const storedPath = await this.uploadsService.uploadFile(
       file.buffer,
       key,
       file.mimetype,
+      { empresa_id: empresaId, subido_por_id: usuarioId ?? null },
     );
 
     this.logger.log(`Archivo subido exitosamente!`);
@@ -509,10 +514,12 @@ export class EmpleadoDocumentosService {
       filename,
     );
 
+    // MULTIEMPRESA: empresa duena = la del empleado (validada en findEmpleado).
     const storedPath = await this.uploadsService.uploadFile(
       file.buffer,
       key,
       file.mimetype,
+      { empresa_id: empresaId, subido_por_id: usuarioId },
     );
 
     // Transacción: desactivar versión anterior + crear nueva versión

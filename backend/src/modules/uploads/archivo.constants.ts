@@ -17,6 +17,10 @@ export const CATEGORIA_ARCHIVO = {
   FIRMAS: 'firmas',
   ASSETS: 'assets',
   DOCUMENTOS: 'documentos',
+  /** Documentos de postulantes de seleccion (prefijo `postulantes/`). */
+  POSTULANTES: 'postulantes',
+  /** Documentos generados desde plantilla (prefijo `documentos_generados/`). */
+  DOCUMENTOS_GENERADOS: 'documentos_generados',
   CONTRATOS: 'contratos',
   PLANTILLAS: 'plantillas',
   EVALUACIONES: 'evaluaciones',

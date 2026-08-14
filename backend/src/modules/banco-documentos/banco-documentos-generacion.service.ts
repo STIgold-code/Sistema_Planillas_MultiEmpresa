@@ -393,12 +393,16 @@ export class BancoDocumentosGeneracionService {
       variables,
     );
 
-    // Subir el archivo generado
+    // Subir el archivo generado.
+    // MULTIEMPRESA: la propiedad se registra con la empresa DUEÑA del empleado
+    // y de la plantilla (ambas validadas arriba contra `empresaId`), no con la
+    // del contexto del request.
     const outputKey = `documentos_generados/${filename}`;
     const archivoUrl = await this.uploadsService.uploadFile(
       buffer,
       outputKey,
       mimeType,
+      { empresa_id: empresaId, subido_por_id: usuarioId },
     );
 
     // Crear el documento generado en la BD

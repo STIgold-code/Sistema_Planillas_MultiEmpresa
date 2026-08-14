@@ -35,7 +35,7 @@ import { s3Client, bucketName, useWasabi } from '../../config/wasabi.config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestContextService } from '../../common/context/request-context.service';
 import { obtenerMensajeError } from '../../common/utils/error.util';
-import { esCategoriaPublica } from './archivo.constants';
+import { CATEGORIA_ARCHIVO, esCategoriaPublica } from './archivo.constants';
 import { extraerKeyDeValor } from './archivo-key.util';
 import type { Archivo } from '@prisma/client';
 
@@ -253,12 +253,27 @@ export class UploadsService {
   }
 
   /**
-   * Sube un archivo al almacenamiento (local o Wasabi)
+   * Sube un archivo al almacenamiento (local o Wasabi) y registra su propiedad
+   * en la tabla `archivos`.
+   *
+   * SEGURIDAD: el endpoint protegido `/files/key/:key` autoriza contra ese
+   * registro (ver `authorizeArchivo`); un archivo subido sin registrar responde
+   * 404 aunque el binario exista en el storage. La categoria se deriva del
+   * primer segmento de la key, igual que hace `processUpload` con su parametro
+   * `categoria`.
+   *
+   * MULTIEMPRESA: el llamador debe pasar en `registro.empresa_id` la empresa
+   * DUEÑA del archivo (la del empleado, postulante o plantilla). Si se omite,
+   * `registrarArchivo` cae al `empresa_id` del contexto del request, lo cual es
+   * fragil: un superadmin operando sobre otra empresa depende de que el header
+   * de empresa activa este puesto, y si no lo esta el archivo queda registrado
+   * en la empresa equivocada (o no se registra).
    */
   async uploadFile(
     buffer: Buffer,
     key: string,
     mimetype: string,
+    registro: ProcessUploadOptions = {},
   ): Promise<string> {
     if (useWasabi && s3Client) {
       // Subir a Wasabi S3
@@ -271,7 +286,6 @@ export class UploadsService {
         }),
       );
       this.logger.log(`Archivo subido a Wasabi: ${key}`);
-      return key;
     } else {
       // Guardar localmente usando la estructura de carpetas nueva
       const filePath = join(UPLOADS_DIR, key);
@@ -284,8 +298,18 @@ export class UploadsService {
 
       writeFileSync(filePath, buffer);
       this.logger.log(`Archivo guardado localmente: ${key}`);
-      return key;
     }
+
+    await this.registrarArchivo(key, {
+      categoria: key.split('/')[0] || CATEGORIA_ARCHIVO.TEMP,
+      mime: mimetype,
+      size: buffer.length,
+      empresa_id: registro.empresa_id,
+      subido_por_id: registro.subido_por_id,
+      publico: registro.publico,
+    });
+
+    return key;
   }
 
   /**

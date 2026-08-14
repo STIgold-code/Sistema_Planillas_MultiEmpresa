@@ -152,34 +152,38 @@ export class VacacionesTareoSyncService {
 
         if (diasVacacionesEnPeriodo.length === 0) continue;
 
-        // Marcar cada día como VAC
-        for (const dia of diasVacacionesEnPeriodo) {
-          // Buscar o crear el detalle del día
-          const detalle = await this.prisma.tareoDetalle.findFirst({
-            where: {
-              tareo_id: tareo.id,
-              dia: dia,
-            },
-          });
+        // Marcar los días ordinales como VAC EN LOTE. Ir día por día
+        // (findFirst + update/create) generaba decenas de round-trips
+        // secuenciales por período en una vacación larga; ahora son 3 consultas
+        // fijas: una para resolver qué días ya existen, un updateMany y un
+        // createMany.
+        const detallesExistentes = await this.prisma.tareoDetalle.findMany({
+          where: { tareo_id: tareo.id, dia: { in: diasVacacionesEnPeriodo } },
+          select: { dia: true },
+        });
+        const diasExistentes = detallesExistentes.map((detalle) => detalle.dia);
+        const diasFaltantes = diasVacacionesEnPeriodo.filter(
+          (dia) => !diasExistentes.includes(dia),
+        );
 
-          if (detalle) {
-            // Actualizar si existe
-            await this.prisma.tareoDetalle.update({
-              where: { id: detalle.id },
-              data: { tipo_marcacion_id: tipoVAC.id },
-            });
-          } else {
-            // Crear si no existe
-            await this.prisma.tareoDetalle.create({
-              data: {
-                tareo_id: tareo.id,
-                dia: dia,
-                tipo_marcacion_id: tipoVAC.id,
-              },
-            });
-          }
-          resultado.diasMarcados++;
+        if (diasExistentes.length > 0) {
+          await this.prisma.tareoDetalle.updateMany({
+            where: { tareo_id: tareo.id, dia: { in: diasExistentes } },
+            data: { tipo_marcacion_id: tipoVAC.id },
+          });
         }
+
+        if (diasFaltantes.length > 0) {
+          await this.prisma.tareoDetalle.createMany({
+            data: diasFaltantes.map((dia) => ({
+              tareo_id: tareo.id,
+              dia,
+              tipo_marcacion_id: tipoVAC.id,
+            })),
+          });
+        }
+
+        resultado.diasMarcados += diasVacacionesEnPeriodo.length;
 
         // Crear justificación vinculada a la solicitud de vacaciones.
         // dia_inicio/dia_fin son ordinales del período, igual que TareoDetalle.dia.
@@ -330,17 +334,15 @@ export class VacacionesTareoSyncService {
           fechaFin,
         );
 
-        // Limpiar marcación de cada día (poner null)
-        for (const dia of diasVacacionesEnPeriodo) {
-          await this.prisma.tareoDetalle.updateMany({
-            where: {
-              tareo_id: tareo.id,
-              dia: dia,
-            },
-            data: { tipo_marcacion_id: null },
-          });
-          resultado.diasMarcados++;
-        }
+        if (diasVacacionesEnPeriodo.length === 0) continue;
+
+        // Limpiar la marcación de todo el rango de ordinales en una sola
+        // operación (antes era un updateMany por día).
+        const limpiados = await this.prisma.tareoDetalle.updateMany({
+          where: { tareo_id: tareo.id, dia: { in: diasVacacionesEnPeriodo } },
+          data: { tipo_marcacion_id: null },
+        });
+        resultado.diasMarcados += limpiados.count;
       }
 
       this.logger.log(
