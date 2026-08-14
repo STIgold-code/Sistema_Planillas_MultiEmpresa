@@ -207,6 +207,34 @@ export const initialRenovarForm: RenovarForm = {
   cargo_id: "",
 };
 
+// ─── Resiliencia por sección ─────────────────────────────────────────────────
+
+/**
+ * Etiqueta de la sección de estadísticas. Se exporta porque la página la
+ * excluye del aviso general: las tarjetas tienen su propio mensaje en sitio.
+ */
+export const SECCION_ESTADISTICAS = "Estadísticas";
+
+/**
+ * Envuelve una llamada del dashboard para que el fallo de un endpoint no tumbe
+ * la página completa: devuelve el valor por defecto y registra la sección en
+ * `fallidas` para poder avisar al usuario dónde faltan datos.
+ */
+async function cargarSeccion<T>(
+  seccion: string,
+  promesa: Promise<T>,
+  porDefecto: T,
+  fallidas: string[],
+): Promise<T> {
+  try {
+    return await promesa;
+  } catch (err) {
+    fallidas.push(seccion);
+    console.error(`Dashboard: no se pudo cargar "${seccion}"`, err);
+    return porDefecto;
+  }
+}
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useDashboard() {
@@ -260,6 +288,9 @@ export function useDashboard() {
   const [procesandoCorreccion, setProcesandoCorreccion] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Secciones cuyo endpoint falló en la última carga. El resto del dashboard
+  // sigue disponible; solo se avisa dónde faltan datos.
+  const [seccionesConError, setSeccionesConError] = useState<string[]>([]);
   const [redirecting, setRedirecting] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState({
@@ -316,6 +347,9 @@ export function useDashboard() {
   const [solicitandoCese, setSolicitandoCese] = useState(false);
 
   const fetchDashboardData = async () => {
+    // Cada endpoint se resuelve por separado: si uno falla, esa sección queda
+    // vacía (o sin estadísticas) pero el resto del dashboard sigue visible.
+    const fallidas: string[] = [];
     try {
       const [
         statsRes,
@@ -330,42 +364,88 @@ export function useDashboard() {
         bajasRes,
         requerimientosRes,
       ] = await Promise.all([
-        api.get<DashboardStats>("/dashboard/stats"),
-        api.get<ContratoPorVencer[]>("/dashboard/contratos-por-vencer"),
-        api.get<EmpleadoPendiente[]>("/dashboard/empleados-pendientes"),
-        api.get<EmpleadoCesado[]>("/dashboard/empleados-cesados"),
-        api.get<SolicitudCesePendiente[]>(
-          "/dashboard/solicitudes-cese-pendientes",
+        cargarSeccion<DashboardStats | null>(
+          SECCION_ESTADISTICAS,
+          api.get<DashboardStats>("/dashboard/stats"),
+          null,
+          fallidas,
         ),
-        api
-          .get<
-            SolicitudAnulacionPendiente[]
-          >("/dashboard/solicitudes-anulacion-pendientes")
-          .catch(() => [] as SolicitudAnulacionPendiente[]),
+        cargarSeccion<ContratoPorVencer[]>(
+          "Contratos por vencer",
+          api.get<ContratoPorVencer[]>("/dashboard/contratos-por-vencer"),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<EmpleadoPendiente[]>(
+          "Empleados pendientes",
+          api.get<EmpleadoPendiente[]>("/dashboard/empleados-pendientes"),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<EmpleadoCesado[]>(
+          "Empleados cesados",
+          api.get<EmpleadoCesado[]>("/dashboard/empleados-cesados"),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<SolicitudCesePendiente[]>(
+          "Solicitudes de cese",
+          api.get<SolicitudCesePendiente[]>(
+            "/dashboard/solicitudes-cese-pendientes",
+          ),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<SolicitudAnulacionPendiente[]>(
+          "Solicitudes de anulación",
+          api.get<SolicitudAnulacionPendiente[]>(
+            "/dashboard/solicitudes-anulacion-pendientes",
+          ),
+          [],
+          fallidas,
+        ),
         // El módulo expone su propio listado paginado; no hay endpoint en
         // /dashboard para no engordar ese servicio con otro include duplicado.
         hasPermission(usuario, "contratos:leer")
-          ? api
-              .get<{
-                data: SolicitudCorreccionFecha[];
-              }>("/solicitudes-correccion-fechas?estado=PENDIENTE&limit=100")
-              .then((res) => res?.data ?? [])
-              .catch(() => [] as SolicitudCorreccionFecha[])
+          ? cargarSeccion<SolicitudCorreccionFecha[]>(
+              "Correcciones de fechas",
+              api
+                .get<{
+                  data: SolicitudCorreccionFecha[];
+                }>("/solicitudes-correccion-fechas?estado=PENDIENTE&limit=100")
+                .then((res) => res?.data ?? []),
+              [],
+              fallidas,
+            )
           : Promise.resolve([] as SolicitudCorreccionFecha[]),
-        api.get<{ id: number; nombre: string; activo: boolean }[]>(
-          "/masters/tipos-cese",
+        cargarSeccion<{ id: number; nombre: string; activo: boolean }[]>(
+          "Tipos de cese",
+          api.get<{ id: number; nombre: string; activo: boolean }[]>(
+            "/masters/tipos-cese",
+          ),
+          [],
+          fallidas,
         ),
-        api
-          .get<SolicitudDescuento[]>("/inventario/descuentos/pendientes")
-          .catch(() => [] as SolicitudDescuento[]),
-        api
-          .get<SolicitudBaja[]>("/inventario/bajas/pendientes")
-          .catch(() => [] as SolicitudBaja[]),
-        api
-          .get<
-            RequerimientoPendienteAprobacion[]
-          >("/inventario/requerimientos/pendientes-aprobacion")
-          .catch(() => [] as RequerimientoPendienteAprobacion[]),
+        cargarSeccion<SolicitudDescuento[]>(
+          "Descuentos pendientes",
+          api.get<SolicitudDescuento[]>("/inventario/descuentos/pendientes"),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<SolicitudBaja[]>(
+          "Bajas pendientes",
+          api.get<SolicitudBaja[]>("/inventario/bajas/pendientes"),
+          [],
+          fallidas,
+        ),
+        cargarSeccion<RequerimientoPendienteAprobacion[]>(
+          "Requerimientos pendientes",
+          api.get<RequerimientoPendienteAprobacion[]>(
+            "/inventario/requerimientos/pendientes-aprobacion",
+          ),
+          [],
+          fallidas,
+        ),
       ]);
       setStats(statsRes);
       setContratosPorVencer(Array.isArray(contratosRes) ? contratosRes : []);
@@ -386,8 +466,12 @@ export function useDashboard() {
       setRequerimientosPendientes(
         Array.isArray(requerimientosRes) ? requerimientosRes : [],
       );
+      setError(null);
+      setSeccionesConError(fallidas);
     } catch (err) {
-      setError("Error al cargar las estadisticas");
+      // Cada endpoint ya trae su propio fallback, así que llegar acá significa
+      // un fallo inesperado del propio dashboard, no de una sección.
+      setError("No se pudo cargar el dashboard. Recarga la página.");
       console.error("Dashboard fetch error:", err);
     } finally {
       setLoading(false);
@@ -796,6 +880,7 @@ export function useDashboard() {
     solicitudesCese,
     loading,
     error,
+    seccionesConError,
     redirecting,
     // Sections
     expandedSections,

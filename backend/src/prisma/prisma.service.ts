@@ -30,6 +30,46 @@ const TABLAS_SIN_UPDATE_AUDIT = new Set([
 ]);
 
 /**
+ * Modelos cuya auditoría es evidencia legal, no telemetría: ante SUNAT, ante el
+ * MTPE y ante el propio trabajador hay que poder demostrar quién tocó un
+ * sueldo, un préstamo, un parámetro legal o una boleta ya aprobada.
+ *
+ * Para estos modelos el registro de auditoría se ESPERA antes de responder. El
+ * `setImmediate` del resto de tablas es fire-and-forget: si el proceso muere
+ * entre la operación y el callback (un redeploy de Railway reinicia el
+ * contenedor sin drenar la cola de tareas), la traza se pierde sin dejar
+ * rastro. El resto de tablas mantiene el registro diferido para no penalizar
+ * la latencia de las operaciones de alto volumen.
+ *
+ * Los nombres son los de los MODELOS de Prisma (`prisma/schema.prisma`), no los
+ * de las tablas: `params.model` entrega el nombre del modelo. Un nombre que no
+ * exista en el schema convierte el filtro en decorativo — hay un test que
+ * valida cada entrada contra el schema.
+ */
+export const MODELOS_AUDITORIA_CRITICA = new Set([
+  // Control de acceso: quién pudo entrar y con qué permisos operar la planilla
+  'Empresa',
+  'Usuario',
+  'Rol',
+  // Relación laboral y remuneración pactada
+  'Empleado',
+  'Contrato',
+  // Cálculo de planilla y documento entregado al trabajador
+  'Planilla',
+  'PlanillaDetalle',
+  'Boleta',
+  // Dinero descontado de la remuneración
+  'Prestamo',
+  'PrestamoMovimiento',
+  // Parámetros legales (RMV, UIT, topes) que alimentan el cálculo
+  'ParametroLegal',
+  // Aprobaciones que alteran la relación laboral o rehacen la planilla
+  'SolicitudCese',
+  'SolicitudAnulacionContrato',
+  'SolicitudCorreccionFecha',
+]);
+
+/**
  * Mapeo de nombre de modelo Prisma a nombre de tabla en BD
  */
 const MODELO_A_TABLA: Record<string, string> = {
@@ -181,22 +221,35 @@ export class PrismaService
     // Ejecutar la operación original
     const resultado = await next(params);
 
-    // Registrar auditoría de forma asíncrona (no bloquea la respuesta)
-    setImmediate(() => {
-      this.registrarAuditoria({
-        action,
-        tabla,
-        resultado,
-        datosAnteriores,
-        registroId,
-        datosNuevos: args.data,
-        context,
-      }).catch((error: unknown) => {
+    const paramsAuditoria = {
+      action,
+      tabla,
+      resultado,
+      datosAnteriores,
+      registroId,
+      datosNuevos: args.data,
+      context,
+    };
+
+    if (MODELOS_AUDITORIA_CRITICA.has(model)) {
+      // Evidencia legal: se espera el registro antes de responder para que un
+      // reinicio del proceso no pierda el evento. Nunca hace fallar la
+      // operación principal: el error se registra y la ejecución continúa.
+      await this.registrarAuditoria(paramsAuditoria).catch((error: unknown) => {
         this.logger.error(
-          `Error registrando auditoría: ${obtenerMensajeError(error)}`,
+          `Error registrando auditoría crítica: ${obtenerMensajeError(error)}`,
         );
       });
-    });
+    } else {
+      // Registrar auditoría de forma asíncrona (no bloquea la respuesta)
+      setImmediate(() => {
+        this.registrarAuditoria(paramsAuditoria).catch((error: unknown) => {
+          this.logger.error(
+            `Error registrando auditoría: ${obtenerMensajeError(error)}`,
+          );
+        });
+      });
+    }
 
     return resultado;
   }

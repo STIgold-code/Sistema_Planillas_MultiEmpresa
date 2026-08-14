@@ -83,6 +83,17 @@ const ESTADOS_CONTRATO: EstadoContrato[] = [
   'ANULADO',
 ];
 
+// Estados terminales: el contrato ya no está vigente porque fue reemplazado por
+// su renovación, se cesó al trabajador o se anuló. Seguir contando días contra
+// su fecha_fin muestra números negativos en rojo, como si fuera una alerta
+// pendiente. El contador negativo queda reservado para contratos ACTIVOS
+// vencidos sin renovar, que es la única alerta real.
+const ESTADOS_TERMINALES: ReadonlySet<EstadoContrato> = new Set([
+  'RENOVADO',
+  'CESADO',
+  'ANULADO',
+]);
+
 const tipoContratoLabels: Record<string, string> = {
   SUJETO_A_MODALIDAD: 'Sujeto a Modalidad',
   INDEFINIDO: 'Indefinido',
@@ -429,7 +440,7 @@ export default function ContratosPage() {
                           : 'Indefinido'}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {contrato.estado === 'CESADO' ? (
+                        {ESTADOS_TERMINALES.has(contrato.estado) ? (
                           '-'
                         ) : diasRestantes !== null ? (
                           <span

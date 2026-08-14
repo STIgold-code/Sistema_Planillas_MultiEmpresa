@@ -47,6 +47,57 @@ export function clearTokens(): void {
 // Si múltiples requests fallan con 401 simultáneamente, solo se hace un refresh
 let refreshPromise: Promise<boolean> | null = null;
 
+// Mensajes legibles para errores de infraestructura (proxy/gateway devuelve HTML)
+const MENSAJES_HTTP: Record<number, string> = {
+  502: 'El servidor no está disponible en este momento. Vuelve a intentarlo en unos minutos.',
+  503: 'El servicio está en mantenimiento. Vuelve a intentarlo en unos minutos.',
+  504: 'El servidor tardó demasiado en responder. Vuelve a intentarlo.',
+};
+
+// Construye un ApiError a partir de una respuesta fallida.
+// Los errores del backend vienen como JSON, pero un proxy o gateway (502/504,
+// mantenimiento en Railway) puede devolver HTML: parsear a ciegas lanzaba
+// SyntaxError ("Unexpected token <") y se perdía el status real del error.
+async function parseApiError(response: Response): Promise<ApiError> {
+  const fallback: ApiError = {
+    message:
+      MENSAJES_HTTP[response.status] ||
+      `Error ${response.status}: ${response.statusText || 'error del servidor'}`,
+    statusCode: response.status,
+  };
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) return fallback;
+
+  try {
+    const data: unknown = await response.json();
+    if (typeof data !== 'object' || data === null) return fallback;
+
+    const cuerpo = data as {
+      message?: unknown;
+      statusCode?: unknown;
+      error?: unknown;
+    };
+    if (cuerpo.message === undefined || cuerpo.message === null) return fallback;
+
+    // class-validator devuelve un array de mensajes; el resto, un string
+    const mensaje = Array.isArray(cuerpo.message)
+      ? cuerpo.message.map((m) => String(m)).join(', ')
+      : String(cuerpo.message);
+    if (mensaje.trim().length === 0) return fallback;
+
+    return {
+      message: mensaje,
+      statusCode:
+        typeof cuerpo.statusCode === 'number' ? cuerpo.statusCode : response.status,
+      error: typeof cuerpo.error === 'string' ? cuerpo.error : undefined,
+    };
+  } catch {
+    // El content-type decía JSON pero el cuerpo vino roto o vacío
+    return fallback;
+  }
+}
+
 // Cliente HTTP base
 async function fetchApi<T>(
   endpoint: string,
@@ -81,8 +132,7 @@ async function fetchApi<T>(
       const retryResponse = await fetch(url, { ...options, headers });
 
       if (!retryResponse.ok) {
-        const error: ApiError = await retryResponse.json();
-        throw error;
+        throw await parseApiError(retryResponse);
       }
       return retryResponse.json();
     } else {
@@ -96,8 +146,7 @@ async function fetchApi<T>(
   }
 
   if (!response.ok) {
-    const error: ApiError = await response.json();
-    throw error;
+    throw await parseApiError(response);
   }
 
   // Si es 204 No Content, retornar vacío
@@ -173,8 +222,7 @@ async function fetchUpload<T>(endpoint: string, formData: FormData, method: stri
       });
 
       if (!retryResponse.ok) {
-        const error: ApiError = await retryResponse.json();
-        throw error;
+        throw await parseApiError(retryResponse);
       }
       return retryResponse.json();
     } else {
@@ -186,8 +234,7 @@ async function fetchUpload<T>(endpoint: string, formData: FormData, method: stri
   }
 
   if (!response.ok) {
-    const error: ApiError = await response.json();
-    throw error;
+    throw await parseApiError(response);
   }
 
   return response.json();
@@ -218,7 +265,7 @@ async function fetchBlob(endpoint: string): Promise<Blob> {
       const retryResponse = await fetch(url, { method: 'GET', headers });
 
       if (!retryResponse.ok) {
-        throw { message: 'Error al descargar archivo', statusCode: retryResponse.status };
+        throw await parseApiError(retryResponse);
       }
       return retryResponse.blob();
     } else {
@@ -230,7 +277,7 @@ async function fetchBlob(endpoint: string): Promise<Blob> {
   }
 
   if (!response.ok) {
-    throw { message: 'Error al descargar archivo', statusCode: response.status };
+    throw await parseApiError(response);
   }
 
   return response.blob();
@@ -266,7 +313,7 @@ async function fetchPostBlob(endpoint: string, data?: unknown): Promise<Blob> {
       const retryResponse = await fetch(url, { method: 'POST', headers, body });
 
       if (!retryResponse.ok) {
-        throw { message: 'Error al descargar archivo', statusCode: retryResponse.status };
+        throw await parseApiError(retryResponse);
       }
       return retryResponse.blob();
     } else {
@@ -278,7 +325,7 @@ async function fetchPostBlob(endpoint: string, data?: unknown): Promise<Blob> {
   }
 
   if (!response.ok) {
-    throw { message: 'Error al descargar archivo', statusCode: response.status };
+    throw await parseApiError(response);
   }
 
   return response.blob();
@@ -354,8 +401,7 @@ export async function uploadFile(
   });
 
   if (!response.ok) {
-    const error: ApiError = await response.json();
-    throw error;
+    throw await parseApiError(response);
   }
 
   return response.json();
