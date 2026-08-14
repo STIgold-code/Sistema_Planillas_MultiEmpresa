@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, Building2 } from "lucide-react";
-import { useDashboard, type SolicitudCesePendiente } from "./useDashboard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckCircle2, Building2, AlertTriangle } from "lucide-react";
+import {
+  useDashboard,
+  SECCION_ESTADISTICAS,
+  type SolicitudCesePendiente,
+} from "./useDashboard";
 import { useEmpresa } from "@/hooks/useEmpresa";
 import { DashboardSkeleton } from "./components/dashboard-skeleton";
 import { DashboardStatCards } from "./components/dashboard-stat-cards";
@@ -56,20 +61,16 @@ export default function DashboardPage() {
 
   if (db.loading || db.redirecting) return <DashboardSkeleton />;
 
-  if (db.error) {
-    return (
-      <div className="space-y-4 md:space-y-6">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Dashboard
-          </h2>
-          <p className="text-sm md:text-base text-red-500">{db.error}</p>
-        </div>
-      </div>
-    );
-  }
+  // Las tarjetas de estadísticas avisan su propia falla en sitio, así que no se
+  // repiten en el aviso general.
+  const seccionesFallidas = db.seccionesConError.filter(
+    (seccion) => seccion !== SECCION_ESTADISTICAS,
+  );
 
+  // Con secciones caídas no se puede afirmar que no haya alertas: lo que se ve
+  // vacío puede ser solo lo que no cargó.
   const noAlerts =
+    db.seccionesConError.length === 0 &&
     db.empleadosPendientes.length === 0 &&
     db.solicitudesCese.length === 0 &&
     db.solicitudesAnulacion.length === 0 &&
@@ -103,7 +104,49 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {db.error && (
+        <Alert
+          variant="destructive"
+          className="border-red-200 bg-red-50 text-red-800"
+        >
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>No se pudo cargar el dashboard</AlertTitle>
+          <AlertDescription className="text-red-800/90">
+            {db.error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {seccionesFallidas.length > 0 && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Algunas secciones no se pudieron cargar</AlertTitle>
+          <AlertDescription className="text-amber-900/90">
+            <p>
+              No cargaron: {seccionesFallidas.join(", ")}. Lo que ves de esas
+              secciones puede estar incompleto. Recarga la página para
+              reintentar; el resto del dashboard sigue disponible.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {db.stats && <DashboardStatCards stats={db.stats} />}
+
+      {/* Solo cuando falló el endpoint de estadísticas; si cayó el dashboard
+          entero ya se avisó arriba y repetirlo sería ruido. */}
+      {!db.stats && !db.error && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Estadísticas no disponibles</AlertTitle>
+          <AlertDescription className="text-amber-900/90">
+            <p>
+              No se pudieron cargar los indicadores. Recarga la página para
+              reintentar; el resto del dashboard sigue disponible.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <DashboardEmpleadosPendientes
         empleadosPendientes={db.empleadosPendientes}

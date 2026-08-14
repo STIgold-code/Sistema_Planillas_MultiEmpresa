@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { spawn } from 'child_process';
 import { createGzip } from 'zlib';
 import { UploadsService } from '../uploads/uploads.service';
-import { PassThrough } from 'stream';
+import { Transform } from 'stream';
 import { obtenerMensajeError } from '../../common/utils/error.util';
 
 @Injectable()
@@ -32,9 +32,10 @@ export class BackupService implements OnModuleInit {
     try {
       const result = await this.createFullBackup();
       this.logger.log(`✅ Backup completado exitosamente: ${result}`);
-    } catch (error) {
-      const mensaje = error instanceof Error ? error.message : String(error);
-      this.logger.error(`❌ Error en el backup programado: ${mensaje}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `❌ Error en el backup programado: ${obtenerMensajeError(error)}`,
+      );
     }
   }
 
@@ -59,43 +60,76 @@ export class BackupService implements OnModuleInit {
 
     const cleanDbUrl = dbUrl.split('?')[0];
 
-    // 1. Ejecutar pg_dump y acumular el resultado comprimido en memoria
-    const buffer = await new Promise<Buffer>((resolve, reject) => {
-      const pgDump = spawn('pg_dump', [cleanDbUrl]);
-      const gzip = createGzip();
-      const chunks: Buffer[] = [];
+    // Streaming directo: pg_dump → gzip → contador → uploadStream, sin
+    // acumular el dump en memoria. Con la base creciendo, el `Buffer.concat`
+    // del dump completo arriesgaba OOM en Railway en cada arranque y en el
+    // cron de las 2AM.
+    const pgDump = spawn('pg_dump', [cleanDbUrl]);
+    const gzip = createGzip();
+    let bytesComprimidos = 0;
 
-      pgDump.stdout.pipe(gzip);
+    // El conteo va en un Transform y NO en un listener `gzip.on('data')`:
+    // suscribirse a 'data' pone el stream en modo fluido y puede consumir
+    // chunks antes de que el uploader empiece a leerlos, además de anular la
+    // contrapresión. Un Transform cuenta sin alterar el modo del stream.
+    const contadorBytes = new Transform({
+      transform(chunk: Buffer, _codificacion, callback) {
+        bytesComprimidos += chunk.length;
+        callback(null, chunk);
+      },
+    });
 
-      gzip.on('data', (chunk: Buffer) => chunks.push(chunk));
-      gzip.on('error', (err) =>
-        reject(new Error(`gzip error: ${err.message}`)),
-      );
+    pgDump.stderr.on('data', (data: Buffer) => {
+      this.logger.warn(`[pg_dump stderr]: ${data.toString()}`);
+    });
 
-      pgDump.stderr.on('data', (data: Buffer) => {
-        this.logger.warn(`[pg_dump stderr]: ${data.toString()}`);
-      });
+    pgDump.stdout.pipe(gzip).pipe(contadorBytes);
 
+    // `pipe` no propaga errores: sin este listener, destruir el contador
+    // dejaría un 'error' sin manejar y tumbaría el proceso.
+    contadorBytes.on('error', (err) => {
+      this.logger.error(`Subida de backup abortada: ${err.message}`);
+    });
+
+    // Si el dump falla, se destruye el stream que consume la subida para
+    // abortar el multipart en curso (uploadStream usa leavePartsOnError:
+    // false, así que las partes ya enviadas se descartan). Sin esto, un dump
+    // truncado quedaría almacenado y marcado como backup exitoso.
+    const abortarSubida = (error: Error) => {
+      gzip.destroy(error);
+      contadorBytes.destroy(error);
+    };
+
+    const pgDumpExito = new Promise<void>((resolve, reject) => {
       pgDump.on('error', (err) => {
-        reject(new Error(`Error al iniciar pg_dump: ${err.message}`));
+        const error = new Error(`Error al iniciar pg_dump: ${err.message}`);
+        abortarSubida(error);
+        reject(error);
       });
-
       pgDump.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error(`pg_dump failed with code ${code}`));
-          return;
+          const error = new Error(`pg_dump terminó con código ${code}`);
+          abortarSubida(error);
+          reject(error);
+        } else {
+          resolve();
         }
-        gzip.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+      gzip.on('error', (err) => {
+        const error = new Error(`Error de compresión gzip: ${err.message}`);
+        contadorBytes.destroy(error);
+        reject(error);
       });
     });
 
-    // 2. Solo subir si pg_dump terminó exitosamente
-    const stream = new PassThrough();
-    stream.end(buffer);
+    // Se esperan ambas: la subida no se da por buena si pg_dump falló.
+    await Promise.all([
+      this.uploadsService.uploadStream(contadorBytes, key, 'application/gzip'),
+      pgDumpExito,
+    ]);
 
-    await this.uploadsService.uploadStream(stream, key, 'application/gzip');
     this.logger.log(
-      `📤 Backup subido: ${key} (${(buffer.length / 1024).toFixed(0)} KB)`,
+      `📤 Backup subido: ${key} (${(bytesComprimidos / 1024).toFixed(0)} KB)`,
     );
 
     return key;
