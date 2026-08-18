@@ -54,7 +54,7 @@ export class CompaniesService {
   }
 
   async update(id: number, updateCompanyDto: UpdateCompanyDto) {
-    await this.findOne(id);
+    const empresaActual = await this.findOne(id);
 
     // Si se actualiza el RUC, verificar que no exista
     if (updateCompanyDto.ruc) {
@@ -77,39 +77,101 @@ export class CompaniesService {
     const data: UpdateCompanyDto = { ...updateCompanyDto };
 
     if (data.logo_url !== undefined && data.logo_url !== null) {
-      const key = await this.uploads.resolverKeyPropia(data.logo_url, id);
-      if (key) {
-        await this.uploads.marcarArchivoPublico(
-          key,
-          true,
-          CATEGORIA_ARCHIVO.LOGOS,
-        );
-        data.logo_url = this.uploads.getPublicFileUrl(key);
-      }
+      data.logo_url = await this.resolverReferenciaDeArchivo({
+        valorRecibido: data.logo_url,
+        valorPersistido: empresaActual.logo_url,
+        empresaId: id,
+        publico: true,
+        categoria: CATEGORIA_ARCHIVO.LOGOS,
+        etiqueta: 'el logo',
+      });
     }
 
     if (
       data.firma_representante_url !== undefined &&
       data.firma_representante_url !== null
     ) {
-      const key = await this.uploads.resolverKeyPropia(
-        data.firma_representante_url,
-        id,
-      );
-      if (key) {
-        await this.uploads.marcarArchivoPublico(
-          key,
-          false,
-          CATEGORIA_ARCHIVO.FIRMAS,
-        );
-        data.firma_representante_url = this.uploads.getFileUrl(key);
-      }
+      data.firma_representante_url = await this.resolverReferenciaDeArchivo({
+        valorRecibido: data.firma_representante_url,
+        valorPersistido: empresaActual.firma_representante_url,
+        empresaId: id,
+        publico: false,
+        categoria: CATEGORIA_ARCHIVO.FIRMAS,
+        etiqueta: 'la firma del representante',
+      });
     }
 
     return this.prisma.empresa.update({
       where: { id },
       data,
     });
+  }
+
+  /**
+   * Resuelve una referencia de archivo recibida del cliente (logo o firma) a la
+   * URL canonica que se persiste, validando que el archivo pertenezca a esta
+   * empresa.
+   *
+   * Reglas:
+   *
+   * 1. Si el valor recibido es IDENTICO al ya persistido, se devuelve tal cual
+   *    sin re-resolverlo. El formulario reenvia el valor vigente en cada
+   *    guardado, y volver a resolverlo rompia a las empresas cuyo logo es una
+   *    URL externa (ej. un asset estatico del frontend): `extraerKeyDeValor` no
+   *    puede mapearla a una key de storage y `resolverKeyPropia` lanzaba
+   *    "Referencia de archivo no valida", bloqueando CUALQUIER cambio de esa
+   *    empresa con un mensaje que no delataba la causa. Lo que no cambio no se
+   *    re-procesa; la validacion sigue intacta para valores nuevos.
+   *
+   * 2. Si el archivo no tiene registro de propiedad en `archivos`, se rechaza.
+   *    `resolverKeyPropia` deja pasar keys sin registro por compatibilidad con
+   *    datos previos al backfill, pero `files.controller` exige ese registro
+   *    para servir el archivo: persistir su URL dejaria una imagen rota para
+   *    siempre, sin ninguna senal al guardar. Se rechaza en vez de crear el
+   *    registro sobre la marcha porque registrarlo aqui permitiria a un tenant
+   *    apropiarse de una key ajena no registrada y, en el caso del logo,
+   *    publicarla sin autenticacion.
+   */
+  private async resolverReferenciaDeArchivo(opciones: {
+    valorRecibido: string;
+    valorPersistido: string | null;
+    empresaId: number;
+    publico: boolean;
+    categoria: string;
+    etiqueta: string;
+  }): Promise<string> {
+    const {
+      valorRecibido,
+      valorPersistido,
+      empresaId,
+      publico,
+      categoria,
+      etiqueta,
+    } = opciones;
+
+    if (valorRecibido === valorPersistido) {
+      return valorRecibido;
+    }
+
+    const key = await this.uploads.resolverKeyPropia(valorRecibido, empresaId);
+    if (!key) {
+      return valorRecibido;
+    }
+
+    const registrosActualizados = await this.uploads.marcarArchivoPublico(
+      key,
+      publico,
+      categoria,
+    );
+    if (registrosActualizados === 0) {
+      throw new BadRequestException(
+        `No se pudo asociar ${etiqueta} a la empresa. Vuelve a subir la imagen e intenta guardar de nuevo.`,
+      );
+    }
+
+    return publico
+      ? this.uploads.getPublicFileUrl(key)
+      : this.uploads.getFileUrl(key);
   }
 
   /**

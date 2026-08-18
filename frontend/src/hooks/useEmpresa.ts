@@ -17,8 +17,9 @@ interface UpdateEmpresaData {
   dni_representante?: string;
   cargo_representante?: string;
   partida_electronica?: string;
-  logo_url?: string;
-  firma_representante_url?: string;
+  // `null` limpia la columna en el backend; omitir la propiedad la deja igual.
+  logo_url?: string | null;
+  firma_representante_url?: string | null;
   regimen_laboral_default?: string;
 }
 

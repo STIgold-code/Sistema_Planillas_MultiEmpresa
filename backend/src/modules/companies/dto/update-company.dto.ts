@@ -60,13 +60,16 @@ export class UpdateCompanyDto {
   @IsOptional()
   activo?: boolean;
 
+  // `null` es un valor valido y significativo: limpia la columna cuando el
+  // usuario quita la imagen. `@IsOptional()` de class-validator omite la
+  // validacion tanto para `undefined` (campo ausente) como para `null`.
   @IsString()
   @IsOptional()
-  logo_url?: string;
+  logo_url?: string | null;
 
   @IsString()
   @IsOptional()
-  firma_representante_url?: string;
+  firma_representante_url?: string | null;
 
   // Régimen laboral por defecto de la empresa.
   @IsEnum(RegimenLaboral, {

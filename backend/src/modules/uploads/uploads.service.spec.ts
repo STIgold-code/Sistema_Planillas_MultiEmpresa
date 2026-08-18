@@ -219,3 +219,56 @@ describe('UploadsService.uploadFile (registro de propiedad)', () => {
     expect(upserts).toHaveLength(0);
   });
 });
+
+/**
+ * `marcarArchivoPublico` hacia un `updateMany` a ciegas: si la key no tenia
+ * registro en `archivos` no actualizaba nada y el llamador seguia como si todo
+ * hubiera ido bien, persistiendo una URL que el controlador de archivos jamas
+ * podria servir (404 permanente). Ahora devuelve el conteo para que el llamador
+ * pueda reaccionar.
+ */
+describe('UploadsService.marcarArchivoPublico (senal de archivo no registrado)', () => {
+  let service: UploadsService;
+  let prisma: { archivo: { updateMany: jest.Mock } };
+
+  beforeEach(async () => {
+    prisma = { archivo: { updateMany: jest.fn() } };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [UploadsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+
+    service = module.get<UploadsService>(UploadsService);
+  });
+
+  it('devuelve la cantidad de registros actualizados', async () => {
+    prisma.archivo.updateMany.mockResolvedValue({ count: 1 });
+
+    const actualizados = await service.marcarArchivoPublico(
+      'empresas/logo.png',
+      true,
+      'logos',
+    );
+
+    expect(actualizados).toBe(1);
+    expect(prisma.archivo.updateMany).toHaveBeenCalledWith({
+      where: { key: 'empresas/logo.png' },
+      data: { publico: true, categoria: 'logos' },
+    });
+  });
+
+  it('devuelve 0 cuando la key no tiene registro de propiedad', async () => {
+    prisma.archivo.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.marcarArchivoPublico('empresas/sin-registro.png', true),
+    ).resolves.toBe(0);
+  });
+
+  it('devuelve 0 sin tocar la BD si el valor no es mapeable a una key', async () => {
+    await expect(
+      service.marcarArchivoPublico('https://externo.example.com/x.png', true),
+    ).resolves.toBe(0);
+    expect(prisma.archivo.updateMany).not.toHaveBeenCalled();
+  });
+});

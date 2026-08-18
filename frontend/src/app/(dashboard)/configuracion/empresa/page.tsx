@@ -87,6 +87,10 @@ export default function EmpresaConfigPage() {
     },
   });
 
+  // Se leen en el render, no dentro del submit: el formState de React Hook Form
+  // es un Proxy y solo calcula lo que se suscribe durante el renderizado.
+  const { dirtyFields, isDirty } = form.formState;
+
   useEffect(() => {
     if (empresa) {
       form.reset({
@@ -110,6 +114,11 @@ export default function EmpresaConfigPage() {
   }, [empresa, form]);
 
   const onSubmit = async (data: EmpresaFormValues) => {
+    // Logo y firma solo se envían si el usuario los tocó:
+    // - al quitarlos hay que mandar `null` explícito (con `|| undefined` la
+    //   propiedad se caía del JSON y la columna nunca se limpiaba);
+    // - si no cambiaron, no se reenvían, para no reprocesar en el backend una
+    //   referencia que ya está persistida (empresas con logo externo fallaban).
     try {
       await updateEmpresa({
         ruc: data.ruc,
@@ -123,8 +132,10 @@ export default function EmpresaConfigPage() {
         dni_representante: data.dni_representante || undefined,
         cargo_representante: data.cargo_representante || undefined,
         partida_electronica: data.partida_electronica || undefined,
-        logo_url: data.logo_url || undefined,
-        firma_representante_url: data.firma_representante_url || undefined,
+        ...(dirtyFields.logo_url ? { logo_url: data.logo_url ?? null } : {}),
+        ...(dirtyFields.firma_representante_url
+          ? { firma_representante_url: data.firma_representante_url ?? null }
+          : {}),
         regimen_laboral_default: data.regimen_laboral_default,
       });
       toast.success('Datos de la empresa actualizados correctamente');
@@ -484,7 +495,7 @@ export default function EmpresaConfigPage() {
           <div className="flex justify-end">
             <Button
               type="submit"
-              disabled={updating || !form.formState.isDirty}
+              disabled={updating || !isDirty}
               className="min-w-[150px]"
             >
               {updating ? (

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { uploadFile } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
+import { useAuthImage } from '@/hooks/useAuthImage';
 
 interface LogoUploadProps {
   currentLogoUrl?: string | null;
@@ -120,19 +121,16 @@ export function LogoUpload({
     onRemove();
   };
 
-  const rawUrl = preview || currentLogoUrl;
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  // Este componente sirve tanto para el logo (archivo PUBLICO) como para la
+  // firma del representante (archivo PRIVADO, PII legal). Por eso la imagen se
+  // pide siempre por el cliente autenticado de la API, que adjunta el token:
+  // un <img> plano no puede autenticarse y el endpoint publico responde 404
+  // para los archivos privados.
+  const imagenAutenticada = useAuthImage(currentLogoUrl);
 
-  // Normalize URL: extract the S3 key from full URLs and use public endpoint
-  let displayUrl = rawUrl;
-  if (rawUrl && !rawUrl.startsWith('data:')) {
-    const keyMatch = rawUrl.match(/\/files\/key\/(.+)$/);
-    if (keyMatch) {
-      displayUrl = `${apiBase}/files/public/${keyMatch[1]}`;
-    } else if (!rawUrl.startsWith('http')) {
-      displayUrl = `${apiBase}/files/public/${encodeURIComponent(rawUrl)}`;
-    }
-  }
+  // Mientras se sube un archivo nuevo manda el preview local (data URL), que ya
+  // es la imagen definitiva y evita el parpadeo hasta que el blob se resuelva.
+  const displayUrl = preview ?? imagenAutenticada;
 
   return (
     <div className="space-y-2">
@@ -167,9 +165,10 @@ export function LogoUpload({
           </div>
         ) : displayUrl ? (
           <>
+            {/* displayUrl es un blob/data URL local, no optimizable por next/image */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={displayUrl || ''}
+              src={displayUrl}
               alt={label}
               className="max-h-40 max-w-full object-contain rounded"
             />

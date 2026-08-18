@@ -72,38 +72,47 @@ export function PhotocheckPreview({
 }: PhotocheckPreviewProps) {
   const [downloading, setDownloading] = useState(false);
   const [fotoBase64, setFotoBase64] = useState<string | null>(null);
-  const [loadingFoto, setLoadingFoto] = useState(false);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [cargandoImagenes, setCargandoImagenes] = useState(false);
 
-  // react-pdf requiere URLs absolutas
-  const getAbsoluteUrl = (path: string) => {
-    if (path.startsWith('http')) return path;
-    return typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
-  };
-
-  // Cargar foto del empleado como base64 cuando se abre el diálogo
+  // Cargar foto del empleado y logo de la empresa como base64 al abrir.
+  // Ambos pueden ser archivos protegidos por JWT: react-pdf no puede pedirlos
+  // por URL (no manda el token), así que se embeben como data URL.
   useEffect(() => {
     if (!open) {
       setFotoBase64(null);
+      setLogoBase64(null);
       return;
     }
 
-    const foto = empleado.foto_url;
-    if (!foto) {
-      setFotoBase64(null);
-      return;
-    }
+    let cancelado = false;
+    setCargandoImagenes(true);
 
-    setLoadingFoto(true);
-    fetchImageAsBase64(foto)
-      .then((base64) => {
-        setFotoBase64(base64);
+    Promise.all([
+      empleado.foto_url ? fetchImageAsBase64(empleado.foto_url) : null,
+      empresaLogo ? fetchImageAsBase64(empresaLogo) : null,
+    ])
+      .then(([foto, logo]) => {
+        if (cancelado) return;
+        setFotoBase64(foto);
+        setLogoBase64(logo);
       })
       .finally(() => {
-        setLoadingFoto(false);
+        if (!cancelado) setCargandoImagenes(false);
       });
-  }, [open, empleado.foto_url]);
 
-  const logo = getAbsoluteUrl(empresaLogo || DEFAULT_LOGO_PATH);
+    return () => {
+      cancelado = true;
+    };
+  }, [open, empleado.foto_url, empresaLogo]);
+
+  // Si la empresa no tiene logo (o no se pudo leer) se usa el asset estático
+  // del frontend, que react-pdf sí puede descargar por URL absoluta.
+  const logo =
+    logoBase64 ??
+    (typeof window !== 'undefined'
+      ? `${window.location.origin}${DEFAULT_LOGO_PATH}`
+      : DEFAULT_LOGO_PATH);
 
   const nombreCompleto = `${empleado.apellido_paterno} ${empleado.apellido_materno}, ${empleado.nombres}`;
 
@@ -195,7 +204,7 @@ export function PhotocheckPreview({
         <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 space-y-3">
           {/* Vista previa del PDF */}
           <div className="border rounded-lg overflow-hidden bg-slate-50 h-[300px] sm:h-[450px]">
-            {loadingFoto ? (
+            {cargandoImagenes ? (
               <div className="w-full h-full flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
               </div>
