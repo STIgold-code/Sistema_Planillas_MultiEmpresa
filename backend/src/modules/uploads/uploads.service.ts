@@ -938,23 +938,30 @@ export class UploadsService {
    * Marca un archivo como publico o privado. Se usa cuando se confirma el rol
    * de un archivo al asociarlo a un campo conocido (ej. Empresa.logo_url => el
    * archivo es un logo => publico=true).
+   *
+   * @returns Cantidad de registros `Archivo` actualizados. Es 0 cuando la key
+   *          no tiene registro de propiedad (subida sin `empresa_id` resoluble
+   *          o dato previo al backfill). El llamador DEBE reaccionar a ese 0:
+   *          sin registro, `files.controller` responde 404 al servir el archivo,
+   *          asi que persistir su URL dejaria una referencia rota permanente.
    */
   async marcarArchivoPublico(
     key: string,
     publico: boolean,
     categoria?: string,
-  ): Promise<void> {
+  ): Promise<number> {
     const keyLimpia = extraerKeyDeValor(key);
     if (!keyLimpia) {
-      return;
+      return 0;
     }
-    await this.prisma.archivo.updateMany({
+    const resultado = await this.prisma.archivo.updateMany({
       where: { key: keyLimpia },
       data: {
         publico,
         ...(categoria ? { categoria } : {}),
       },
     });
+    return resultado.count;
   }
 
   /**
