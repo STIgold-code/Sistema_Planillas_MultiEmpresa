@@ -9,7 +9,11 @@
  * DTO fields (estructura, días, vida ley, computables, truncos) are filled from
  * the legacy auxiliary pass at the service edge.
  */
-import { extraerMontosLoadBearing } from './mapear-resultado-detalle';
+import {
+  ConceptoNoMapeadoError,
+  detectarConceptosNoMapeados,
+  extraerMontosLoadBearing,
+} from './mapear-resultado-detalle';
 import { ResultadoBoleta } from '../dominio/tipos';
 
 function boleta(conceptos: ResultadoBoleta['conceptos']): ResultadoBoleta {
@@ -123,5 +127,73 @@ describe('extraerMontosLoadBearing', () => {
     expect(r.haber_mensual).toBe(0);
     expect(r.gratificacion_monto).toBe(0);
     expect(r.essalud_empleador).toBe(0);
+  });
+});
+
+/**
+ * El mapper NO puede fallar en silencio. Un concepto que no sabe traducir es
+ * plata calculada que no tiene dónde guardarse: antes se descartaba sin rastro y
+ * la columna quedaba en cero como si el concepto no existiera.
+ */
+describe('extraerMontosLoadBearing — conceptos no mapeados', () => {
+  const conceptoAporte = (clave: string) => ({
+    clave,
+    descripcion: '',
+    tipo: 'aporte' as const,
+    monto: 15,
+  });
+
+  it('LANZA ConceptoNoMapeadoError ante el SIS de microempresa', () => {
+    expect(() =>
+      extraerMontosLoadBearing(boleta([conceptoAporte('sis_microempresa')])),
+    ).toThrow(ConceptoNoMapeadoError);
+  });
+
+  it('el error nombra TODAS las claves desconocidas, no solo la primera', () => {
+    let error: unknown;
+    try {
+      extraerMontosLoadBearing(
+        boleta([
+          conceptoAporte('sis_microempresa'),
+          conceptoAporte('conafovicer'),
+        ]),
+      );
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).toBeInstanceOf(ConceptoNoMapeadoError);
+    const claves = (error as ConceptoNoMapeadoError).claves;
+    expect([...claves].sort()).toEqual(['conafovicer', 'sis_microempresa']);
+  });
+
+  it('NO lanza por las claves declaradas como deliberadamente no load-bearing', () => {
+    // `vacaciones` y `asignacion_familiar` los persiste el motor de detalle:
+    // el mapper los ignora a propósito, no por desconocimiento.
+    const b = boleta([
+      { clave: 'vacaciones', descripcion: '', tipo: 'ingreso', monto: 500 },
+      {
+        clave: 'asignacion_familiar',
+        descripcion: '',
+        tipo: 'ingreso',
+        monto: 113,
+      },
+    ]);
+    expect(detectarConceptosNoMapeados(b)).toEqual([]);
+    expect(() => extraerMontosLoadBearing(b)).not.toThrow();
+  });
+
+  it('detectarConceptosNoMapeados informa sin provocar la excepción', () => {
+    expect(
+      detectarConceptosNoMapeados(boleta([conceptoAporte('sis_microempresa')])),
+    ).toEqual(['sis_microempresa']);
+  });
+
+  it('no duplica una clave desconocida que aparece en varios conceptos', () => {
+    expect(
+      detectarConceptosNoMapeados(
+        boleta([conceptoAporte('conafovicer'), conceptoAporte('conafovicer')]),
+      ),
+    ).toEqual(['conafovicer']);
   });
 });

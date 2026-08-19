@@ -14,3 +14,6 @@ uploads/*
 
 # Ignore compiled JS files in src (TypeScript source only)
 src/**/*.js
+
+# Reportes de cobertura de tests
+coverage/

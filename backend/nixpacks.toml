@@ -1,5 +1,15 @@
+# ARCHIVO DORMIDO. La fuente de verdad del build del backend es
+# `backend/Dockerfile`: railway.json y railway.toml declaran builder DOCKERFILE
+# y el servicio lo selecciona con RAILWAY_DOCKERFILE_PATH=backend/Dockerfile.
+# Nixpacks NO se ejecuta hoy.
+#
+# Se mantiene solo como fallback y se corrige la version del cliente de
+# PostgreSQL: declaraba `postgresql_17` contra un servidor 18, lo que ademas
+# hacia creer que el binario `pg_dump` estaba provisto (no lo estaba: la imagen
+# real nunca lo instalo). Cualquier cambio de version aca tiene que ir
+# acompanado del cambio equivalente en backend/Dockerfile.
 [phases.setup]
-nixPkgs = ["nodejs_20", "postgresql_17"]
+nixPkgs = ["nodejs_20", "postgresql_18"]
 aptPkgs = ["libreoffice-nogui", "libreoffice-writer-nogui"]
 
 [phases.install]

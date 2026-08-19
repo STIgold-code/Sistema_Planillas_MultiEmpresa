@@ -160,23 +160,45 @@ describe('Flujo de régimen laboral — cableado real API→servicio→motor', (
     expect(dto.essalud_empleador).toBe(general.essalud_empleador);
   });
 
-  it('Caso 2 — el DEFAULT de la empresa se hereda: contrato sin régimen + empresa MICROEMPRESA → reglas microempresa (sin grati/CTS, salud SIS no EsSalud)', () => {
+  it('Caso 2 — el DEFAULT de la empresa se hereda: contrato sin régimen + empresa PEQUENA_EMPRESA → reglas REMYPE pequeña (media gratificación)', () => {
     const empleado = construirEmpleado(null); // contrato sin régimen
+    const empresaPequena: EmpresaConRegimenDefault = {
+      regimen_laboral_default: 'PEQUENA_EMPRESA',
+    };
+    const dto = calcularFlujo(empleado, empresaPequena);
+
+    // Media gratificación: diferencia load-bearing con GENERAL que prueba que el
+    // default de empresa se resolvió y fluyó hasta el motor.
+    expect(dto.gratificacion_monto).toBeCloseTo(
+      general.gratificacion_monto * 0.5,
+      2,
+    );
+    expect(dto.gratificacion_monto).toBeGreaterThan(0);
+    expect(dto.essalud_empleador).toBe(general.essalud_empleador);
+  });
+
+  it('Caso 2b — MICROEMPRESA (default de empresa) se BLOQUEA: su aporte SIS no tiene columna donde persistirse', () => {
+    // ANTES este caso pasaba afirmando `essalud_empleador === 0`: el motor emitía
+    // `sis_microempresa`, el mapper no sabía traducirlo y la planilla guardaba el
+    // aporte del empleador en CERO sin dejar rastro. El test fijaba el bug como
+    // comportamiento esperado. Hasta que exista la columna del SIS, microempresa
+    // no está certificada y la guardia corta el cable ANTES de emitir DTO.
+    const empleado = construirEmpleado(null);
     const empresaMicro: EmpresaConRegimenDefault = {
       regimen_laboral_default: 'MICROEMPRESA',
     };
-    const dto = calcularFlujo(empleado, empresaMicro);
 
-    // Microempresa NO paga gratificación ni CTS. Diferencia load-bearing con
-    // GENERAL: prueba que el default de empresa se resolvió y fluyó al motor.
-    expect(dto.gratificacion_monto).toBe(0);
-    expect(dto.bonif_extraordinaria).toBe(0);
-    expect(dto.cts_monto).toBe(0);
+    let dto: unknown;
+    let error: unknown;
+    try {
+      dto = calcularFlujo(empleado, empresaMicro);
+    } catch (e) {
+      error = e;
+    }
 
-    // Salud microempresa = SIS (monto fijo del empleador), NO EsSalud 9% →
-    // essalud_empleador queda en 0, distinto de GENERAL (> 0).
-    expect(dto.essalud_empleador).toBe(0);
-    expect(general.essalud_empleador).toBeGreaterThan(0);
+    expect(dto).toBeUndefined();
+    expect(error).toBeInstanceOf(RegimenNoCertificadoError);
+    expect((error as RegimenNoCertificadoError).regimen).toBe('MICROEMPRESA');
   });
 
   it('Caso 3 — régimen NO certificado se BLOQUEA en el camino real: AGRARIO lanza RegimenNoCertificadoError ANTES de emitir DTO', () => {

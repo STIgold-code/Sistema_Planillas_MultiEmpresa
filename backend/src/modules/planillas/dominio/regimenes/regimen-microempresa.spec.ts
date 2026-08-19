@@ -94,4 +94,11 @@ describe('RegimenMicroempresa (REMYPE)', () => {
     expect(sis?.monto).toBe(15);
     expect(sis?.tipo).toBe('aporte');
   });
+
+  it('NO está certificado para producción: el aporte SIS no tiene columna donde persistirse', () => {
+    // El motor emite `sis_microempresa`, pero esa clave no existe en el schema,
+    // ni en el DTO, ni en la boleta. Sin la guardia, la planilla se persistía
+    // con `essalud_empleador = 0` y CERO rastro del aporte del empleador.
+    expect(micro.certificadoProduccion).toBe(false);
+  });
 });
