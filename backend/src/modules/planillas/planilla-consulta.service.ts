@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { exportarPlanilla } from './planilla-exportacion';
+import { PlanillaParametrosService } from './planilla-parametros.service';
 import { FilterPlanillaDto } from './dto';
 import { ahoraPeru } from '../../common/utils/datetime.util';
 
@@ -49,7 +50,10 @@ const EMPLEADO_SELECT = {
  */
 @Injectable()
 export class PlanillaConsultaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly parametros: PlanillaParametrosService,
+  ) {}
 
   async findAll(empresaId: number, filters: FilterPlanillaDto) {
     const { anio, mes, estado, page = 1, limit = 20 } = filters;
@@ -292,6 +296,6 @@ export class PlanillaConsultaService {
 
   // Exportar a Excel (datos para el frontend)
   async exportar(id: number, empresaId: number) {
-    return exportarPlanilla(this.prisma, id, empresaId);
+    return exportarPlanilla(this.prisma, this.parametros, id, empresaId);
   }
 }

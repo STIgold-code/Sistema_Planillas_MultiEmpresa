@@ -48,6 +48,24 @@ const aNumero = (valor: unknown): number => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+/**
+ * Fila vigente para la fecha dentro de una lista (la de `vigencia_desde` MÁS
+ * RECIENTE gana). Es la regla de vigencia del sistema y vive fuera de la clase
+ * para que cualquier consumidor —por ejemplo la exportación auditable, que
+ * necesita saber de QUÉ fila salió cada tasa— la aplique sin reimplementarla.
+ */
+export function filaVigenteEn<
+  T extends Pick<FilaParametroLegal, 'vigencia_desde' | 'vigencia_hasta'>,
+>(filas: readonly T[], fecha: Date): T | undefined {
+  return filas
+    .filter(
+      (f) =>
+        fecha >= f.vigencia_desde &&
+        (f.vigencia_hasta === null || fecha <= f.vigencia_hasta),
+    )
+    .sort((a, b) => b.vigencia_desde.getTime() - a.vigencia_desde.getTime())[0];
+}
+
 export class ParametrosLegalesPrisma implements ParametrosLegales {
   private readonly porClave = new Map<string, FilaParametroLegal[]>();
   private readonly porClaveEmpresa = new Map<string, FilaParametroLegal[]>();
@@ -146,15 +164,7 @@ export class ParametrosLegalesPrisma implements ParametrosLegales {
     filas: FilaParametroLegal[],
     fecha: Date,
   ): FilaParametroLegal | undefined {
-    return filas
-      .filter(
-        (f) =>
-          fecha >= f.vigencia_desde &&
-          (f.vigencia_hasta === null || fecha <= f.vigencia_hasta),
-      )
-      .sort(
-        (a, b) => b.vigencia_desde.getTime() - a.vigencia_desde.getTime(),
-      )[0];
+    return filaVigenteEn(filas, fecha);
   }
 
   private escalar(clave: ClaveEscalar, fecha: Date): number {
