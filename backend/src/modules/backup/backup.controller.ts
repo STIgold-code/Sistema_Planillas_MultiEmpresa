@@ -12,15 +12,33 @@ export class BackupController {
   constructor(private readonly backupService: BackupService) {}
 
   /**
-   * Disparar un backup manual inmediatamente
+   * Dispara un backup manual inmediatamente.
+   *
+   * Responde solo cuando el backup terminó Y quedó verificado contra el
+   * almacenamiento. El tamaño va en la respuesta a propósito: sin él, un
+   * backup vacío devolvía exactamente lo mismo que uno bueno y no había forma
+   * de distinguir el éxito real del aparente.
    */
   @Post('now')
   async triggerBackup() {
-    const key = await this.backupService.createFullBackup();
+    const { key, bytes, bytesVerificados } =
+      await this.backupService.createFullBackup();
+
     return {
       success: true,
-      message: 'Backup iniciado correctamente',
+      message: `Backup completado y verificado (${formatearTamanio(bytes)})`,
       path: key,
+      bytes,
+      bytesVerificados,
+      tamanioLegible: formatearTamanio(bytes),
     };
   }
+}
+
+/** Formatea bytes en la unidad más legible para un operador. */
+function formatearTamanio(bytes: number): string {
+  const MB = 1024 * 1024;
+  return bytes >= MB
+    ? `${(bytes / MB).toFixed(2)} MB`
+    : `${(bytes / 1024).toFixed(0)} KB`;
 }
