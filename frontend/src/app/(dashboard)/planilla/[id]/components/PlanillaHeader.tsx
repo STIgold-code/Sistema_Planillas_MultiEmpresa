@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   ArrowLeft,
   Loader2,
@@ -12,6 +13,7 @@ import {
   XCircle,
   Download,
   FileDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Planilla } from '@/types';
 import { estadoBadgeVariant, estadoLabels, meses } from '../types';
@@ -23,12 +25,14 @@ interface PlanillaHeaderProps {
   paying: boolean;
   canceling: boolean;
   downloadingBoletas: boolean;
+  exportandoAuditable: boolean;
   canCalculate: boolean;
   canApprove: boolean;
   canPay: boolean;
   canCancel: boolean;
   onCalcular: () => void;
   onExportar: () => void;
+  onExportarAuditable: () => void;
   onDescargarBoletas: () => void;
   onSetConfirmAction: (action: 'aprobar' | 'pagar' | 'anular') => void;
 }
@@ -37,12 +41,14 @@ export function PlanillaHeader({
   planilla,
   calculating,
   downloadingBoletas,
+  exportandoAuditable,
   canCalculate,
   canApprove,
   canPay,
   canCancel,
   onCalcular,
   onExportar,
+  onExportarAuditable,
   onDescargarBoletas,
   onSetConfirmAction,
 }: PlanillaHeaderProps) {
@@ -95,6 +101,27 @@ export function PlanillaHeader({
           <Download className="mr-2 h-4 w-4" />
           Exportar Excel
         </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              onClick={onExportarAuditable}
+              disabled={exportandoAuditable}
+            >
+              {exportandoAuditable ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              )}
+              Exportar auditable
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            Excel con los montos escritos como fórmulas, las tasas legales usadas
+            en el cálculo y la explicación de cada concepto. Puedes cambiar una
+            tasa y ver cómo se recalcula toda la planilla.
+          </TooltipContent>
+        </Tooltip>
         {(planilla.estado === 'APROBADA' || planilla.estado === 'PAGADA') && (
           <Button variant="outline" onClick={onDescargarBoletas} disabled={downloadingBoletas}>
             {downloadingBoletas ? (

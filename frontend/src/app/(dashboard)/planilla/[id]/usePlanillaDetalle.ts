@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
 import { EditForm, ConfirmAction } from './types';
 import { exportarPlanillaExcel } from './planilla-export';
+import { exportarPlanillaAuditable } from './planilla-export-auditable';
 import {
   detectarBloqueoCertificacion,
   type BloqueoCertificacion,
@@ -58,6 +59,7 @@ export function usePlanillaDetalle() {
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [downloadingBoletas, setDownloadingBoletas] = useState(false);
+  const [exportandoAuditable, setExportandoAuditable] = useState(false);
   const [bloqueoCertificacion, setBloqueoCertificacion] =
     useState<BloqueoCertificacion | null>(null);
 
@@ -218,6 +220,17 @@ export function usePlanillaDetalle() {
 
   const handleExportar = async () => exportarPlanillaExcel(id);
 
+  // El libro auditable arma una formula por cada monto derivado, asi que tarda
+  // mas que el export normal: se muestra estado de carga en el boton.
+  const handleExportarAuditable = async () => {
+    setExportandoAuditable(true);
+    try {
+      await exportarPlanillaAuditable(id);
+    } finally {
+      setExportandoAuditable(false);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
   };
@@ -248,6 +261,7 @@ export function usePlanillaDetalle() {
     confirmAction,
     setConfirmAction,
     downloadingBoletas,
+    exportandoAuditable,
     bloqueoCertificacion,
     setBloqueoCertificacion,
     handleCalcular,
@@ -258,6 +272,7 @@ export function usePlanillaDetalle() {
     openEditModal,
     handleSaveDetalle,
     handleExportar,
+    handleExportarAuditable,
     formatCurrency,
     getNombreCompleto,
     canEdit,

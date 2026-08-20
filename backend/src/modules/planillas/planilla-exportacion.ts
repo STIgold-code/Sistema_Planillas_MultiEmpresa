@@ -2,10 +2,14 @@ import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { ahoraPeru } from '../../common/utils/datetime.util';
+import { PlanillaParametrosService } from './planilla-parametros.service';
+import { construirParametrosExportacion } from './planilla-parametros-exportacion';
+import { calcularVentanaPeriodo } from '../tareo/ventana-periodo';
 
 // Exportar a Excel (datos para el frontend)
 export async function exportarPlanilla(
   prisma: PrismaService,
+  parametrosService: PlanillaParametrosService,
   id: number,
   empresaId: number,
 ) {
@@ -22,10 +26,21 @@ export async function exportarPlanilla(
       total_descuentos: true,
       total_neto: true,
       empresa: {
-        select: { razon_social: true, nombre_comercial: true, ruc: true },
+        select: {
+          razon_social: true,
+          nombre_comercial: true,
+          ruc: true,
+          aporta_senati: true,
+        },
       },
       periodo_tareo: {
-        select: { id: true, mes: true, anio: true },
+        select: {
+          id: true,
+          mes: true,
+          anio: true,
+          fecha_inicio: true,
+          fecha_fin: true,
+        },
       },
       detalles: {
         select: {
@@ -72,6 +87,7 @@ export async function exportarPlanilla(
           horas_extras_25: true,
           horas_extras_35: true,
           feriado_trabajado: true,
+          descanso_trabajado_monto: true,
           descanso_medico_monto: true,
           subsidio_incapacidad: true,
           subsidio_maternidad: true,
@@ -130,6 +146,7 @@ export async function exportarPlanilla(
           sctr_salud_empleador: true,
           sctr_pension_empleador: true,
           vida_ley_empleador: true,
+          senati_empleador: true,
           total_aportes_empleador: true,
           // Remuneración computable
           rem_computable_vacaciones: true,
@@ -195,13 +212,30 @@ export async function exportarPlanilla(
   const num = (val: Prisma.Decimal | number | null | undefined): number =>
     Number(val) || 0;
 
+  // Fecha de referencia de los parámetros versionados: fin de la ventana del
+  // período de tareo — la MISMA que usó el motor (`fechaReferenciaParametros`).
+  // Sin período asociado se cae al mes calendario, igual que el cálculo.
+  const fechaReferenciaParametros =
+    planilla.periodo_tareo?.fecha_fin ??
+    calcularVentanaPeriodo(planilla.anio, planilla.mes, null).fechaFin;
+
+  const parametrosLegales = await parametrosService.cargar(empresaId);
+  const parametros = await construirParametrosExportacion(
+    prisma,
+    parametrosLegales,
+    empresaId,
+    fechaReferenciaParametros,
+  );
+
   return {
+    parametros,
     cabecera: {
       periodo: `${planilla.mes}/${planilla.anio}`,
       empresa: {
         razon_social: planilla.empresa.razon_social,
         nombre_comercial: planilla.empresa.nombre_comercial,
         ruc: planilla.empresa.ruc,
+        aporta_senati: planilla.empresa.aporta_senati,
       },
       anio: planilla.anio,
       mes: planilla.mes,
@@ -302,6 +336,10 @@ export async function exportarPlanilla(
         horas_extras_35: num(d.horas_extras_35),
         he_35_monto: num(d.horas_extras_35), // Alias para frontend
         feriado_trabajado: num(d.feriado_trabajado),
+        // Descanso semanal TRABAJADO (D.Leg. 713 art. 3). Integra
+        // `total_ingresos_afectos`, así que también debe figurar como columna:
+        // sin él el bloque de ingresos afectos no suma su propio total.
+        descanso_trabajado_monto: num(d.descanso_trabajado_monto),
         descanso_medico_monto: num(d.descanso_medico_monto),
         descanso_medico: num(d.dias_descanso_medico), // Días para frontend
         subsidio_incapacidad_monto: num(d.subsidio_incapacidad),
@@ -392,6 +430,10 @@ export async function exportarPlanilla(
         sctr_salud_empleador: num(d.sctr_salud_empleador),
         sctr_pension_empleador: num(d.sctr_pension_empleador),
         vida_ley_empleador: num(d.vida_ley_empleador),
+        // Aporte SENATI (Ley 26272). Integra `total_aportes_empleador`, así que
+        // debe VIAJAR en el DTO: sin él los totales del Excel no cuadran contra
+        // las columnas visibles.
+        senati_empleador: num(d.senati_empleador),
         total_aportes_empleador: num(d.total_aportes_empleador),
 
         // =============================================

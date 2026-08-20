@@ -26,6 +26,7 @@ export default function PlanillaDetallePage() {
     confirmAction,
     setConfirmAction,
     downloadingBoletas,
+    exportandoAuditable,
     bloqueoCertificacion,
     setBloqueoCertificacion,
     handleCalcular,
@@ -36,6 +37,7 @@ export default function PlanillaDetallePage() {
     openEditModal,
     handleSaveDetalle,
     handleExportar,
+    handleExportarAuditable,
     formatCurrency,
     getNombreCompleto,
     canEdit,
@@ -64,12 +66,14 @@ export default function PlanillaDetallePage() {
         paying={paying}
         canceling={canceling}
         downloadingBoletas={downloadingBoletas}
+        exportandoAuditable={exportandoAuditable}
         canCalculate={canCalculate ?? false}
         canApprove={canApprove ?? false}
         canPay={canPay ?? false}
         canCancel={canCancel ?? false}
         onCalcular={handleCalcular}
         onExportar={handleExportar}
+        onExportarAuditable={handleExportarAuditable}
         onDescargarBoletas={handleDescargarBoletas}
         onSetConfirmAction={setConfirmAction}
       />
