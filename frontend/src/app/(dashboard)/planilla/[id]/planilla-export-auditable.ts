@@ -3,6 +3,7 @@
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateSafe } from '@/lib/utils';
 import ExcelJS from 'exceljs';
 import { meses } from './types';
 import { COLORES, BORDER_TABLE, BORDER_HEADER } from './planilla-export-constants';
@@ -120,9 +121,13 @@ function agregarHojaParametros(
   fila++;
 
   ws.mergeCells(`B${fila}:F${fila}`);
-  ws.getCell(`B${fila}`).value = `Vigencia con la que se resolvieron: ${new Date(
+  // Las fechas de vigencia son campos DATE (medianoche UTC): formatearlas con
+  // `new Date(...).toLocaleDateString` las corre un dia hacia atras en UTC-5 y
+  // el Excel diria que los parametros se resolvieron el 24 cuando la ventana
+  // cierra el 25. `formatDateSafe` lee la fecha del ISO sin convertir zona.
+  ws.getCell(`B${fila}`).value = `Vigencia con la que se resolvieron: ${formatDateSafe(
     parametros.vigencia,
-  ).toLocaleDateString('es-PE')}`;
+  )}`;
   ws.getCell(`B${fila}`).font = { size: 11, color: { argb: COLORES.TEXT_GRAY } };
   fila++;
 
@@ -163,7 +168,7 @@ function agregarHojaParametros(
     ws.getCell(fila, 4).value = tasa.base_legal;
     ws.getCell(fila, 5).value = ETIQUETAS_ORIGEN[tasa.origen] ?? tasa.origen;
     ws.getCell(fila, 6).value = tasa.vigente_desde
-      ? new Date(tasa.vigente_desde).toLocaleDateString('es-PE')
+      ? formatDateSafe(tasa.vigente_desde)
       : '—';
 
     for (let c = 2; c <= 6; c++) {
