@@ -353,8 +353,12 @@ describe('calcularDetalleEmpleado — snapshot del régimen laboral resuelto', (
   });
 
   it('persiste el régimen por defecto de la empresa cuando el contrato no lo declara', () => {
-    const dto = calcular([{ regimen_laboral: null }], 'MICROEMPRESA');
-    expect(dto.regimen_laboral).toBe('MICROEMPRESA');
+    // Se usa PEQUENA_EMPRESA (certificado) y no MICROEMPRESA: la microempresa
+    // dejó de estar certificada al no haber columna donde persistir su aporte
+    // SIS, así que la guardia la bloquea antes de producir DTO. Lo que este test
+    // fija es la herencia del default de empresa, no el régimen concreto.
+    const dto = calcular([{ regimen_laboral: null }], 'PEQUENA_EMPRESA');
+    expect(dto.regimen_laboral).toBe('PEQUENA_EMPRESA');
   });
 
   it('persiste GENERAL cuando ese es el régimen efectivo resuelto', () => {

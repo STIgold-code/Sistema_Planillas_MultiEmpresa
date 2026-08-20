@@ -6,6 +6,12 @@ on:
   push:
     branches: [main]
 
+env:
+  # Misma version mayor que corre en produccion: backend/Dockerfile y
+  # frontend/Dockerfile parten de node:20-slim. Probar en 22 dejaba sin
+  # cobertura justo el runtime que se despliega.
+  NODE_VERSION: '20'
+
 jobs:
   backend:
     name: Backend
@@ -18,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -47,6 +53,12 @@ jobs:
       - name: Lint
         run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
+      # `tsc --noEmit` no garantiza que el build real pase: nest build tambien
+      # emite y resuelve el grafo de modulos. Es el mismo comando que corre
+      # dentro de backend/Dockerfile.
+      - name: Build
+        run: npm run build
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -58,7 +70,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -80,3 +92,79 @@ jobs:
       # Lint bloqueante: 0 errores (los warnings no rompen el build).
       - name: Lint
         run: npx eslint src
+
+      # El build de Next hace prerender de las rutas estaticas: rompe por
+      # errores que tsc no ve (imports de servidor en cliente, uso de APIs del
+      # navegador durante el prerender). NEXT_PUBLIC_API_URL se inyecta en
+      # build time; frontend/.env.local esta ignorado por git, asi que en CI
+      # hay que darle un valor.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4001/api
+          NEXT_TELEMETRY_DISABLED: '1'
+
+  migraciones:
+    name: Migraciones y arranque
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Misma mayor que produccion (PostgreSQL 18): una migracion puede correr
+      # en una version y fallar en otra.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: planillas_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Gana sobre el DATABASE_URL de backend/.env: dotenv no pisa variables ya
+      # presentes en el entorno del proceso.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/planillas_ci
+      JWT_SECRET: secreto-solo-para-el-smoke-test-de-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar cliente Prisma
+        run: npx prisma generate
+
+      # El arranque del contenedor es `prisma migrate deploy && node dist/main`.
+      # Si una migracion falla, Railway entra en crash loop; hasta ahora eso no
+      # lo veia nadie hasta despues del merge.
+      - name: Aplicar migraciones sobre una base vacia
+        run: npx prisma migrate deploy
+
+      # Drift: el schema.prisma y el historial de migraciones tienen que
+      # describir la misma base. Si alguien edito el schema sin generar la
+      # migracion (o uso `db push`), esto sale con codigo 2 y muestra el SQL
+      # que falta.
+      - name: Detectar drift entre migraciones y schema
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script \
+            --exit-code
+
+      # Smoke test real: levanta AppModule contra la base recien migrada y
+      # verifica que /api responde y que las rutas privadas siguen cerradas.
+      - name: Smoke test de arranque
+        run: npm run test:e2e

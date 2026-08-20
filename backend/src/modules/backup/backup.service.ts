@@ -6,14 +6,47 @@ import { UploadsService } from '../uploads/uploads.service';
 import { Transform } from 'stream';
 import { obtenerMensajeError } from '../../common/utils/error.util';
 
+/**
+ * Mensaje único para el fallo más caro que puede tener este servicio: que el
+ * binario `pg_dump` no exista en la imagen. Sin él no hay backup posible, y el
+ * síntoma (un ENOENT dentro del cron de las 2 AM) pasa desapercibido durante
+ * meses. Se expone para que los tests validen el diagnóstico exacto.
+ */
+export const MENSAJE_PG_DUMP_AUSENTE =
+  'pg_dump NO está disponible en el contenedor: los backups automáticos están ' +
+  'DESACTIVADOS. Instala postgresql-client-18 en la imagen (ver ' +
+  'backend/Dockerfile) y vuelve a desplegar.';
+
 @Injectable()
 export class BackupService implements OnModuleInit {
   private readonly logger = new Logger(BackupService.name);
 
+  /**
+   * Se resuelve una sola vez al arrancar: dentro de la vida del proceso el
+   * binario no puede aparecer ni desaparecer, y un redeploy vuelve a ejecutar
+   * `onModuleInit`.
+   */
+  private pgDumpDisponible = false;
+
   constructor(private readonly uploadsService: UploadsService) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     this.logger.log('🚀 Servicio de Backups Automatizados inicializado.');
+
+    const version = await this.resolverVersionPgDump();
+    this.pgDumpDisponible = version !== null;
+
+    if (!this.pgDumpDisponible) {
+      // Se corta acá: intentar el backup de inicio solo produciría un ENOENT
+      // sin explicación. El mensaje tiene que decir qué hacer.
+      this.logger.error(`❌ ${MENSAJE_PG_DUMP_AUSENTE}`);
+      return;
+    }
+
+    // La versión del cliente importa tanto como su presencia: pg_dump se niega
+    // a volcar un servidor más nuevo que él mismo.
+    this.logger.log(`🐘 Cliente de PostgreSQL detectado: ${version}`);
+
     // Ejecutar backup al inicio para verificación (No bloqueante)
     this.createFullBackup()
       .then((key) => this.logger.log(`✅ Backup de inicio completado: ${key}`))
@@ -28,6 +61,13 @@ export class BackupService implements OnModuleInit {
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async handleDailyBackup() {
+    if (!this.pgDumpDisponible) {
+      this.logger.error(
+        `❌ Backup nocturno omitido. ${MENSAJE_PG_DUMP_AUSENTE}`,
+      );
+      return;
+    }
+
     this.logger.log('🌙 Iniciando backup nocturno programado...');
     try {
       const result = await this.createFullBackup();
@@ -37,6 +77,27 @@ export class BackupService implements OnModuleInit {
         `❌ Error en el backup programado: ${obtenerMensajeError(error)}`,
       );
     }
+  }
+
+  /**
+   * Devuelve la versión del `pg_dump` instalado, o `null` si el binario no
+   * existe o no se puede ejecutar. Nunca lanza: es una sonda de diagnóstico.
+   */
+  private resolverVersionPgDump(): Promise<string | null> {
+    return new Promise((resolve) => {
+      const proceso = spawn('pg_dump', ['--version']);
+      let salida = '';
+
+      proceso.stdout.on('data', (chunk: Buffer) => {
+        salida += chunk.toString();
+      });
+
+      // ENOENT (binario ausente) llega por 'error', no por 'close'.
+      proceso.on('error', () => resolve(null));
+      proceso.on('close', (codigo) =>
+        resolve(codigo === 0 ? salida.trim() : null),
+      );
+    });
   }
 
   /**

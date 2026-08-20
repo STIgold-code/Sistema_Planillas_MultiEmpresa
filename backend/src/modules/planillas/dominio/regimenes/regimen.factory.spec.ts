@@ -64,9 +64,23 @@ describe('regimen.factory', () => {
     ).toBe(false);
   });
 
+  it('MICROEMPRESA tampoco: su aporte SIS no tiene columna donde persistirse', () => {
+    expect(
+      crearCalculadoraRegimen(RegimenLaboral.MICROEMPRESA)
+        .certificadoProduccion,
+    ).toBe(false);
+  });
+
   it('los régimenes verificados SÍ están certificados', () => {
     expect(
       crearCalculadoraRegimen(RegimenLaboral.GENERAL).certificadoProduccion,
+    ).toBe(true);
+    expect(
+      crearCalculadoraRegimen(RegimenLaboral.PEQUENA_EMPRESA)
+        .certificadoProduccion,
+    ).toBe(true);
+    expect(
+      crearCalculadoraRegimen(RegimenLaboral.HOGAR).certificadoProduccion,
     ).toBe(true);
   });
 });
