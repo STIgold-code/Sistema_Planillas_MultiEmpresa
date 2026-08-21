@@ -670,6 +670,19 @@ export function dibujarBoletaA4(
       concepto: 'DESC. DOMINICAL',
       monto: Number(detalle.descuento_dominical),
     });
+  // Tiempo NO laborado dentro de días a los que el trabajador SÍ asistió. Van
+  // como línea propia porque bajan el neto: sin desglosarlas, el trabajador ve
+  // menos dinero sin el concepto que lo explique.
+  if (Number(detalle.descuento_tardanzas) > 0)
+    descuentos.push({
+      concepto: 'TARDANZAS',
+      monto: Number(detalle.descuento_tardanzas),
+    });
+  if (Number(detalle.descuento_permisos) > 0)
+    descuentos.push({
+      concepto: 'PERMISOS',
+      monto: Number(detalle.descuento_permisos),
+    });
   if (Number(detalle.descuento_feriado) > 0)
     descuentos.push({
       concepto: 'DESC. FERIADO',
