@@ -52,6 +52,11 @@ export interface DetalleTareoDetalle {
    */
   dia?: number;
   horas: unknown;
+  /**
+   * Minutos NO laborados del día (tardanzas, permisos parciales). Opcional
+   * porque los fixtures previos a la columna no lo declaran; ausente = 0.
+   */
+  minutos_no_laborados?: unknown;
   tipo_marcacion: TipoMarcacionDetalle | null;
 }
 
@@ -150,6 +155,7 @@ function mapearDia(
     horasNocturnas: aNumero(tm.horas_nocturnas),
     horasDetalle: aNumero(detalle.horas),
     horasDefault: tm.horas_default,
+    minutosNoLaborados: aNumero(detalle.minutos_no_laborados),
   };
 }
 
