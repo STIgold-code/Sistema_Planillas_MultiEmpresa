@@ -24,6 +24,17 @@ class TareoCeldaDto {
   @IsString()
   codigo?: string | null; // Código de tipo marcación (A, C, DL, etc.)
 
+  /**
+   * Tiempo NO laborado del día, en minutos: tardanzas (T) y permisos parciales
+   * sin goce (P). Tope de 480 — más de una jornada ya es inasistencia y se
+   * registra con su propio código.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(480)
+  minutos_no_laborados?: number;
+
   @IsOptional()
   @IsString()
   observacion?: string;

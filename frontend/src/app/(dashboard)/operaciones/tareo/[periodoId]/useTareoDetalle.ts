@@ -44,6 +44,23 @@ export interface CeldaModificada {
   dia: number;
   tipo_marcacion_id: number | null;
   detalle_id: number | null;
+  /**
+   * Tiempo NO laborado del dia, en minutos. Solo lo llevan las marcaciones de
+   * tardanza y permiso parcial; en el resto queda en 0 para que volver a marcar
+   * un dia limpie cualquier descuento previo.
+   */
+  minutos_no_laborados?: number;
+}
+
+/**
+ * Marcaciones que miden tiempo NO laborado dentro de un dia trabajado y por lo
+ * tanto piden minutos al marcarlas. Se reconocen por `cuenta_como` para no
+ * atar la UI a codigos concretos del catalogo.
+ */
+export const CUENTA_COMO_CON_MINUTOS = ['TARDANZA', 'PERMISO'];
+
+export function pideMinutos(tipo?: { cuenta_como?: string } | null): boolean {
+  return !!tipo?.cuenta_como && CUENTA_COMO_CON_MINUTOS.includes(tipo.cuenta_como);
 }
 
 export interface CeldaPos {
@@ -364,7 +381,17 @@ export function useTareoDetalle() {
     cancelarRango();
   };
 
-  const handleSelectMarcacion = (empleado: TareoGrillaEmpleado, dia: number, tipoId: number | null) => {
+  /**
+   * Marca una celda. `minutos` solo llega desde las marcaciones que miden
+   * tiempo no laborado (tardanza, permiso parcial); en el resto queda en 0, de
+   * modo que volver a marcar un dia limpia cualquier descuento anterior.
+   */
+  const handleSelectMarcacion = (
+    empleado: TareoGrillaEmpleado,
+    dia: number,
+    tipoId: number | null,
+    minutos = 0,
+  ) => {
     const key = `${empleado.tareo_id}-${dia}`;
     const diaData = empleado.dias.find(d => d.dia === dia);
 
@@ -375,6 +402,7 @@ export function useTareoDetalle() {
         dia,
         tipo_marcacion_id: tipoId,
         detalle_id: diaData?.detalle_id || null,
+        minutos_no_laborados: minutos,
       });
       return newMap;
     });
@@ -386,7 +414,13 @@ export function useTareoDetalle() {
         const newDias = emp.dias.map(d => {
           if (d.dia !== dia) return d;
           const tipo = prevData.tipos_marcacion.find(t => t.id === tipoId);
-          return { ...d, tipo_marcacion_id: tipoId, codigo: tipo?.codigo || null, color: tipo?.color || null };
+          return {
+            ...d,
+            tipo_marcacion_id: tipoId,
+            codigo: tipo?.codigo || null,
+            color: tipo?.color || null,
+            minutos_no_laborados: minutos,
+          };
         });
         return { ...emp, dias: newDias };
       });
@@ -413,6 +447,7 @@ export function useTareoDetalle() {
           empleado_id: empleado?.empleado_id || 0,
           dia: c.dia,
           codigo: tipoMarcacion?.codigo || null,
+          minutos_no_laborados: c.minutos_no_laborados ?? 0,
         };
       });
 
