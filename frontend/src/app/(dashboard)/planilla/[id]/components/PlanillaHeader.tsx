@@ -14,6 +14,7 @@ import {
   Download,
   FileDown,
   FileSpreadsheet,
+  Users,
 } from 'lucide-react';
 import { Planilla } from '@/types';
 import { estadoBadgeVariant, estadoLabels, meses } from '../types';
@@ -26,6 +27,7 @@ interface PlanillaHeaderProps {
   canceling: boolean;
   downloadingBoletas: boolean;
   exportandoAuditable: boolean;
+  exportandoPorTrabajador: boolean;
   canCalculate: boolean;
   canApprove: boolean;
   canPay: boolean;
@@ -33,6 +35,7 @@ interface PlanillaHeaderProps {
   onCalcular: () => void;
   onExportar: () => void;
   onExportarAuditable: () => void;
+  onExportarPorTrabajador: () => void;
   onDescargarBoletas: () => void;
   onSetConfirmAction: (action: 'aprobar' | 'pagar' | 'anular') => void;
 }
@@ -42,6 +45,7 @@ export function PlanillaHeader({
   calculating,
   downloadingBoletas,
   exportandoAuditable,
+  exportandoPorTrabajador,
   canCalculate,
   canApprove,
   canPay,
@@ -49,6 +53,7 @@ export function PlanillaHeader({
   onCalcular,
   onExportar,
   onExportarAuditable,
+  onExportarPorTrabajador,
   onDescargarBoletas,
   onSetConfirmAction,
 }: PlanillaHeaderProps) {
@@ -120,6 +125,27 @@ export function PlanillaHeader({
             Excel con los montos escritos como fórmulas, las tasas legales usadas
             en el cálculo y la explicación de cada concepto. Puedes cambiar una
             tasa y ver cómo se recalcula toda la planilla.
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              onClick={onExportarPorTrabajador}
+              disabled={exportandoPorTrabajador}
+            >
+              {exportandoPorTrabajador ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Users className="mr-2 h-4 w-4" />
+              )}
+              Excel por trabajador
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            Una hoja por trabajador con su tareo día por día y cada importe
+            reconstruido con fórmulas: qué días se descontaron y por qué, horas
+            extras, renta de quinta, préstamos y adelantos, hasta el neto.
           </TooltipContent>
         </Tooltip>
         {(planilla.estado === 'APROBADA' || planilla.estado === 'PAGADA') && (
