@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { EditForm, ConfirmAction } from './types';
 import { exportarPlanillaExcel } from './planilla-export';
 import { exportarPlanillaAuditable } from './planilla-export-auditable';
+import { exportarPlanillaPorTrabajador } from './planilla-export-trabajadores';
 import {
   detectarBloqueoCertificacion,
   type BloqueoCertificacion,
@@ -60,6 +61,7 @@ export function usePlanillaDetalle() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [downloadingBoletas, setDownloadingBoletas] = useState(false);
   const [exportandoAuditable, setExportandoAuditable] = useState(false);
+  const [exportandoPorTrabajador, setExportandoPorTrabajador] = useState(false);
   const [bloqueoCertificacion, setBloqueoCertificacion] =
     useState<BloqueoCertificacion | null>(null);
 
@@ -231,6 +233,17 @@ export function usePlanillaDetalle() {
     }
   };
 
+  // Una hoja por trabajador con el tareo y todas las formulas: es el export
+  // mas pesado de los tres, por eso tambien muestra estado de carga.
+  const handleExportarPorTrabajador = async () => {
+    setExportandoPorTrabajador(true);
+    try {
+      await exportarPlanillaPorTrabajador(id);
+    } finally {
+      setExportandoPorTrabajador(false);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
   };
@@ -262,6 +275,7 @@ export function usePlanillaDetalle() {
     setConfirmAction,
     downloadingBoletas,
     exportandoAuditable,
+    exportandoPorTrabajador,
     bloqueoCertificacion,
     setBloqueoCertificacion,
     handleCalcular,
@@ -273,6 +287,7 @@ export function usePlanillaDetalle() {
     handleSaveDetalle,
     handleExportar,
     handleExportarAuditable,
+    handleExportarPorTrabajador,
     formatCurrency,
     getNombreCompleto,
     canEdit,

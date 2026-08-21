@@ -26,8 +26,8 @@ import {
 
 export const CLAVE_RENTA_5TA = 'renta_5ta';
 
-/** Deducción fija para trabajadores dependientes (en UITs). */
-const DEDUCCION_UIT = 7;
+/** Deducción fija para trabajadores dependientes (en UITs), Art. 46 LIR. */
+export const DEDUCCION_UIT = 7;
 
 /**
  * Tasa plana para trabajadores NO DOMICILIADOS (Art. 54 inc. f y Art. 76 LIR):

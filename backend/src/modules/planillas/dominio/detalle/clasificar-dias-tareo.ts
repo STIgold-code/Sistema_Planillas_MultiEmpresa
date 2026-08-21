@@ -23,7 +23,7 @@ const HE_TRAMO_25 = 2;
  * entre a la base: la remuneración se prorratea y las cotizaciones se calculan
  * sobre lo DEVENGADO.
  */
-const CODIGOS_NO_LABORABLES = new Set([
+export const CODIGOS_NO_LABORABLES: ReadonlySet<string> = new Set([
   'DL',
   'N',
   'SC',
@@ -193,8 +193,18 @@ function contarPermiso(c: ClasificacionTareo, dia: DiaTareoDetalle): void {
   c.diasPermiso += 1;
 }
 
+/**
+ * ¿El día devenga remuneración? Es la MISMA condición con la que el bucle de
+ * clasificación suma `diasLaborables`. Se expone para que la exportación por
+ * trabajador clasifique cada día del tareo con la regla del motor y no con una
+ * copia que pueda desalinearse.
+ */
+export function diaDevenga(codigo: string, esLaborable: boolean): boolean {
+  return esLaborable && !CODIGOS_NO_LABORABLES.has(codigo);
+}
+
 /** Resuelve las horas del día: detalle > nomenclatura > default (= legacy). */
-function resolverHorasDia(dia: DiaTareoDetalle): number {
+export function resolverHorasDia(dia: DiaTareoDetalle): number {
   if (dia.horasDetalle > 0) return dia.horasDetalle;
   const nomenclatura = dia.horasDiurnas + dia.horasNocturnas;
   if (nomenclatura > 0) return nomenclatura;
@@ -236,8 +246,7 @@ export function clasificarDiasTareo(
     contarPorCodigo(c, dia);
     if (dia.esFeriadoTrabajado) c.cantidadFeriados++;
 
-    const esNoLaborable = CODIGOS_NO_LABORABLES.has(dia.codigo);
-    if (dia.esLaborable && !esNoLaborable) {
+    if (diaDevenga(dia.codigo, dia.esLaborable)) {
       c.diasLaborables++;
       if (CODIGOS_LICENCIA_CON_GOCE.has(dia.codigo)) {
         c.diasLicenciaConGoceEnLaborables++;

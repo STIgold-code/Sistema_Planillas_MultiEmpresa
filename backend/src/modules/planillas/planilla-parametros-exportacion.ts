@@ -10,6 +10,7 @@
  * no importe.
  */
 import { PrismaService } from '../../prisma/prisma.service';
+import { DEDUCCION_UIT } from './dominio/conceptos/renta-quinta';
 import { ParametrosLegales } from './dominio/parametros/parametros-legales';
 import {
   ClaveEscalar,
@@ -41,11 +42,26 @@ export interface ComisionAfpExportacion {
   comision_mixta: number;
 }
 
+/**
+ * Tramo de la escala progresiva del impuesto a la renta (Art. 53 LIR).
+ * `hasta_uit` en null es el tramo abierto superior (el dominio usa `Infinity`,
+ * que no sobrevive a JSON).
+ */
+export interface TramoIrExportacion {
+  desde_uit: number;
+  hasta_uit: number | null;
+  tasa: number;
+}
+
 export interface ParametrosExportacion {
   /** Fecha con la que se resolvieron los parámetros versionados. */
   vigencia: Date;
   tasas: TasaExportacion[];
   comisiones_afp: ComisionAfpExportacion[];
+  /** Escala del impuesto a la renta con la que se retuvo la 5.ª categoría. */
+  tramos_ir: TramoIrExportacion[];
+  /** Deducción fija de los trabajadores dependientes, en UIT (Art. 46 LIR). */
+  deduccion_uit: number;
 }
 
 interface DescriptorTasa {
@@ -286,5 +302,30 @@ export async function construirParametrosExportacion(
       comision_mixta: aFraccion(r.comision_mixta_flujo),
     }));
 
-  return { vigencia: fecha, tasas, comisiones_afp };
+  // La escala del Art. 53 LIR sale del MISMO puerto que usó el motor. El tramo
+  // superior es abierto: el dominio lo expresa con Infinity y el JSON con null.
+  let tramos_ir: TramoIrExportacion[] = [];
+  try {
+    let desde = 0;
+    tramos_ir = parametros.tramosIR(fecha).map((tramo) => {
+      const exportado: TramoIrExportacion = {
+        desde_uit: desde,
+        hasta_uit: Number.isFinite(tramo.hasta) ? tramo.hasta : null,
+        tasa: tramo.tasa,
+      };
+      desde = tramo.hasta;
+      return exportado;
+    });
+  } catch {
+    // Sin escala vigente la renta no puede escribirse como fórmula: el Excel
+    // conservará el valor del sistema y lo marcará como divergente.
+  }
+
+  return {
+    vigencia: fecha,
+    tasas,
+    comisiones_afp,
+    tramos_ir,
+    deduccion_uit: DEDUCCION_UIT,
+  };
 }
