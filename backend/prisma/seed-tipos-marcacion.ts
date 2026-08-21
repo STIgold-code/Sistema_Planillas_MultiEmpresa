@@ -140,6 +140,29 @@ const TIPOS: TipoMarcacionSeed[] = [
     genera_pago: true,
     horas_default: 8,
   },
+  // Tiempo NO laborado dentro de un día al que el trabajador SÍ asistió. Ambos
+  // son `es_laborable` y `genera_pago`: el día devenga completo y el descuento
+  // sale por su propia columna, calculado sobre `minutos_no_laborados`. No
+  // recortan el dominical, porque el D.L. 713 art. 4 prorratea el descanso
+  // semanal por días efectivamente trabajados y estos días se trabajaron.
+  {
+    codigo: 'T',
+    descripcion: 'Tardanza',
+    color: '#f97316',
+    cuenta_como: 'TARDANZA',
+    es_laborable: true,
+    genera_pago: true,
+    horas_default: 8,
+  },
+  {
+    codigo: 'P',
+    descripcion: 'Permiso sin goce (por horas)',
+    color: '#a855f7',
+    cuenta_como: 'PERMISO',
+    es_laborable: true,
+    genera_pago: true,
+    horas_default: 8,
+  },
 ];
 
 async function main(): Promise<void> {

@@ -1015,7 +1015,14 @@ model TareoDetalle {
   tareo_id          Int
   dia               Int
   tipo_marcacion_id Int?
+  // Horas EFECTIVAMENTE TRABAJADAS del día. Alimenta el cálculo de horas
+  // extras (D.S. 007-2002-TR). No confundir con `minutos_no_laborados`.
   horas             Decimal?            @db.Decimal(4, 2)
+  // Tiempo NO laborado del día, en minutos enteros: tardanzas (código T) y
+  // permisos parciales sin goce (código P). Vive en su propia columna
+  // justamente para no compartir significado con `horas`, que expresa lo
+  // contrario. Cero = el día no tuvo tiempo descontable.
+  minutos_no_laborados Int              @default(0)
   observacion       String?             @db.VarChar(200)
   created_at        DateTime            @default(now())
   updated_at        DateTime            @updatedAt
