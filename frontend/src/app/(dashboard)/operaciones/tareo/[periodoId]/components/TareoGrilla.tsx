@@ -11,6 +11,22 @@ import { cn } from '@/lib/utils';
 import { esPeriodoCalendario, etiquetaDiaMes, etiquetaFechaCompleta, fechaDeDia } from '@/lib/ventana-periodo';
 import { TareoGrillaEmpleado, TareoGrillaResponse, DiasConJustificacion } from '@/types';
 import type { CeldaModificada, CeldaPos, RangoRectangular } from '../useTareoDetalle';
+import { pideMinutos } from '../useTareoDetalle';
+
+/** Marcacion elegida que espera sus minutos antes de confirmarse. */
+interface TipoMarcacionPendiente {
+  id: number;
+  codigo: string;
+}
+
+/**
+ * Ocho horas. Mas que una jornada completa ya no es tardanza ni permiso
+ * parcial: es una inasistencia y se registra con su propio codigo.
+ */
+const MINUTOS_MAXIMOS = 480;
+
+/** Atajos frecuentes, para no tipear los casos de siempre. */
+const MINUTOS_SUGERIDOS = [15, 30, 60, 120];
 
 interface TareoGrillaProps {
   data: TareoGrillaResponse;
@@ -25,7 +41,7 @@ interface TareoGrillaProps {
   onCeldaClick: (tareoId: number, dia: number, empleadoIndex: number, event: React.MouseEvent) => void;
   onColumnHeaderClick: (dia: number) => void;
   onCeldaActiveClose: () => void;
-  onSelectMarcacion: (empleado: TareoGrillaEmpleado, dia: number, tipoId: number | null) => void;
+  onSelectMarcacion: (empleado: TareoGrillaEmpleado, dia: number, tipoId: number | null, minutos?: number) => void;
   onOpenJustificacion: (tareoId: number, empleadoId: number, nombre: string, dia: number) => void;
   onOpenHistorialDrawer: (empleadoId: number, nombre: string, tareoId: number) => void;
   onVerHistorial: (detalleId: number) => void;
@@ -51,6 +67,25 @@ export function TareoGrilla({
 }: TareoGrillaProps) {
   const isReadonly = data.periodo.estado === 'CERRADO' || data.periodo.estado === 'ANULADO';
   const esCalendario = esPeriodoCalendario(data.periodo.fecha_inicio);
+
+  // Marcacion elegida que todavia espera sus minutos. Mientras esta puesta, el
+  // popover muestra el paso de minutos en vez de cerrarse: sin el dato el
+  // descuento seria cero y la marca no serviria de nada.
+  const [tipoPendienteMinutos, setTipoPendienteMinutos] = React.useState<TipoMarcacionPendiente | null>(null);
+  const [minutos, setMinutos] = React.useState('');
+
+  const cerrarPasoMinutos = () => {
+    setTipoPendienteMinutos(null);
+    setMinutos('');
+  };
+
+  const confirmarMinutos = (empleado: TareoGrillaEmpleado, dia: number) => {
+    if (!tipoPendienteMinutos) return;
+    const valor = Number(minutos);
+    if (!Number.isFinite(valor) || valor <= 0 || valor > MINUTOS_MAXIMOS) return;
+    onSelectMarcacion(empleado, dia, tipoPendienteMinutos.id, Math.round(valor));
+    cerrarPasoMinutos();
+  };
 
   const renderCelda = (empleado: TareoGrillaEmpleado, dia: number, empleadoIndex: number) => {
     const diaData = empleado.dias.find(d => d.dia === dia);
@@ -87,7 +122,11 @@ export function TareoGrilla({
     }
 
     return (
-      <Popover key={`${empleado.tareo_id}-${dia}`} open={isActive} onOpenChange={(open) => !open && onCeldaActiveClose()}>
+      <Popover key={`${empleado.tareo_id}-${dia}`} open={isActive} onOpenChange={(open) => {
+          if (open) return;
+          cerrarPasoMinutos();
+          onCeldaActiveClose();
+        }}>
         <PopoverTrigger asChild>
           <div
             className={cn(
@@ -110,19 +149,82 @@ export function TareoGrilla({
             {tieneJustificacion && (
               <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" title="Tiene justificación" />
             )}
-            <span style={{ color: diaData?.color || undefined }} className="font-medium">
+            <span style={{ color: diaData?.color || undefined }} className="font-medium leading-none">
               {diaData?.codigo || '-'}
+              {!!diaData?.minutos_no_laborados && (
+                <span className="block text-[9px] font-normal opacity-80">
+                  {diaData.minutos_no_laborados}m
+                </span>
+              )}
             </span>
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-56 p-2" align="start">
+          {tipoPendienteMinutos ? (
+            <div className="mb-2 space-y-2">
+              <p className="text-xs font-medium">
+                {tipoPendienteMinutos.codigo} — minutos no laborados
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {MINUTOS_SUGERIDOS.map(sugerido => (
+                  <button
+                    key={sugerido}
+                    className="p-1.5 text-xs font-medium rounded bg-orange-50 hover:bg-orange-100 text-orange-700"
+                    onClick={() => {
+                      onSelectMarcacion(empleado, dia, tipoPendienteMinutos.id, sugerido);
+                      cerrarPasoMinutos();
+                    }}
+                  >
+                    {sugerido}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={MINUTOS_MAXIMOS}
+                autoFocus
+                value={minutos}
+                onChange={e => setMinutos(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') confirmarMinutos(empleado, dia);
+                  if (e.key === 'Escape') cerrarPasoMinutos();
+                }}
+                placeholder="Otra cantidad"
+                aria-label="Minutos no laborados"
+                className="w-full rounded border px-2 py-1 text-xs"
+              />
+              <div className="flex gap-1">
+                <button
+                  className="flex-1 p-1.5 text-xs font-medium rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40"
+                  disabled={!minutos || Number(minutos) <= 0 || Number(minutos) > MINUTOS_MAXIMOS}
+                  onClick={() => confirmarMinutos(empleado, dia)}
+                >
+                  Aplicar
+                </button>
+                <button
+                  className="flex-1 p-1.5 text-xs font-medium rounded bg-gray-100 hover:bg-gray-200"
+                  onClick={cerrarPasoMinutos}
+                >
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-4 gap-1 mb-2">
             {data.tipos_marcacion.map(tipo => (
               <button
                 key={tipo.id}
                 className="p-1.5 text-xs font-medium rounded hover:opacity-80 transition-opacity"
                 style={{ backgroundColor: `${tipo.color}30`, color: tipo.color }}
-                onClick={() => onSelectMarcacion(empleado, dia, tipo.id)}
+                onClick={() => {
+                  if (pideMinutos(tipo)) {
+                    setTipoPendienteMinutos({ id: tipo.id, codigo: tipo.codigo });
+                    setMinutos('');
+                    return;
+                  }
+                  onSelectMarcacion(empleado, dia, tipo.id);
+                }}
                 title={tipo.descripcion}
               >
                 {tipo.codigo}
@@ -135,6 +237,7 @@ export function TareoGrilla({
               Limpiar
             </button>
           </div>
+          )}
 
           <div className="border-t pt-2 space-y-1">
             <button

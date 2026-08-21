@@ -144,6 +144,8 @@ export class TareoGrillaService {
         codigo: string | null;
         color: string | null;
         tipo_marcacion_id: number | null;
+        /** Tiempo no laborado del dia (tardanzas y permisos parciales). */
+        minutos_no_laborados: number;
         en_contrato: boolean;
       }> = [];
 
@@ -162,6 +164,7 @@ export class TareoGrillaService {
           codigo: detalle?.tipo_marcacion?.codigo || null,
           color: detalle?.tipo_marcacion?.color || null,
           tipo_marcacion_id: detalle?.tipo_marcacion_id || null,
+          minutos_no_laborados: detalle?.minutos_no_laborados ?? 0,
           en_contrato: enContrato,
         });
       }
