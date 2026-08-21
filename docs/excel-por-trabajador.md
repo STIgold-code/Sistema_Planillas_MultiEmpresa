@@ -55,6 +55,19 @@ Columnas del libro mayor: **B** etiqueta · **C** cantidad/base · **D** factor/
 El índice enlaza a cada hoja y compara todos los netos; la hoja *Parámetros* ahora incluye la
 escala del impuesto a la renta con la tasa diferencial de cada tramo.
 
+### Resúmenes transversales
+
+Dos hojas responden la pregunta "¿cuánto y a quién?" sin abrir 16 pestañas:
+
+- **Resumen Renta 5ta** — una fila por trabajador con los pasos clave (acumulado, proyección,
+  renta neta, impuesto, cuota, adicional, retención) y el valor del sistema al lado.
+- **Resumen Dominical** — días que devengan, ausencias sin goce, sextos perdidos, descuento.
+
+Ninguna celda recalcula nada: cada importe es una **referencia a la hoja del trabajador**
+(`'3. PÉREZ JUAN'!$E$87`). Si alguien cambia el sueldo en la hoja de una persona, el resumen se
+actualiza solo. Una sola fuente de verdad. Validado en Excel real: renta S/ 422.17 y dominical
+S/ 132.22, iguales al sistema, diferencia 0.00 en todas las filas.
+
 ## 4. Decisiones de diseño
 
 **El backend solo lee y ordena; no recalcula.** `planilla-exportacion-trabajadores.ts` extiende el
@@ -122,6 +135,7 @@ corrigió aquí porque es una decisión del diseño de los dos motores. Queda re
 - `planilla-trabajador-modelo.ts` — constructor de filas, tareo, antecedentes (puro)
 - `planilla-trabajador-conceptos.ts` — ingresos, descuentos, renta, préstamos, totales (puro)
 - `planilla-trabajador-hoja.ts` — render con ExcelJS
+- `planilla-trabajador-resumen.ts` — hojas Resumen Renta 5ta y Resumen Dominical (referencias entre hojas)
 - `planilla-export-trabajadores.ts` — orquestación, índice y descarga
 - `planilla-export-tipos.ts` — contrato del endpoint
 - `usePlanillaDetalle.ts` · `page.tsx` · `components/PlanillaHeader.tsx` — botón

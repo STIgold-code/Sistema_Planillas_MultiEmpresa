@@ -166,6 +166,7 @@ function escribirCabecera(
 
 interface RefsResumenTareo {
   diasDevengan: Linea;
+  ausenciasSinGoce: Linea;
   he25Diurnas: string;
   he25Nocturnas: string;
   he35Diurnas: string;
@@ -185,7 +186,7 @@ function escribirResumenTareo(h: ConstructorHoja, d: DetalleExportacion, tareo: 
     formato: 'entero',
     origen: 'Cuenta los días con "Devenga = 1". Las ausencias sin goce, vacaciones y subsidios quedan fuera: se pagan por su propio concepto o no se pagan.',
   });
-  h.linea({
+  const ausenciasSinGoce = h.linea({
     etiqueta: 'Ausencias sin goce (faltas, suspensiones, licencias sin goce)',
     formula: `SUM(${tareo.rangoSinGoce})`,
     esperado: c.sinGoce,
@@ -205,7 +206,7 @@ function escribirResumenTareo(h: ConstructorHoja, d: DetalleExportacion, tareo: 
     sistema: d.cant_feriados,
     formato: 'entero',
   });
-  return { diasDevengan, he25Diurnas, he25Nocturnas, he35Diurnas, he35Nocturnas, turnosNoche, feriados };
+  return { diasDevengan, ausenciasSinGoce, he25Diurnas, he25Nocturnas, he35Diurnas, he35Nocturnas, turnosNoche, feriados };
 }
 
 // ─── Ingresos ────────────────────────────────────────────────────────────────
@@ -409,13 +410,19 @@ function escribirIngresos(
 
 // ─── Descuentos que nacen del tareo ──────────────────────────────────────────
 
+interface RefsDescuentosTareo {
+  lineas: Linea[];
+  /** Celdas del dominical: fracción de dominicales perdidos y descuento. */
+  dominical: { sextos: string; descuento: string };
+}
+
 function escribirDescuentosTareo(
   h: ConstructorHoja,
   d: DetalleExportacion,
   t: TrazabilidadTrabajador,
   cab: RefsCabecera,
   tareo: RefsTareo,
-): Linea[] {
+): RefsDescuentosTareo {
   const S = d.rem_basica;
   const vd = redondear2(S / 30);
   const lineas: Linea[] = [];
@@ -452,7 +459,7 @@ function escribirDescuentosTareo(
     sextosEsperados += Math.min(1, semana.ausenciasSinGoce / DIAS_SEMANA_LABORAL);
   });
   const filaDominical = h.filaActual;
-  lineas.push(h.linea({
+  const dominical = h.linea({
     etiqueta: 'Descuento dominical (D.L. 713 art. 4)',
     cantidad: { formula: filasSextos.length > 0 ? `SUM(${filasSextos.join(',')})` : '0', formato: 'fraccion' },
     factor: { formula: cab.valorDia },
@@ -460,7 +467,8 @@ function escribirDescuentosTareo(
     esperado: vd * sextosEsperados,
     sistema: d.dominical_monto,
     origen: 'Valor día × suma de las fracciones perdidas. El séptimo día se paga en proporción a los días efectivamente trabajados de cada semana.',
-  }));
+  });
+  lineas.push(dominical);
 
   const filaTardanzas = h.filaActual;
   lineas.push(h.linea({
@@ -483,7 +491,10 @@ function escribirDescuentosTareo(
     sistema: d.permisos_monto,
   }));
 
-  return lineas;
+  return {
+    lineas,
+    dominical: { sextos: ref(COLUMNA.cantidad, filaDominical), descuento: dominical.refImporte },
+  };
 }
 
 // ─── Descuentos de ley ───────────────────────────────────────────────────────
@@ -500,6 +511,26 @@ function impuestoPorTramos(rentaNeta: number, uit: number, tramos: readonly Tram
   return impuesto;
 }
 
+/** Celdas de los pasos de la renta de 5.ª (solo domiciliados). */
+export interface RefsRenta {
+  acumuladoPrevio: string;
+  retencionesPrevias: string;
+  rentaProyectada: string;
+  rentaBruta: string;
+  rentaNeta: string;
+  impuestoAnual: string;
+  cuotaOrdinaria: string;
+  adicionalExtraordinario: string;
+}
+
+interface RefsDescuentosLey {
+  total: Linea;
+  remAfecta: string;
+  /** Null para no domiciliados: no hay proyección ni escala. */
+  renta: RefsRenta | null;
+  retencionRenta: string;
+}
+
 function escribirDescuentosLey(
   h: ConstructorHoja,
   d: DetalleExportacion,
@@ -508,7 +539,7 @@ function escribirDescuentosLey(
   cab: RefsCabecera,
   ingresos: RefsIngresos,
   historial: RefsHistorial,
-): Linea {
+): RefsDescuentosLey {
   const tasa = (codigo: string): string | undefined => ctx.referencias.tasa[codigo];
   const valor = (codigo: string): number | undefined => ctx.valores[codigo];
   const lineas: Linea[] = [];
@@ -573,8 +604,10 @@ function escribirDescuentosLey(
   h.vacia();
   h.agregar([{ columna: COLUMNA.etiqueta, valor: 'Renta de 5.ª categoría — LIR art. 53 · D.S. 122-94-EF art. 40', estilo: 'encabezado', mergeHasta: COLUMNA.ultima }]);
 
+  let renta: RefsRenta | null = null;
+  let retencionRenta: Linea;
   if (!t.domiciliado) {
-    lineas.push(h.linea({
+    retencionRenta = h.linea({
       etiqueta: 'Retención renta 5.ª (no domiciliado, 30 % plano)',
       cantidad: { formula: `${remAfecta.refImporte}+${bonif.refImporte}`, formato: 'moneda' },
       factor: { valor: TASA_NO_DOMICILIADO, formato: 'porcentaje' },
@@ -582,7 +615,8 @@ function escribirDescuentosLey(
       esperado: (baseAfecta + bonif.valorCelda) * TASA_NO_DOMICILIADO,
       sistema: d.renta_5ta,
       origen: 'Sin deducción ni proyección (LIR art. 54 inc. f y art. 76).',
-    }));
+    });
+    lineas.push(retencionRenta);
   } else {
     const puede = refUit !== undefined && uit !== undefined && escala !== null && ctx.tramos.length > 0;
     const paso = (etiqueta: string, formula: string | null, esperado: number | null, origen?: string, formato?: 'moneda' | 'entero'): string => {
@@ -629,16 +663,32 @@ function escribirDescuentosLey(
     const rImpExt = paso('(13) Impuesto anual CON la bonificación', escala ? `SUMPRODUCT((${rNetaExt}>${escala.limiteInferior})*(${rNetaExt}-${escala.limiteInferior})*${escala.tasaDiferencial})` : null, impuestoExtEsp);
     const rAdic = paso('(14) Impuesto adicional del extraordinario = (13) − (9)', `IF(${bonif.refImporte}<=0,0,MAX(0,${rImpExt}-${rImp}))`, adicionalEsp, 'Se retiene ÍNTEGRO en el mes en que se paga la bonificación. Por eso julio y diciembre saltan.');
 
-    lineas.push(h.linea({
+    retencionRenta = h.linea({
       etiqueta: 'Retención renta 5.ª del mes = (11) + (14)',
       formula: puede ? `ROUND(${rCuota}+${rAdic},2)` : null,
       esperado: puede ? cuotaEsp + adicionalEsp : null,
       sistema: d.renta_5ta,
       total: true,
-    }));
+    });
+    lineas.push(retencionRenta);
+    renta = {
+      acumuladoPrevio: rAcum,
+      retencionesPrevias: rRet,
+      rentaProyectada: rProy,
+      rentaBruta: rBruta,
+      rentaNeta: rNeta,
+      impuestoAnual: rImp,
+      cuotaOrdinaria: rCuota,
+      adicionalExtraordinario: rAdic,
+    };
   }
 
-  return h.suma('TOTAL DESCUENTOS DE LEY', lineas, d.total_descuentos_ley);
+  return {
+    total: h.suma('TOTAL DESCUENTOS DE LEY', lineas, d.total_descuentos_ley),
+    remAfecta: remAfecta.refImporte,
+    renta,
+    retencionRenta: retencionRenta.refImporte,
+  };
 }
 
 // ─── Préstamos, adelantos y otros ────────────────────────────────────────────
@@ -777,11 +827,28 @@ function escribirAportes(
 
 // ─── Hoja completa ───────────────────────────────────────────────────────────
 
+/**
+ * Celdas de la hoja que las hojas de resumen (renta, dominical) referencian
+ * con fórmulas entre hojas. Así el resumen DERIVA de cada hoja: una sola
+ * fuente de verdad, sin recalcular nada.
+ */
+export interface ReferenciasHojaTrabajador {
+  diasDevengan: string;
+  ausenciasSinGoce: string;
+  remAfecta: string;
+  dominicalSextos: string;
+  dominicalDescuento: string;
+  renta: RefsRenta | null;
+  retencionRenta: string;
+  neto: string;
+}
+
 export interface HojaTrabajador {
   constructor: ConstructorHoja;
   /** Fila donde quedó el neto según las fórmulas (para el índice). */
   filaNeto: number;
   divergentes: number;
+  referencias: ReferenciasHojaTrabajador;
 }
 
 export function construirHojaTrabajador(
@@ -796,15 +863,15 @@ export function construirHojaTrabajador(
   const resumen = escribirResumenTareo(h, d, tareo);
   const ingresos = escribirIngresos(h, d, ctx, cab, tareo, resumen);
   const descuentosTareo = escribirDescuentosTareo(h, d, t, cab, tareo);
-  const totalLey = escribirDescuentosLey(h, d, t, ctx, cab, ingresos, historial);
+  const ley = escribirDescuentosLey(h, d, t, ctx, cab, ingresos, historial);
   const prestamos = escribirPrestamosYOtros(h, d, t);
 
   h.vacia();
-  const totalOtros = h.suma('TOTAL OTROS DESCUENTOS', [...descuentosTareo, ...prestamos], d.total_descuentos_otros,
+  const totalOtros = h.suma('TOTAL OTROS DESCUENTOS', [...descuentosTareo.lineas, ...prestamos], d.total_descuentos_otros,
     'Descuentos del tareo + préstamos y adelantos + descuentos manuales.');
 
   h.seccion('RESULTADO');
-  const totalDescuentos = h.suma('TOTAL DESCUENTOS', [totalLey, totalOtros], d.total_descuentos);
+  const totalDescuentos = h.suma('TOTAL DESCUENTOS', [ley.total, totalOtros], d.total_descuentos);
   const neto = h.linea({
     etiqueta: 'NETO A PAGAR = total ingresos − total descuentos',
     formula: `ROUND(${ingresos.totalIngresos.refImporte}-${totalDescuentos.refImporte},2)`,
@@ -819,5 +886,19 @@ export function construirHojaTrabajador(
   celdaNetoFormulas.formula = neto.refImporte;
   celdaDivergentes.valor = h.divergentes;
 
-  return { constructor: h, filaNeto: neto.fila, divergentes: h.divergentes };
+  return {
+    constructor: h,
+    filaNeto: neto.fila,
+    divergentes: h.divergentes,
+    referencias: {
+      diasDevengan: resumen.diasDevengan.refImporte,
+      ausenciasSinGoce: resumen.ausenciasSinGoce.refImporte,
+      remAfecta: ley.remAfecta,
+      dominicalSextos: descuentosTareo.dominical.sextos,
+      dominicalDescuento: descuentosTareo.dominical.descuento,
+      renta: ley.renta,
+      retencionRenta: ley.retencionRenta,
+      neto: neto.refImporte,
+    },
+  };
 }

@@ -18,6 +18,7 @@ import {
 import { descargarLibro } from './planilla-export-hojas';
 import { construirHojaTrabajador, type ContextoTrabajador } from './planilla-trabajador-conceptos';
 import { nombreHoja, renderizarHojaTrabajador } from './planilla-trabajador-hoja';
+import { agregarHojasResumen, type FilaResumen } from './planilla-trabajador-resumen';
 import type { PlanillaExportacionTrabajadores } from './planilla-export-tipos';
 
 /**
@@ -26,7 +27,8 @@ import type { PlanillaExportacionTrabajadores } from './planilla-export-tipos';
  * anterior que lo originó. Es la vista que pide un inspector o un gerente:
  * "¿por qué esta persona cobró lo que cobró?".
  *
- * Libro: Parámetros · Índice · una hoja por trabajador · Cómo se calcula.
+ * Libro: Parámetros · Índice · Resumen Renta 5ta · Resumen Dominical · una
+ * hoja por trabajador · Cómo se calcula.
  * Comparte con el export auditable la hoja de parámetros, la leyenda de colores
  * y la regla de oro: fórmula solo si reproduce al sistema.
  */
@@ -164,6 +166,7 @@ export async function exportarPlanillaPorTrabajador(id: number): Promise<void> {
 
     const porDocumento = new Map(trazabilidad.map((t) => [t.documento, t]));
     const indice: FilaIndice[] = [];
+    const resumen: FilaResumen[] = [];
     const hojas = detalles.map((d, i) => {
       const traza = porDocumento.get(d.documento) ?? {
         empleado_id: 0,
@@ -186,6 +189,14 @@ export async function exportarPlanillaPorTrabajador(id: number): Promise<void> {
         filaNeto: hoja.filaNeto,
         divergentes: hoja.divergentes,
       });
+      resumen.push({
+        nombreHoja: nombre,
+        nombre: d.nombres_apellidos,
+        documento: d.documento,
+        domiciliado: traza.domiciliado,
+        referencias: hoja.referencias,
+        sistema: { renta5ta: d.renta_5ta, dominical: d.dominical_monto, diasTrabajados: d.dias_trabajados },
+      });
       return { nombre, hoja };
     });
 
@@ -195,6 +206,7 @@ export async function exportarPlanillaPorTrabajador(id: number): Promise<void> {
     // Los modelos ya están construidos (son puros): el índice se agrega antes
     // de renderizar las hojas para quedar segundo, después de Parámetros.
     agregarHojaIndice(workbook, titulo, indice);
+    agregarHojasResumen(workbook, resumen);
     hojas.forEach(({ nombre, hoja }) => {
       renderizarHojaTrabajador(
         workbook,
