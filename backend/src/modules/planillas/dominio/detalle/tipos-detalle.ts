@@ -76,10 +76,20 @@ export interface DiaTareoDetalle {
   esFeriadoTrabajado: boolean;
   horasDiurnas: number;
   horasNocturnas: number;
-  /** Horas declaradas en el detalle del día (0 → se usa la nomenclatura). */
+  /** Horas TRABAJADAS declaradas en el detalle (0 → se usa la nomenclatura). */
   horasDetalle: number;
   /** Horas por defecto de la nomenclatura (null → 8). */
   horasDefault: number | null;
+  /**
+   * Tiempo NO laborado del día, en minutos: tardanzas (T) y permisos parciales
+   * sin goce (P). Es lo OPUESTO a `horasDetalle` y por eso viaja en su propio
+   * campo: un día puede tener jornada completa de 8 horas y aun así 45 minutos
+   * de tardanza dentro de ella.
+   *
+   * No saca el día de la base — el trabajador asistió — ni recorta el dominical.
+   * Se descuenta minuto a minuto por su propia columna.
+   */
+  minutosNoLaborados: number;
 }
 
 /**

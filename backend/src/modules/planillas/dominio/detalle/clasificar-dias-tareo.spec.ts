@@ -16,6 +16,7 @@ function dia(over: Partial<DiaTareoDetalle> = {}): DiaTareoDetalle {
     horasNocturnas: 0,
     horasDetalle: 8,
     horasDefault: 8,
+    minutosNoLaborados: 0,
     ...over,
   };
 }
@@ -107,11 +108,24 @@ describe('clasificarDiasTareo', () => {
     expect(c.diasLicenciaConGoceEnLaborables).toBe(0);
   });
 
-  it('acumula minutos de tardanza (T) desde las horas del detalle', () => {
+  it('acumula minutos de tardanza (T) desde el tiempo NO laborado del día', () => {
+    // CAMBIO DE CONTRATO (deliberado): antes la tardanza se leía de
+    // `horasDetalle`, el mismo campo que expresa las horas TRABAJADAS y que
+    // alimenta las horas extras. Un solo dato con dos significados opuestos:
+    // marcar T con 0.5 significaba a la vez "media hora tarde" y "jornada de
+    // media hora". Ahora el tiempo descontable viaja en `minutosNoLaborados`,
+    // su propio campo, y `horasDetalle` conserva un único significado.
     const c = clasificarDiasTareo([
-      dia({ codigo: 'T', horasDetalle: 0.5, esLaborable: false }),
+      dia({ codigo: 'T', minutosNoLaborados: 30, esLaborable: false }),
     ]);
     expect(c.minutosTardanza).toBe(30);
+  });
+
+  it('la tardanza ya NO se deduce de las horas trabajadas del día', () => {
+    // Regresión del contrato viejo: una jornada de 8 horas con el código T no
+    // puede interpretarse como 480 minutos de tardanza.
+    const c = clasificarDiasTareo([dia({ codigo: 'T', horasDetalle: 8 })]);
+    expect(c.minutosTardanza).toBe(0);
   });
 
   it('marca adelanto quincenal (Q)', () => {
@@ -162,5 +176,81 @@ describe('clasificarDiasTareo - destaque a mina (política BM: 8h + 4 extras diu
     // descanso ya remunerado en los 30 + día trabajado + sobretasa 100%.
     expect(c.diasLaborables).toBe(1);
     expect(c.diasDescansoTrabajado).toBe(1);
+  });
+});
+
+describe('clasificarDiasTareo - tiempo NO laborado (tardanzas y permisos por horas)', () => {
+  it('la tardanza (T) acumula sus minutos no laborados', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'T', minutosNoLaborados: 45 }),
+    ]);
+    expect(c.minutosTardanza).toBe(45);
+  });
+
+  it('acumula los minutos de tardanza de varios días', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'T', minutosNoLaborados: 45 }),
+      dia({ codigo: 'T', minutosNoLaborados: 15 }),
+      dia(),
+    ]);
+    expect(c.minutosTardanza).toBe(60);
+  });
+
+  it('la tardanza SIN minutos declarados no descuenta nada', () => {
+    // Marcar T y olvidar los minutos no puede inventar un descuento.
+    const c = clasificarDiasTareo([dia({ codigo: 'T' })]);
+    expect(c.minutosTardanza).toBe(0);
+  });
+
+  it('la tardanza DEVENGA el día: el trabajador asistió', () => {
+    // El descuento sale por su propia columna (valorMinuto × minutos), no por
+    // sacar el día de la base como hacen las ausencias sin goce.
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'T', minutosNoLaborados: 45 }),
+    ]);
+    expect(c.diasLaborables).toBe(1);
+  });
+
+  it('los minutos no laborados NO alteran la jornada ni generan horas extras', () => {
+    // Regresión de la ambigüedad que motivó la columna dedicada: `horas` sigue
+    // siendo la jornada trabajada y `minutosNoLaborados` el tiempo descontado.
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'T', horasDetalle: 8, minutosNoLaborados: 120 }),
+    ]);
+    expect(c.horas8).toBe(1);
+    expect(c.totalHorasExtrasDiurnas25).toBe(0);
+    expect(c.minutosTardanza).toBe(120);
+  });
+
+  it('el permiso (P) con minutos es PARCIAL: acumula minutos y no cuenta día completo', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'P', minutosNoLaborados: 180 }),
+    ]);
+    expect(c.minutosPermiso).toBe(180);
+    expect(c.diasPermiso).toBe(0);
+    expect(c.diasLaborables).toBe(1);
+  });
+
+  it('el permiso (P) SIN minutos sigue siendo de día completo', () => {
+    // Compatibilidad con el comportamiento previo: P sin minutos = un día.
+    const c = clasificarDiasTareo([dia({ codigo: 'P' })]);
+    expect(c.diasPermiso).toBe(1);
+    expect(c.minutosPermiso).toBe(0);
+  });
+
+  it('convive un permiso parcial con uno de día completo', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'P', minutosNoLaborados: 120 }),
+      dia({ codigo: 'P' }),
+    ]);
+    expect(c.minutosPermiso).toBe(120);
+    expect(c.diasPermiso).toBe(1);
+  });
+
+  it('ignora minutos negativos o no numéricos', () => {
+    const c = clasificarDiasTareo([
+      dia({ codigo: 'T', minutosNoLaborados: -30 }),
+    ]);
+    expect(c.minutosTardanza).toBe(0);
   });
 });

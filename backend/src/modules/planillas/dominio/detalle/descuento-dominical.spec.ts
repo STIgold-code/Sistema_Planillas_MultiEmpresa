@@ -25,6 +25,7 @@ function dia(diaDeJunio: number, codigo = 'A'): DiaTareoDetalle {
     horasNocturnas: 0,
     horasDetalle: esAusencia ? 0 : 8,
     horasDefault: 8,
+    minutosNoLaborados: 0,
   };
 }
 
@@ -82,6 +83,20 @@ describe('calcularDescuentoDominical (D.L. 713 art. 4)', () => {
     expect(calcularDescuentoDominical(junio2026({ 3: 'LSG' }), VALOR_DIA)).toBe(
       16.67,
     );
+  });
+
+  it('tardanzas y permisos parciales NO recortan: el día se trabajó', () => {
+    // D.L. 713 art. 4 prorratea por días EFECTIVAMENTE TRABAJADOS. Llegar tarde
+    // o salir unas horas no convierte el día en no trabajado, así que el
+    // descanso semanal se paga íntegro.
+    const conTardanza = { ...dia(3, 'T'), minutosNoLaborados: 240 };
+    const conPermiso = { ...dia(4, 'P'), minutosNoLaborados: 180 };
+    const dias = junio2026().map((d) => {
+      if (d.fecha.getDate() === 3) return conTardanza;
+      if (d.fecha.getDate() === 4) return conPermiso;
+      return d;
+    });
+    expect(calcularDescuentoDominical(dias, VALOR_DIA)).toBe(0);
   });
 
   it('vacaciones, licencias con goce y subsidios no recortan nunca', () => {
