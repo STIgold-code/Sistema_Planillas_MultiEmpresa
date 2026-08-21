@@ -63,7 +63,10 @@ export interface TareoDetalle {
   dia: number;
   tipo_marcacion_id?: number;
   tipo_marcacion?: TipoMarcacion;
+  /** Horas efectivamente trabajadas del dia. */
   horas?: number;
+  /** Tiempo no laborado del dia, en minutos (tardanzas, permisos parciales). */
+  minutos_no_laborados?: number;
   observacion?: string;
 }
 
@@ -85,6 +88,11 @@ export interface TareoGrillaDia {
   codigo: string | null;
   color: string | null;
   tipo_marcacion_id: number | null;
+  /**
+   * Tiempo NO laborado del dia, en minutos: tardanzas y permisos parciales sin
+   * goce. Es lo opuesto a `horas`, que son las horas trabajadas.
+   */
+  minutos_no_laborados: number;
   en_contrato: boolean;
 }
 

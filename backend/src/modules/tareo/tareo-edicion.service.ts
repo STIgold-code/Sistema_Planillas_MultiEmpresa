@@ -170,6 +170,12 @@ export class TareoEdicionService {
               ? (tipoMarcacionNuevo.horas_diurnas ?? 0) +
                 (tipoMarcacionNuevo.horas_nocturnas ?? 0)
               : undefined),
+          // Tiempo no laborado del dia. Cambiar de codigo lo limpia: los
+          // minutos pertenecen a la marcacion que los declaro, y arrastrarlos a
+          // otra dejaria un descuento fantasma sin causa visible en el tareo.
+          minutos_no_laborados:
+            dto.minutos_no_laborados ??
+            (dto.tipo_marcacion_id !== undefined ? 0 : undefined),
           observacion: dto.observacion,
         },
         include: {
@@ -318,6 +324,7 @@ export class TareoEdicionService {
       id: number;
       tipo_marcacion_id: number | null;
       horas?: number;
+      minutos_no_laborados: number;
       observacion?: string;
     }> = [];
     const audits: Array<{
@@ -397,6 +404,9 @@ export class TareoEdicionService {
         id: detalle.id,
         tipo_marcacion_id: tipoMarcacionId,
         horas: horasCalc,
+        // Sin minutos declarados la celda queda en cero: marcar de nuevo un dia
+        // nunca debe heredar el tiempo descontado de la marcacion anterior.
+        minutos_no_laborados: celda.minutos_no_laborados ?? 0,
         observacion: celda.observacion,
       });
 
@@ -464,6 +474,7 @@ export class TareoEdicionService {
             data: {
               tipo_marcacion_id: update.tipo_marcacion_id,
               horas: update.horas,
+              minutos_no_laborados: update.minutos_no_laborados,
               observacion: update.observacion,
             },
           });
