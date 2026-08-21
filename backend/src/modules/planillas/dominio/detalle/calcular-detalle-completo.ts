@@ -254,9 +254,15 @@ export function calcularDetalleCompleto(
     entrada.trabajadorDomiciliado,
     grat.bonifExtraordinariaMonto,
   );
-  const valorMinuto = hayDiasTrabajados
-    ? redondear2(sueldoBase / 30 / 8 / 60)
-    : 0;
+  // Valor del minuto SIN redondeo intermedio. Descontar por tiempo no laborado
+  // es legal porque se deja de pagar lo que no se devengó, no porque se
+  // sancione: las multas económicas al trabajador están prohibidas. Por eso el
+  // descuento NO puede exceder el valor real del tiempo, ni siquiera por
+  // redondeo. Con sueldo 3000 el minuto vale 0.208333…; redondearlo acá a 0.21
+  // haría que una hora de tardanza cueste 12.60 en vez de 12.50, y esos diez
+  // céntimos de más serían una multa encubierta. Se redondea UNA sola vez, al
+  // final, sobre el importe ya calculado.
+  const valorMinuto = hayDiasTrabajados ? sueldoBase / 30 / 8 / 60 : 0;
   // Las faltas ya NO se descuentan aparte: al ser ausencias sin goce quedaron
   // fuera de `diasLaborables`, así que el haber devengado (sueldo/30 × días)
   // ya las excluye. Descontarlas además sería un doble castigo al trabajador.
@@ -271,9 +277,17 @@ export function calcularDetalleCompleto(
   const descuentoDominical = hayDiasTrabajados
     ? calcularDescuentoDominical(entrada.dias, valorDiaNormal)
     : 0;
+  // Permisos sin goce: los de día completo se descuentan en treintavos y los
+  // PARCIALES minuto a minuto. Son la misma columna porque son el mismo
+  // concepto; lo único que cambia es la unidad en que se midió la ausencia.
   const descuentoPermisos = hayDiasTrabajados
-    ? redondear2((sueldoBase / 30) * c.diasPermiso)
+    ? redondear2(
+        (sueldoBase / 30) * c.diasPermiso + valorMinuto * c.minutosPermiso,
+      )
     : 0;
+  // Tardanzas: el trabajador asistió, así que el día devenga completo y esto es
+  // lo único que se le descuenta. Tampoco recorta el dominical (D.L. 713 art. 4
+  // prorratea por días efectivamente trabajados, y este día se trabajó).
   const descuentoTardanzas = hayDiasTrabajados
     ? redondear2(valorMinuto * c.minutosTardanza)
     : 0;

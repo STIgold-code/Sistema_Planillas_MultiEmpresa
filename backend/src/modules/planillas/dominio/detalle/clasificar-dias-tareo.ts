@@ -92,7 +92,13 @@ export interface ClasificacionTareo {
   diasPermiso: number;
   diasPegada: number;
   diasRetenido: number;
+  /** Minutos de tardanza del período (código T). Se descuentan minuto a minuto. */
   minutosTardanza: number;
+  /**
+   * Minutos de permiso PARCIAL sin goce (código P con minutos declarados).
+   * Los permisos de día completo siguen contándose en `diasPermiso`.
+   */
+  minutosPermiso: number;
   diasFeriadoNoTrabajado: number;
   tieneAdelantoQuincenal: boolean;
   diasLaborables: number;
@@ -126,6 +132,7 @@ function clasificacionVacia(): ClasificacionTareo {
     diasPegada: 0,
     diasRetenido: 0,
     minutosTardanza: 0,
+    minutosPermiso: 0,
     diasFeriadoNoTrabajado: 0,
     tieneAdelantoQuincenal: false,
     diasLaborables: 0,
@@ -134,6 +141,16 @@ function clasificacionVacia(): ClasificacionTareo {
     totalHorasExtrasNocturnas25: 0,
     totalHorasExtrasNocturnas35: 0,
   };
+}
+
+/**
+ * Minutos NO laborados del día, saneados. Un valor negativo o no numérico no
+ * puede convertirse en un descuento: se trata como cero.
+ */
+function minutosNoLaboradosDe(dia: DiaTareoDetalle): number {
+  const minutos = dia.minutosNoLaborados;
+  if (!Number.isFinite(minutos) || minutos <= 0) return 0;
+  return minutos;
 }
 
 /** Cuenta el día según su código de nomenclatura (mutación in-place). */
@@ -152,12 +169,28 @@ function contarPorCodigo(c: ClasificacionTareo, dia: DiaTareoDetalle): void {
   else if (codigo === 'DT') c.diasDescansoTrabajado++;
   else if (codigo === 'E') c.diasHorasExtra++;
   else if (codigo === 'FJ') c.diasFaltaJustificada++;
-  else if (codigo === 'P') c.diasPermiso++;
+  else if (codigo === 'P') contarPermiso(c, dia);
   else if (codigo === 'PG') c.diasPegada++;
   else if (codigo === 'RET') c.diasRetenido++;
   else if (codigo === 'Q') c.tieneAdelantoQuincenal = true;
-  else if (codigo === 'T') c.minutosTardanza += dia.horasDetalle * 60;
+  else if (codigo === 'T') c.minutosTardanza += minutosNoLaboradosDe(dia);
   else if (codigo === 'H') c.diasFeriadoNoTrabajado++;
+}
+
+/**
+ * Permiso sin goce: PARCIAL si declara minutos, de día completo si no.
+ *
+ * La distinción es deliberada y retrocompatible: antes de que existieran los
+ * permisos por horas, un día marcado P descontaba el día entero. Ese sigue
+ * siendo el comportamiento cuando no hay minutos declarados.
+ */
+function contarPermiso(c: ClasificacionTareo, dia: DiaTareoDetalle): void {
+  const minutos = minutosNoLaboradosDe(dia);
+  if (minutos > 0) {
+    c.minutosPermiso += minutos;
+    return;
+  }
+  c.diasPermiso += 1;
 }
 
 /** Resuelve las horas del día: detalle > nomenclatura > default (= legacy). */
