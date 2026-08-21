@@ -158,16 +158,95 @@ export interface ComisionAfpExportacion {
   comision_mixta: number;
 }
 
+/** Tramo de la escala del impuesto a la renta (Art. 53 LIR). `hasta_uit` null = tramo abierto. */
+export interface TramoIrExportacion {
+  desde_uit: number;
+  hasta_uit: number | null;
+  tasa: number;
+}
+
 /** Bloque de parametros con los que el motor calculo esta planilla. */
 export interface ParametrosExportacion {
   /** Fecha con la que se resolvieron los parametros versionados. */
   vigencia: string;
   tasas: TasaExportacion[];
   comisiones_afp: ComisionAfpExportacion[];
+  /** Escala progresiva con la que se retuvo la renta de 5.ª. */
+  tramos_ir: TramoIrExportacion[];
+  /** Deduccion fija de los dependientes, en UIT (Art. 46 LIR). */
+  deduccion_uit: number;
 }
 
 export interface PlanillaExportacion {
   cabecera: CabeceraExportacion;
   detalles: DetalleExportacion[];
   parametros: ParametrosExportacion;
+}
+
+// ─── Trazabilidad por trabajador (GET /planillas/:id/exportar-trabajadores) ───
+
+/** Un dia del tareo con las banderas que el motor usa para clasificarlo. */
+export interface DiaTareoExportacion {
+  /** Ordinal dentro de la ventana del periodo (1..N). */
+  dia: number;
+  /** Fecha real de calendario, ISO `yyyy-mm-dd`. */
+  fecha: string;
+  codigo: string;
+  descripcion: string;
+  /** Horas de la jornada resueltas como lo hace el motor. */
+  horas: number;
+  /** El dia suma a dias trabajados y devenga sueldo. */
+  devenga: boolean;
+  /** Ausencia sin goce: recorta el dominical de su semana (D.L. 713 art. 4). */
+  sin_goce: boolean;
+  nocturno: boolean;
+  feriado_trabajado: boolean;
+}
+
+export interface CargoPrestamoExportacion {
+  tipo: string;
+  fecha_otorgado: string;
+  monto_total: number;
+  cuota_mensual: number;
+  cargo: number;
+  cuota_numero: number;
+  cuotas_previstas: number | null;
+  saldo_actual: number;
+  /** MOVIMIENTO: cargo registrado contra la planilla. VIGENTE: cuota tomada de un prestamo activo. */
+  origen: 'MOVIMIENTO' | 'VIGENTE';
+}
+
+export interface MesHistorialExportacion {
+  anio: number;
+  mes: number;
+  estado: string;
+  dias_trabajados: number;
+  remuneracion_afecta: number;
+  renta_5ta: number;
+  horas_extras: number;
+  bonificaciones: number;
+  gratificacion: number;
+}
+
+export interface TrazabilidadTrabajador {
+  empleado_id: number;
+  documento: string;
+  domiciliado: boolean;
+  dias_permiso: number;
+  minutos_tardanza: number;
+  tareo: DiaTareoExportacion[];
+  renta: { acumulado_previo: number; retenciones_previas: number };
+  prestamos: CargoPrestamoExportacion[];
+  historial: MesHistorialExportacion[];
+}
+
+export interface PeriodoExportacion {
+  fecha_inicio: string;
+  fecha_fin: string;
+  dias: number;
+}
+
+export interface PlanillaExportacionTrabajadores extends PlanillaExportacion {
+  periodo: PeriodoExportacion | null;
+  trazabilidad: TrazabilidadTrabajador[];
 }

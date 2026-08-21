@@ -3,7 +3,6 @@
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
-import { formatDateSafe } from '@/lib/utils';
 import ExcelJS from 'exceljs';
 import { meses } from './types';
 import { COLORES, BORDER_TABLE, BORDER_HEADER } from './planilla-export-constants';
@@ -24,14 +23,20 @@ import {
   formulaTotalColumna,
   type CeldaDerivada,
   type ContextoFormulas,
-  type ReferenciasParametros,
 } from './planilla-auditable-formulas';
-import { CONCEPTOS_DOCUMENTADOS } from './planilla-auditable-documentacion';
+import {
+  FORMATO_MONEDA,
+  RELLENO_DIVERGENTE,
+  RELLENO_FORMULA,
+  RELLENO_INSUMO,
+  agregarHojaComoSeCalcula,
+  agregarHojaParametros,
+  relleno,
+} from './planilla-auditable-hojas';
 import { descargarLibro } from './planilla-export-hojas';
 import type {
   CabeceraExportacion,
   DetalleExportacion,
-  ParametrosExportacion,
   PlanillaExportacion,
 } from './planilla-export-tipos';
 
@@ -46,29 +51,7 @@ import type {
  * con el importe de la planilla y marcada en rojo.
  */
 
-const HOJA_PARAMETROS = 'Parámetros';
-/** Excel requiere comillas simples al referenciar una hoja con acentos. */
-const REF_HOJA = `'${HOJA_PARAMETROS}'`;
 
-const RELLENO_FORMULA = 'FFE8F5E9';
-const RELLENO_INSUMO = 'FFFFF3CD';
-const RELLENO_DIVERGENTE = 'FFFDD5D5';
-
-const FORMATO_PORCENTAJE = '0.0000%';
-const FORMATO_MONEDA = '#,##0.00';
-
-const relleno = (argb: string): ExcelJS.Fill => ({
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb },
-});
-
-const ETIQUETAS_ORIGEN: Record<string, string> = {
-  PARAMETRO_LEGAL: 'Parámetro legal (nacional)',
-  PARAMETRO_EMPRESA: 'Parámetro propio de la empresa',
-  REGIMEN_PENSIONARIO: 'Régimen pensionario',
-  NO_DISPONIBLE: 'No disponible',
-};
 
 /** Columnas que el contador puede editar para simular un escenario. */
 function columnasInsumo(): Set<number> {
@@ -93,142 +76,6 @@ function columnasInsumo(): Set<number> {
 
 const COLUMNAS_INSUMO = columnasInsumo();
 
-interface HojaParametros {
-  referencias: ReferenciasParametros;
-  valores: Record<string, number>;
-}
-
-function agregarHojaParametros(
-  workbook: ExcelJS.Workbook,
-  parametros: ParametrosExportacion,
-): HojaParametros {
-  const ws = workbook.addWorksheet(HOJA_PARAMETROS, {
-    properties: { tabColor: { argb: COLORES.APORTES } },
-  });
-
-  ws.columns = [
-    { width: 4 }, { width: 46 }, { width: 16 },
-    { width: 40 }, { width: 30 }, { width: 16 },
-  ];
-
-  let fila = 1;
-
-  ws.mergeCells(`B${fila}:F${fila}`);
-  const titulo = ws.getCell(`B${fila}`);
-  titulo.value = 'PARÁMETROS USADOS EN EL CÁLCULO';
-  Object.assign(titulo, ESTILOS.titulo);
-  ws.getRow(fila).height = 30;
-  fila++;
-
-  ws.mergeCells(`B${fila}:F${fila}`);
-  // Las fechas de vigencia son campos DATE (medianoche UTC): formatearlas con
-  // `new Date(...).toLocaleDateString` las corre un dia hacia atras en UTC-5 y
-  // el Excel diria que los parametros se resolvieron el 24 cuando la ventana
-  // cierra el 25. `formatDateSafe` lee la fecha del ISO sin convertir zona.
-  ws.getCell(`B${fila}`).value = `Vigencia con la que se resolvieron: ${formatDateSafe(
-    parametros.vigencia,
-  )}`;
-  ws.getCell(`B${fila}`).font = { size: 11, color: { argb: COLORES.TEXT_GRAY } };
-  fila++;
-
-  ws.mergeCells(`B${fila}:F${fila}`);
-  ws.getCell(`B${fila}`).value =
-    'Las celdas en ámbar son editables: al cambiarlas se recalculan las fórmulas de la hoja "Planilla con fórmulas".';
-  ws.getCell(`B${fila}`).font = { size: 10, italic: true, color: { argb: COLORES.TEXT_GRAY } };
-  fila += 2;
-
-  const escribirEncabezados = (titulos: string[]): void => {
-    titulos.forEach((texto, i) => {
-      const cell = ws.getCell(fila, 2 + i);
-      cell.value = texto;
-      cell.font = { bold: true, size: 10, color: { argb: COLORES.TEXT_WHITE } };
-      cell.fill = relleno(COLORES.HEADER_DARK);
-      cell.border = BORDER_HEADER;
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-    fila++;
-  };
-
-  escribirEncabezados(['Parámetro', 'Valor', 'Base legal', 'Origen', 'Vigente desde']);
-
-  const referenciasTasa: Record<string, string> = {};
-  const valores: Record<string, number> = {};
-
-  parametros.tasas.forEach((tasa) => {
-    const disponible = tasa.origen !== 'NO_DISPONIBLE';
-    ws.getCell(fila, 2).value = tasa.etiqueta;
-
-    const celdaValor = ws.getCell(fila, 3);
-    celdaValor.value = tasa.valor;
-    celdaValor.numFmt =
-      tasa.formato === 'PORCENTAJE' ? FORMATO_PORCENTAJE : FORMATO_MONEDA;
-    celdaValor.fill = relleno(disponible ? RELLENO_INSUMO : RELLENO_DIVERGENTE);
-    celdaValor.alignment = { horizontal: 'right' };
-
-    ws.getCell(fila, 4).value = tasa.base_legal;
-    ws.getCell(fila, 5).value = ETIQUETAS_ORIGEN[tasa.origen] ?? tasa.origen;
-    ws.getCell(fila, 6).value = tasa.vigente_desde
-      ? formatDateSafe(tasa.vigente_desde)
-      : '—';
-
-    for (let c = 2; c <= 6; c++) {
-      ws.getCell(fila, c).border = BORDER_TABLE;
-      ws.getCell(fila, c).font = { size: 10, ...ws.getCell(fila, c).font };
-    }
-
-    // Solo las tasas realmente resueltas se ofrecen como referencia: sin fila
-    // vigente no hay valor que citar y la fórmula debe degradar.
-    if (disponible) {
-      referenciasTasa[tasa.codigo] = `${REF_HOJA}!$C$${fila}`;
-      valores[tasa.codigo] = tasa.valor;
-    }
-    fila++;
-  });
-
-  fila += 2;
-
-  ws.mergeCells(`B${fila}:F${fila}`);
-  const tituloAfp = ws.getCell(`B${fila}`);
-  tituloAfp.value = 'COMISIONES AFP — D.L. 25897 art. 30 · Ley 29903';
-  tituloAfp.font = { bold: true, size: 12, color: { argb: COLORES.PRIMARY } };
-  fila++;
-
-  escribirEncabezados([
-    'Administradora', 'Aporte obligatorio', 'Prima de seguro',
-    'Comisión sobre flujo', 'Comisión mixta (flujo)',
-  ]);
-
-  // Siempre se escribe al menos una fila: el rango del VLOOKUP tiene que ser
-  // sintácticamente válido aunque no haya AFP cargadas.
-  const filas = parametros.comisiones_afp.length > 0
-    ? parametros.comisiones_afp
-    : [{ administradora: '—', aporte: 0, prima: 0, comision_flujo: 0, comision_mixta: 0 }];
-
-  const primeraFilaAfp = fila;
-  filas.forEach((afp) => {
-    ws.getCell(fila, 2).value = afp.administradora;
-    [afp.aporte, afp.prima, afp.comision_flujo, afp.comision_mixta].forEach((valor, i) => {
-      const cell = ws.getCell(fila, 3 + i);
-      cell.value = valor;
-      cell.numFmt = FORMATO_PORCENTAJE;
-      cell.fill = relleno(RELLENO_INSUMO);
-      cell.alignment = { horizontal: 'right' };
-    });
-    for (let c = 2; c <= 6; c++) {
-      ws.getCell(fila, c).border = BORDER_TABLE;
-      ws.getCell(fila, c).font = { size: 10, ...ws.getCell(fila, c).font };
-    }
-    fila++;
-  });
-
-  return {
-    referencias: {
-      tasa: referenciasTasa,
-      rangoAfp: `${REF_HOJA}!$B$${primeraFilaAfp}:$F$${fila - 1}`,
-    },
-    valores,
-  };
-}
 
 const FILA_ENCABEZADOS = 7;
 const PRIMERA_FILA_DATOS = 8;
@@ -392,74 +239,6 @@ function agregarHojaFormulas(
   pintarLeyenda(ws, divergentes);
 }
 
-function agregarHojaComoSeCalcula(workbook: ExcelJS.Workbook): void {
-  const ws = workbook.addWorksheet('Cómo se calcula', {
-    properties: { tabColor: { argb: COLORES.DATOS } },
-  });
-
-  ws.columns = [{ width: 4 }, { width: 34 }, { width: 110 }];
-
-  let fila = 1;
-
-  ws.mergeCells(`B${fila}:C${fila}`);
-  const titulo = ws.getCell(`B${fila}`);
-  titulo.value = 'CÓMO SE CALCULA CADA CONCEPTO';
-  Object.assign(titulo, ESTILOS.titulo);
-  ws.getRow(fila).height = 30;
-  fila++;
-
-  ws.mergeCells(`B${fila}:C${fila}`);
-  ws.getCell(`B${fila}`).value =
-    'Conceptos que no se reducen a una sola fórmula de celda, con la norma que los sustenta.';
-  ws.getCell(`B${fila}`).font = { size: 10, italic: true, color: { argb: COLORES.TEXT_GRAY } };
-  fila += 2;
-
-  CONCEPTOS_DOCUMENTADOS.forEach((concepto) => {
-    ws.mergeCells(`B${fila}:C${fila}`);
-    const encabezado = ws.getCell(`B${fila}`);
-    encabezado.value = concepto.concepto.toUpperCase();
-    encabezado.font = { bold: true, size: 12, color: { argb: COLORES.TEXT_WHITE } };
-    encabezado.fill = relleno(COLORES.PRIMARY);
-    encabezado.border = BORDER_HEADER;
-    ws.getRow(fila).height = 22;
-    fila++;
-
-    ws.getCell(`B${fila}`).value = 'Base legal';
-    ws.getCell(`B${fila}`).font = { bold: true, size: 10 };
-    ws.getCell(`C${fila}`).value = concepto.base_legal;
-    ws.getCell(`C${fila}`).font = { size: 10, color: { argb: COLORES.PRIMARY } };
-    fila++;
-
-    ws.getCell(`B${fila}`).value = 'En una línea';
-    ws.getCell(`B${fila}`).font = { bold: true, size: 10 };
-    ws.getCell(`C${fila}`).value = concepto.resumen;
-    ws.getCell(`C${fila}`).alignment = { wrapText: true, vertical: 'top' };
-    ws.getCell(`C${fila}`).font = { size: 10 };
-    fila++;
-
-    concepto.pasos.forEach((paso) => {
-      ws.getCell(`B${fila}`).value = paso.titulo;
-      ws.getCell(`B${fila}`).font = { size: 10 };
-      ws.getCell(`B${fila}`).alignment = { wrapText: true, vertical: 'top' };
-      ws.getCell(`C${fila}`).value = paso.detalle;
-      ws.getCell(`C${fila}`).font = { size: 10 };
-      ws.getCell(`C${fila}`).alignment = { wrapText: true, vertical: 'top' };
-      ws.getRow(fila).height = 32;
-      fila++;
-    });
-
-    if (concepto.nota) {
-      ws.getCell(`B${fila}`).value = 'Nota';
-      ws.getCell(`B${fila}`).font = { bold: true, size: 10, color: { argb: COLORES.WARNING } };
-      ws.getCell(`C${fila}`).value = concepto.nota;
-      ws.getCell(`C${fila}`).font = { size: 10, italic: true };
-      ws.getCell(`C${fila}`).alignment = { wrapText: true, vertical: 'top' };
-      fila++;
-    }
-
-    fila++;
-  });
-}
 
 /**
  * Descarga el libro auditable: Parámetros, Planilla con fórmulas y Cómo se
