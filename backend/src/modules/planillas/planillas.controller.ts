@@ -86,6 +86,20 @@ export class PlanillasController {
     return this.planillasService.exportar(id, user.empresa_id);
   }
 
+  /**
+   * Datos para el Excel por trabajador: el mismo DTO de `exportar` más el tareo
+   * del período, los acumulados de renta, los cargos de préstamos y el
+   * historial de planillas previas de cada trabajador.
+   */
+  @Get(':id/exportar-trabajadores')
+  @RequirePermissions('planilla:leer')
+  exportarTrabajadores(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.planillasService.exportarTrabajadores(id, user.empresa_id);
+  }
+
   @Post()
   @RequirePermissions('planilla:crear')
   create(

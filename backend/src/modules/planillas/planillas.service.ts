@@ -83,6 +83,10 @@ export class PlanillasService {
     return this.consulta.exportar(id, empresaId);
   }
 
+  async exportarTrabajadores(id: number, empresaId: number) {
+    return this.consulta.exportarTrabajadores(id, empresaId);
+  }
+
   async create(empresaId: number, dto: CreatePlanillaDto, usuarioId?: number) {
     // Usar transacción para evitar race conditions (planillas duplicadas)
     return this.prisma
