@@ -195,6 +195,8 @@ export interface DiaTareoExportacion {
   descripcion: string;
   /** Horas de la jornada resueltas como lo hace el motor. */
   horas: number;
+  /** Tiempo NO laborado del dia en minutos (tardanzas, permisos parciales). */
+  minutos_no_laborados: number;
   /** El dia suma a dias trabajados y devenga sueldo. */
   devenga: boolean;
   /** Ausencia sin goce: recorta el dominical de su semana (D.L. 713 art. 4). */

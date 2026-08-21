@@ -62,6 +62,8 @@ export interface DiaTareoExportacion {
   descripcion: string;
   /** Horas de la jornada resueltas como lo hace el motor (detalle > nomenclatura > 8). */
   horas: number;
+  /** Tiempo NO laborado del día en minutos (tardanzas, permisos parciales). */
+  minutos_no_laborados: number;
   /** El día suma a `dias_trabajados` y devenga sueldo. */
   devenga: boolean;
   /** Ausencia sin goce: recorta el dominical de su semana (D.L. 713 art. 4). */
@@ -168,6 +170,7 @@ async function cargarTareos(
         select: {
           dia: true,
           horas: true,
+          minutos_no_laborados: true,
           tipo_marcacion: {
             select: {
               codigo: true,
@@ -192,6 +195,7 @@ async function cargarTareos(
       if (!tm) continue;
       const horasDiurnas = aNumero(tm.horas_diurnas);
       const horasNocturnas = aNumero(tm.horas_nocturnas);
+      const minutosNoLaborados = aNumero(detalle.minutos_no_laborados);
       dias.push({
         dia: detalle.dia,
         fecha: fechaDeDiaIso(fechaInicio, detalle.dia),
@@ -206,7 +210,9 @@ async function cargarTareos(
           horasNocturnas,
           horasDetalle: aNumero(detalle.horas),
           horasDefault: tm.horas_default,
+          minutosNoLaborados,
         }),
+        minutos_no_laborados: minutosNoLaborados,
         devenga: diaDevenga(tm.codigo, tm.es_laborable),
         sin_goce: CODIGOS_AUSENCIA_SIN_GOCE.has(tm.codigo),
         nocturno: horasNocturnas > 0,
