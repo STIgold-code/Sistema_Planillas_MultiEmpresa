@@ -9,7 +9,9 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { PlanillasService } from './planillas.service';
 import {
   CreatePlanillaDto,
@@ -47,6 +49,35 @@ export class PlanillasController {
   @RequirePermissions('planilla:leer')
   getResumen(@CurrentUser() user: AuthenticatedUser) {
     return this.planillasService.getResumen(user.empresa_id);
+  }
+
+  /**
+   * Plantilla de CIERRE del período: el Excel que el área contable llena con
+   * los saldos reales, adelantos, vacaciones y bonos del mes. Se pide por
+   * año/mes y NO exige que la planilla exista todavía — justamente se descarga
+   * antes de calcular.
+   */
+  @Get('plantilla-cierre/:anio/:mes')
+  @RequirePermissions('planilla:leer')
+  async plantillaCierre(
+    @Param('anio', ParseIntPipe) anio: number,
+    @Param('mes', ParseIntPipe) mes: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    const { workbook, nombreArchivo } =
+      await this.planillasService.plantillaCierre(user.empresa_id, anio, mes);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${nombreArchivo}"`,
+    );
+    await workbook.xlsx.write(res);
+    res.end();
   }
 
   @Get(':id')

@@ -20,6 +20,8 @@ import {
   formatearFechaPeru,
 } from '../../common/utils/datetime.util';
 import { PrestamosAmortizacionService } from '../prestamos/prestamos-amortizacion.service';
+import { construirPlantillaCierre } from './plantilla-cierre-datos';
+import { construirLibroPlantillaCierre } from './plantilla-cierre-excel';
 
 // Interfaz para advertencias de validación (exportada para tipado en controller)
 export interface CalculoWarning {
@@ -85,6 +87,20 @@ export class PlanillasService {
 
   async exportarTrabajadores(id: number, empresaId: number) {
     return this.consulta.exportarTrabajadores(id, empresaId);
+  }
+
+  /** Libro de cierre del período, listo para descargar. */
+  async plantillaCierre(empresaId: number, anio: number, mes: number) {
+    const datos = await construirPlantillaCierre(
+      this.prisma,
+      empresaId,
+      anio,
+      mes,
+    );
+    return {
+      workbook: construirLibroPlantillaCierre(datos),
+      nombreArchivo: `Cierre_Planilla_${datos.periodo.etiqueta.replace(' ', '_')}.xlsx`,
+    };
   }
 
   async create(empresaId: number, dto: CreatePlanillaDto, usuarioId?: number) {
