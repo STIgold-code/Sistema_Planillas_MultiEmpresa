@@ -55,6 +55,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { PlantillaCierreDialog } from './components/PlantillaCierreDialog';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe } from '@/lib/utils';
@@ -104,11 +105,9 @@ export default function PlanillasPage() {
 
   // Dialog eliminar
   // Plantilla de cierre: se pide por periodo y NO exige que la planilla exista
-  // todavia, porque justamente se descarga antes de calcular.
+  // todavia, porque justamente se descarga antes de calcular. Todo el flujo
+  // (descarga, revision y carga) vive en su propio componente.
   const [showPlantilla, setShowPlantilla] = useState(false);
-  const [plantillaAnio, setPlantillaAnio] = useState(new Date().getFullYear());
-  const [plantillaMes, setPlantillaMes] = useState(new Date().getMonth() + 1);
-  const [descargandoPlantilla, setDescargandoPlantilla] = useState(false);
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -192,27 +191,6 @@ export default function PlanillasPage() {
     return `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
   };
 
-  const handleDescargarPlantilla = async () => {
-    setDescargandoPlantilla(true);
-    try {
-      const blob = await api.getBlob(
-        `/planillas/plantilla-cierre/${plantillaAnio}/${plantillaMes}`,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Cierre_Planilla_${meses[plantillaMes - 1]}_${plantillaAnio}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setShowPlantilla(false);
-      toast.success('Plantilla de cierre descargada');
-    } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, 'Error al descargar la plantilla de cierre'));
-    } finally {
-      setDescargandoPlantilla(false);
-    }
-  };
-
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -232,9 +210,9 @@ export default function PlanillasPage() {
               </Button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              Excel para que el area contable registre los saldos de prestamos,
-              adelantos, vacaciones y bonos del periodo. Viene prellenado con lo
-              que el sistema ya sabe, para confirmar o corregir.
+              Descarga el Excel prellenado para que el area contable confirme
+              saldos de prestamos, adelantos, vacaciones y bonos del periodo, y
+              vuelve a subirlo aqui para cargarlo al sistema.
             </TooltipContent>
           </Tooltip>
           <Button onClick={() => setShowModal(true)}>
@@ -449,71 +427,11 @@ export default function PlanillasPage() {
       )}
 
       {/* Modal Nueva Planilla */}
-      <Dialog open={showPlantilla} onOpenChange={setShowPlantilla}>
-        <DialogContent className="sm:max-w-[480px] max-w-[95vw]">
-          <DialogHeader>
-            <DialogTitle className="text-lg md:text-xl">Plantilla de cierre</DialogTitle>
-            <DialogDescription className="text-sm">
-              Excel para que el area contable registre los saldos de prestamos,
-              los adelantos, las vacaciones y los bonos del periodo. Se descarga
-              antes de calcular la planilla.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2 md:gap-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-              <div className="space-y-2">
-                <Label>Año</Label>
-                <Select
-                  value={plantillaAnio.toString()}
-                  onValueChange={(v) => setPlantillaAnio(parseInt(v, 10))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Mes</Label>
-                <Select
-                  value={plantillaMes.toString()}
-                  onValueChange={(v) => setPlantillaMes(parseInt(v, 10))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {meses.map((mes, i) => (
-                      <SelectItem key={mes} value={(i + 1).toString()}>
-                        {mes}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowPlantilla(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleDescargarPlantilla} disabled={descargandoPlantilla}>
-              {descargandoPlantilla ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ClipboardList className="mr-2 h-4 w-4" />
-              )}
-              Descargar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PlantillaCierreDialog
+        open={showPlantilla}
+        onOpenChange={setShowPlantilla}
+        onAplicado={fetchPlanillas}
+      />
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-[425px] max-w-[95vw]">
