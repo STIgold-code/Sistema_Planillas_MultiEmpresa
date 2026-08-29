@@ -124,13 +124,25 @@ const esArchivo = z.custom<File>((valor) => valor instanceof File, {
 /**
  * El convenio firmado solo se exige al OTORGAR. Al editar únicamente se tocan
  * la cuota y las observaciones, así que no se vuelve a pedir el documento.
+ *
+ * `cuotaOriginal` solo llega al editar: si la cuota cambia respecto de la
+ * pactada, se exige explicar por qué. Cambiar la cuota es renegociar una deuda
+ * y el motivo tiene que quedar escrito.
  */
-function construirEsquemaPrestamo(exigeConvenio: boolean) {
+function construirEsquemaPrestamo(
+  exigeConvenio: boolean,
+  cuotaOriginal?: number,
+) {
   return z
     .object({
       empleado_id: z.coerce.number().int().positive('Selecciona un trabajador'),
       tipo: z.enum(['PRESTAMO', 'ADELANTO_SUELDO', 'ADELANTO_GRATIFICACION']),
       monto_total: z.string().optional(),
+      /**
+       * Captura auxiliar: no se persiste. Sirve para derivar la cuota mensual,
+       * que es lo que el backend guarda y el motor descuenta.
+       */
+      numero_cuotas: z.string().optional(),
       cuota_mensual: z.coerce
         .number()
         .positive('La cuota debe ser mayor a 0')
@@ -143,6 +155,18 @@ function construirEsquemaPrestamo(exigeConvenio: boolean) {
             .min(1, 'Adjunta el convenio de descuento firmado por el trabajador')
         : z.array(esArchivo),
     })
+    .refine(
+      (valores) => {
+        if (cuotaOriginal === undefined) return true;
+        if (valores.cuota_mensual === cuotaOriginal) return true;
+        return (valores.observaciones ?? '').trim().length > 0;
+      },
+      {
+        message:
+          'Cambiar la cuota es renegociar el acuerdo: explica el motivo en las observaciones',
+        path: ['observaciones'],
+      },
+    )
     .refine(
       (valores) => {
         if (!valores.monto_total) return true;
@@ -165,16 +189,24 @@ function construirEsquemaPrestamo(exigeConvenio: boolean) {
 }
 
 export const prestamoCrearSchema = construirEsquemaPrestamo(true);
-export const prestamoEditarSchema = construirEsquemaPrestamo(false);
 
 export type PrestamoFormValues = z.infer<typeof prestamoCrearSchema>;
 
 const resolverCrear = zodResolver(
   prestamoCrearSchema,
 ) as Resolver<PrestamoFormValues>;
-const resolverEditar = zodResolver(
-  prestamoEditarSchema,
-) as Resolver<PrestamoFormValues>;
+
+/**
+ * El resolver de edición depende de la cuota pactada del préstamo abierto, así
+ * que se construye por préstamo en vez de una vez al cargar el módulo.
+ */
+function construirResolverEditar(
+  cuotaOriginal: number | undefined,
+): Resolver<PrestamoFormValues> {
+  return zodResolver(
+    construirEsquemaPrestamo(false, cuotaOriginal),
+  ) as Resolver<PrestamoFormValues>;
+}
 
 function hoyISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -184,6 +216,7 @@ const VALORES_INICIALES: PrestamoFormValues = {
   empleado_id: 0,
   tipo: 'PRESTAMO',
   monto_total: '',
+  numero_cuotas: '',
   cuota_mensual: 0,
   fecha_otorgado: hoyISO(),
   observaciones: '',
@@ -201,6 +234,12 @@ export function usePrestamos() {
   // Sueldo del trabajador elegido, para el aviso de cuota alta. Sale del propio
   // listado de empleados que ya consume el selector: cero consultas extra.
   const [sueldoEmpleado, setSueldoEmpleado] = useState<number | null>(null);
+  // Préstamos que el trabajador ya tiene vigentes. El aviso de endeudamiento
+  // necesita la carga COMPLETA, no solo la cuota que se está registrando.
+  const [prestamosActivosEmpleado, setPrestamosActivosEmpleado] = useState<
+    Prestamo[]
+  >([]);
+  const [cargandoActivosEmpleado, setCargandoActivosEmpleado] = useState(false);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [dialogoAdjuntarAbierto, setDialogoAdjuntarAbierto] = useState(false);
   const [adjuntando, setAdjuntando] = useState(false);
@@ -212,14 +251,16 @@ export function usePrestamos() {
   // El resolver se elige en cada validación: al editar no se exige el convenio.
   // Va por ref para que el `useForm` no arrastre el modo del primer render.
   const modoEdicionRef = useRef(false);
+  /** Cuota pactada del préstamo en edición, para detectar la renegociación. */
+  const cuotaOriginalRef = useRef<number | undefined>(undefined);
 
   const form = useForm<PrestamoFormValues>({
-    resolver: (valores, contexto, opciones) =>
-      (modoEdicionRef.current ? resolverEditar : resolverCrear)(
-        valores,
-        contexto,
-        opciones,
-      ),
+    resolver: (valores, contexto, opciones) => {
+      const resolver = modoEdicionRef.current
+        ? construirResolverEditar(cuotaOriginalRef.current)
+        : resolverCrear;
+      return resolver(valores, contexto, opciones);
+    },
     defaultValues: VALORES_INICIALES,
   });
 
@@ -249,6 +290,35 @@ export function usePrestamos() {
     return () => clearTimeout(timer);
   }, [cargarPrestamos]);
 
+  /**
+   * Préstamos vigentes del trabajador elegido. El listado de la pantalla está
+   * filtrado por lo que el usuario haya buscado, así que no sirve como fuente:
+   * hace falta preguntar por ese trabajador en concreto.
+   */
+  const cargarActivosDeEmpleado = useCallback(async (empleadoId: number) => {
+    if (!empleadoId) {
+      setPrestamosActivosEmpleado([]);
+      return;
+    }
+    setCargandoActivosEmpleado(true);
+    try {
+      const params = new URLSearchParams({
+        empleado_id: String(empleadoId),
+        estado: 'ACTIVO',
+        limit: '100',
+      });
+      const respuesta = await api.get<RespuestaPrestamos>(
+        `/prestamos?${params.toString()}`,
+      );
+      setPrestamosActivosEmpleado(respuesta.data);
+    } catch {
+      // El aviso es informativo: si falla, el alta sigue su curso sin él.
+      setPrestamosActivosEmpleado([]);
+    } finally {
+      setCargandoActivosEmpleado(false);
+    }
+  }, []);
+
   const alternarDetalle = (id: number) => {
     setExpandidos((previos) => {
       const siguiente = new Set(previos);
@@ -263,29 +333,42 @@ export function usePrestamos() {
 
   const abrirDialogoNuevo = () => {
     modoEdicionRef.current = false;
+    cuotaOriginalRef.current = undefined;
     setSeleccionado(null);
     setNombreEmpleado('');
     setSueldoEmpleado(null);
+    setPrestamosActivosEmpleado([]);
     form.reset({ ...VALORES_INICIALES, fecha_otorgado: hoyISO() });
     setDialogoAbierto(true);
   };
 
   const abrirDialogoEdicion = (prestamo: Prestamo) => {
     modoEdicionRef.current = true;
+    cuotaOriginalRef.current = Number(prestamo.cuota_mensual);
     setSeleccionado(prestamo);
     setNombreEmpleado(
       `${prestamo.empleado.apellido_paterno} ${prestamo.empleado.apellido_materno}, ${prestamo.empleado.nombres}`,
     );
+    setPrestamosActivosEmpleado([]);
     form.reset({
       empleado_id: prestamo.empleado_id,
       tipo: prestamo.tipo,
       monto_total: prestamo.monto_total ?? '',
+      numero_cuotas: '',
       cuota_mensual: Number(prestamo.cuota_mensual),
       fecha_otorgado: prestamo.fecha_otorgado.slice(0, 10),
       observaciones: prestamo.observaciones ?? '',
       archivos: [],
     });
     setDialogoAbierto(true);
+  };
+
+  /** Selección de trabajador en el alta: fija el sueldo y trae sus vigentes. */
+  const seleccionarEmpleado = (empleadoId: number, sueldoBase: unknown) => {
+    form.setValue('empleado_id', empleadoId, { shouldValidate: true });
+    const sueldo = Number(sueldoBase);
+    setSueldoEmpleado(Number.isFinite(sueldo) && sueldo > 0 ? sueldo : null);
+    void cargarActivosDeEmpleado(empleadoId);
   };
 
   const abrirDialogoCancelar = (prestamo: Prestamo) => {
@@ -382,6 +465,9 @@ export function usePrestamos() {
     alternarDetalle,
     sueldoEmpleado,
     setSueldoEmpleado,
+    prestamosActivosEmpleado,
+    cargandoActivosEmpleado,
+    seleccionarEmpleado,
     dialogoAdjuntarAbierto,
     setDialogoAdjuntarAbierto,
     adjuntando,

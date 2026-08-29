@@ -28,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertTriangle, Loader2, Paperclip } from 'lucide-react';
+import { Loader2, Paperclip } from 'lucide-react';
+import { useMemo } from 'react';
 import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import {
   EXTENSIONES_ACEPTADAS,
@@ -37,8 +38,14 @@ import {
   TIPO_DESCRIPCION,
   TIPO_ETIQUETA,
   TipoPrestamo,
-  UMBRAL_CUOTA_SOBRE_SUELDO,
 } from '../usePrestamos';
+import {
+  cuotaDesdeNumeroCuotas,
+  numeroCuotasDesdeCuota,
+  proyectarCronograma,
+} from '../dominio/cronograma-prestamo';
+import { AvisoEndeudamiento } from './AvisoEndeudamiento';
+import { CronogramaPreview } from './CronogramaPreview';
 
 interface Props {
   open: boolean;
@@ -49,7 +56,9 @@ interface Props {
   onSubmit: (valores: PrestamoFormValues) => void;
   guardando: boolean;
   sueldoEmpleado: number | null;
-  onSueldoEmpleado: (sueldo: number | null) => void;
+  prestamosActivosEmpleado: Prestamo[];
+  cargandoActivosEmpleado: boolean;
+  onSeleccionarEmpleado: (empleadoId: number, sueldoBase: unknown) => void;
 }
 
 const TIPOS: TipoPrestamo[] = [
@@ -67,21 +76,58 @@ export function PrestamoDialog({
   onSubmit,
   guardando,
   sueldoEmpleado,
-  onSueldoEmpleado,
+  prestamosActivosEmpleado,
+  cargandoActivosEmpleado,
+  onSeleccionarEmpleado,
 }: Props) {
   const esEdicion = seleccionado !== null;
   const tipoSeleccionado = form.watch('tipo');
   const empleadoId = form.watch('empleado_id');
   const archivosSeleccionados = form.watch('archivos') ?? [];
   const cuotaMensual = Number(form.watch('cuota_mensual')) || 0;
+  const montoTotalTexto = form.watch('monto_total') ?? '';
+  const fechaOtorgado = form.watch('fecha_otorgado');
 
-  // Aviso NO bloqueante: la empresa decide, el sistema informa.
-  const topeSugerido =
-    sueldoEmpleado !== null && sueldoEmpleado > 0
-      ? sueldoEmpleado * UMBRAL_CUOTA_SOBRE_SUELDO
+  const montoTotal = montoTotalTexto ? Number(montoTotalTexto) : null;
+  const montoValido =
+    montoTotal !== null && Number.isFinite(montoTotal) && montoTotal > 0
+      ? montoTotal
       : null;
-  const cuotaElevada =
-    !esEdicion && topeSugerido !== null && cuotaMensual > topeSugerido;
+
+  const proyeccion = useMemo(
+    () =>
+      proyectarCronograma({
+        montoTotal: montoValido,
+        cuotaMensual,
+        tipo: tipoSeleccionado,
+        fechaOtorgado,
+      }),
+    [montoValido, cuotaMensual, tipoSeleccionado, fechaOtorgado],
+  );
+
+  /** Al fijar el número de cuotas se deriva la cuota; sigue siendo editable. */
+  const alCambiarNumeroCuotas = (texto: string) => {
+    form.setValue('numero_cuotas', texto);
+    const cuotas = Number(texto);
+    if (montoValido === null || !Number.isInteger(cuotas) || cuotas <= 0) return;
+    form.setValue('cuota_mensual', cuotaDesdeNumeroCuotas(montoValido, cuotas), {
+      shouldValidate: true,
+    });
+  };
+
+  /**
+   * Editar la cuota a mano recalcula cuántas cuotas salen, no al revés. El
+   * valor del campo lo sigue guardando react-hook-form: acá solo se sincroniza
+   * el número de cuotas para que los dos campos nunca se contradigan.
+   */
+  const sincronizarNumeroCuotas = (texto: string) => {
+    const cuota = Number(texto);
+    if (montoValido === null || !Number.isFinite(cuota) || cuota <= 0) return;
+    form.setValue(
+      'numero_cuotas',
+      String(numeroCuotasDesdeCuota(montoValido, cuota)),
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,17 +160,9 @@ export function PrestamoDialog({
                     ) : (
                       <EmpleadoSelector
                         selectedId={empleadoId || null}
-                        onSelect={(empleado) => {
-                          form.setValue('empleado_id', empleado.id, {
-                            shouldValidate: true,
-                          });
-                          const sueldo = Number(empleado.sueldo_base);
-                          onSueldoEmpleado(
-                            Number.isFinite(sueldo) && sueldo > 0
-                              ? sueldo
-                              : null,
-                          );
-                        }}
+                        onSelect={(empleado) =>
+                          onSeleccionarEmpleado(empleado.id, empleado.sueldo_base)
+                        }
                       />
                     )}
                   </FormControl>
@@ -205,6 +243,37 @@ export function PrestamoDialog({
                 )}
               />
 
+              {!esEdicion && (
+                <FormField
+                  control={form.control}
+                  name="numero_cuotas"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de cuotas</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="1"
+                          placeholder="Ej. 6"
+                          value={field.value ?? ''}
+                          onChange={(evento) =>
+                            alCambiarNumeroCuotas(evento.target.value)
+                          }
+                          disabled={montoValido === null}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {montoValido === null
+                          ? 'Indica primero el monto total para repartirlo en cuotas.'
+                          : 'Reparte el monto y calcula la cuota mensual.'}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="cuota_mensual"
@@ -212,7 +281,18 @@ export function PrestamoDialog({
                   <FormItem>
                     <FormLabel>Cuota mensual *</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...field}
+                        onChange={(evento) => {
+                          field.onChange(evento);
+                          if (!esEdicion) {
+                            sincronizarNumeroCuotas(evento.target.value);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormDescription>
                       La última cuota se ajusta sola al saldo pendiente.
@@ -223,19 +303,19 @@ export function PrestamoDialog({
               />
             </div>
 
-            {cuotaElevada && topeSugerido !== null && (
-              <div
-                role="status"
-                className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
-              >
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>
-                  La cuota supera el 30% de la remuneración del trabajador
-                  (S/ {topeSugerido.toFixed(2)} sobre un sueldo de S/{' '}
-                  {sueldoEmpleado?.toFixed(2)}). Puedes continuar: es solo un
-                  aviso para que lo revises con el trabajador.
-                </p>
-              </div>
+            {!esEdicion && (
+              <>
+                <AvisoEndeudamiento
+                  sueldoBase={sueldoEmpleado}
+                  cuotaNueva={cuotaMensual}
+                  prestamosActivos={prestamosActivosEmpleado}
+                  cargandoActivos={cargandoActivosEmpleado}
+                />
+                <CronogramaPreview
+                  proyeccion={proyeccion}
+                  fechaOtorgado={fechaOtorgado}
+                />
+              </>
             )}
 
             <FormField
@@ -247,10 +327,20 @@ export function PrestamoDialog({
                   <FormControl>
                     <Textarea
                       rows={3}
-                      placeholder="Motivo del préstamo, acuerdos con el trabajador, etc."
+                      placeholder={
+                        esEdicion
+                          ? 'Si cambias la cuota, explica el motivo del nuevo acuerdo.'
+                          : 'Motivo del préstamo, acuerdos con el trabajador, etc.'
+                      }
                       {...field}
                     />
                   </FormControl>
+                  {esEdicion && (
+                    <FormDescription>
+                      Cambiar la cuota es renegociar la deuda: el motivo queda
+                      registrado en el préstamo.
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
