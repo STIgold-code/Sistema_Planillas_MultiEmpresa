@@ -239,8 +239,13 @@ function construirHoja(ws, datos) {
   campo(ws, 15, 6, 'N.° de operación / cheque', {
     valor: datos && datos.operacion,
   });
+  // ROUNDUP, no ROUND: con redondeo hacia abajo, 1000 en 3 cuotas da 333.33 y
+  // quedan 0.01 de saldo. Como el motor descuenta MIN(cuota, saldo), ese
+  // centimo se cobraria como una CUARTA cuota, un mes despues de que el
+  // trabajador termino de pagar. Hacia arriba, 333.34 cierra en las 3 cuotas
+  // pactadas. Mismo criterio que cuotaDesdeNumeroCuotas() en el frontend.
   campo(ws, 16, 1, 'Cuota mensual (S/)', {
-    formula: 'IF(N(B15)>0,ROUND(B14/B15,2),0)',
+    formula: 'IF(N(B15)>0,ROUNDUP(B14/B15,2),0)',
     formato: '#,##0.00',
   });
   campo(ws, 16, 6, 'Banco y cuenta de abono', { valor: datos && datos.banco });
