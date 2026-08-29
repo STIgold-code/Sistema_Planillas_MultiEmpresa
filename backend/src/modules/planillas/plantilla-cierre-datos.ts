@@ -47,8 +47,14 @@ export interface DeudaPlantilla {
   fecha_otorgado: string;
   monto_total: number;
   cuota_mensual: number;
-  /** Saldo según el sistema. Es lo que el contador tiene que confirmar. */
-  saldo_sistema: number;
+  /**
+   * Saldo según el sistema, y lo que el contador tiene que confirmar.
+   *
+   * NULL no es cero: es un descuento recurrente SIN monto definido, cuya cuota
+   * sale todos los meses hasta que alguien cancela el préstamo a mano. Mostrar
+   * un cero ahí sería mentir sobre el caso más peligroso de todos.
+   */
+  saldo_sistema: number | null;
   /** Cargos ya aplicados contra planillas aprobadas. */
   cuotas_aplicadas: number;
   observaciones: string;
@@ -287,7 +293,7 @@ async function cargarDeudas(
     fecha_otorgado: aIso(f.fecha_otorgado) ?? '',
     monto_total: aNumero(f.monto_total),
     cuota_mensual: aNumero(f.cuota_mensual),
-    saldo_sistema: aNumero(f.saldo),
+    saldo_sistema: f.saldo === null ? null : aNumero(f.saldo),
     cuotas_aplicadas: f._count.movimientos,
     observaciones: f.observaciones ?? '',
   });

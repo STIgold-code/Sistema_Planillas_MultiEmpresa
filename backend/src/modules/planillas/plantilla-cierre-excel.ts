@@ -456,10 +456,10 @@ function hojaDeudas(
     },
     {
       titulo: 'Saldo según el sistema',
-      ancho: 13,
+      ancho: 18,
       rol: 'sistema',
       formato: MONEDA,
-      nota: 'Lo que el sistema cree que falta cobrar. Si está en cero y no debería, corrígelo al lado.',
+      nota: 'Lo que el sistema cree que falta cobrar. "SIN TOPE" significa que la cuota se descuenta TODOS LOS MESES sin fin: escribe al lado cuánto falta de verdad.',
     },
     { titulo: 'Cuotas ya aplicadas', ancho: 11, rol: 'sistema' },
     {
@@ -506,7 +506,10 @@ function hojaDeudas(
       : null;
     ws.getCell(fila, 4).value = d.monto_total;
     ws.getCell(fila, 5).value = d.cuota_mensual;
-    ws.getCell(fila, 6).value = d.saldo_sistema;
+    // Saldo NULL = descuento recurrente sin tope. Se dice con todas las letras;
+    // el resaltado se aplica más abajo, después de dar formato a las columnas.
+    ws.getCell(fila, 6).value =
+      d.saldo_sistema === null ? 'SIN TOPE ⚠' : d.saldo_sistema;
     ws.getCell(fila, 7).value = d.cuotas_aplicadas;
     ws.getCell(fila, 10).value = d.observaciones;
   });
@@ -522,6 +525,16 @@ function hojaDeudas(
 
   prepararCeldas(ws, columnas, primera, ultima, refTrabajadores);
   alertarIncompletas(ws, columnas, primera, ultima);
+
+  // El "SIN TOPE" va en rojo por encima del formato de la columna: es el caso
+  // que hace que una cuota salga mes tras mes sin fin, y tiene que saltar.
+  deudas.forEach((d, i) => {
+    if (d.saldo_sistema !== null) return;
+    const celda = ws.getCell(primera + i, 6);
+    celda.fill = relleno(COLOR.alerta);
+    celda.font = { bold: true, size: 9, color: { argb: 'FF991B1B' } };
+    celda.alignment = { horizontal: 'center' };
+  });
 
   // Total de lo que efectivamente se va a descontar.
   const filaTotal = ultima + 1;
