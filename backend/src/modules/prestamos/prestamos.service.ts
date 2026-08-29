@@ -316,6 +316,8 @@ export class PrestamosService {
         estado: true,
         monto_total: true,
         saldo: true,
+        cuota_mensual: true,
+        observaciones: true,
       },
     });
 
@@ -333,10 +335,34 @@ export class PrestamosService {
       throw new BadRequestException('La cuota mensual debe ser mayor a cero');
     }
 
-    if (dto.saldo !== undefined && prestamo.saldo === null) {
-      throw new BadRequestException(
-        'Este préstamo es un descuento recurrente sin monto definido: no lleva saldo',
-      );
+    // Cambiar la cuota es renegociar una deuda ya pactada con el trabajador:
+    // sin un motivo escrito, el préstamo pierde la traza de por qué cambió.
+    const renegociaCuota =
+      dto.cuota_mensual !== undefined &&
+      dto.cuota_mensual !== Number(prestamo.cuota_mensual);
+    if (renegociaCuota) {
+      const motivo = (dto.observaciones ?? prestamo.observaciones ?? '').trim();
+      if (motivo.length === 0) {
+        throw new BadRequestException(
+          'Indica en las observaciones el motivo del cambio de cuota',
+        );
+      }
+    }
+
+    // Un préstamo con saldo NULL se descuenta indefinidamente: la cuota sale
+    // todos los meses hasta que alguien lo cancela a mano. Ponerle saldo por
+    // primera vez es cerrarle esa canilla, así que se PERMITE (antes se
+    // rechazaba y el préstamo quedaba condenado a descontar para siempre).
+    // Se exige motivo escrito porque no es un ajuste, es definir la deuda.
+    const defineSaldoInicial =
+      dto.saldo !== undefined && prestamo.saldo === null;
+    if (defineSaldoInicial) {
+      const motivo = (dto.observaciones ?? prestamo.observaciones ?? '').trim();
+      if (motivo.length === 0) {
+        throw new BadRequestException(
+          'Este préstamo era un descuento recurrente sin monto. Indica en las observaciones de dónde sale el saldo que estás definiendo',
+        );
+      }
     }
 
     const montoTotal =
@@ -356,14 +382,22 @@ export class PrestamosService {
     const ajustaSaldo = dto.saldo !== undefined && dto.saldo !== saldoAnterior;
 
     return this.prisma.$transaction(async (tx) => {
-      if (ajustaSaldo && dto.saldo !== undefined && saldoAnterior !== null) {
+      if (ajustaSaldo && dto.saldo !== undefined) {
         // Todo cambio de saldo deja rastro: el saldo es dinero del trabajador.
+        // Al definirlo por primera vez no hay diferencia que registrar, pero sí
+        // un hecho que dejar asentado: hasta hoy la deuda no tenía tope.
         await tx.prestamoMovimiento.create({
           data: {
             prestamo_id: id,
-            monto: Number((dto.saldo - saldoAnterior).toFixed(2)),
+            monto:
+              saldoAnterior === null
+                ? 0
+                : Number((dto.saldo - saldoAnterior).toFixed(2)),
             tipo: 'AJUSTE',
-            observaciones: `Ajuste manual de saldo: ${saldoAnterior.toFixed(2)} → ${dto.saldo.toFixed(2)}`,
+            observaciones:
+              saldoAnterior === null
+                ? `Saldo definido por primera vez: descuento recurrente → S/ ${dto.saldo.toFixed(2)} pendientes`
+                : `Ajuste manual de saldo: ${saldoAnterior.toFixed(2)} → ${dto.saldo.toFixed(2)}`,
           },
         });
       }

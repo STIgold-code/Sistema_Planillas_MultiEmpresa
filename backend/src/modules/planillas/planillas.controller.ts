@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -9,8 +10,14 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { PlanillasService } from './planillas.service';
+import { PlantillaCierreImportacionService } from './plantilla-cierre-importacion.service';
 import {
   CreatePlanillaDto,
   UpdatePlanillaDetalleDto,
@@ -22,6 +29,30 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { AuthenticatedUser } from '../../common/types/auth.types';
 import { IsOptional, IsString } from 'class-validator';
 
+/** Solo Excel, y con techo: la plantilla de cierre nunca pesa megabytes. */
+const OPCIONES_EXCEL = {
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (
+    _req: unknown,
+    file: { mimetype: string },
+    cb: (error: Error | null, aceptado: boolean) => void,
+  ) => {
+    const permitidos = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!permitidos.includes(file.mimetype)) {
+      return cb(
+        new BadRequestException(
+          'Solo se permiten archivos Excel (.xlsx, .xls)',
+        ),
+        false,
+      );
+    }
+    cb(null, true);
+  },
+};
+
 // DTO para rechazar/anular con motivo
 class MotivoDto {
   @IsOptional()
@@ -32,7 +63,10 @@ class MotivoDto {
 @Controller('planillas')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PlanillasController {
-  constructor(private readonly planillasService: PlanillasService) {}
+  constructor(
+    private readonly planillasService: PlanillasService,
+    private readonly importacionCierre: PlantillaCierreImportacionService,
+  ) {}
 
   @Get()
   @RequirePermissions('planilla:leer')
@@ -47,6 +81,81 @@ export class PlanillasController {
   @RequirePermissions('planilla:leer')
   getResumen(@CurrentUser() user: AuthenticatedUser) {
     return this.planillasService.getResumen(user.empresa_id);
+  }
+
+  /**
+   * Plantilla de CIERRE del período: el Excel que el área contable llena con
+   * los saldos reales, adelantos, vacaciones y bonos del mes. Se pide por
+   * año/mes y NO exige que la planilla exista todavía — justamente se descarga
+   * antes de calcular.
+   */
+  @Get('plantilla-cierre/:anio/:mes')
+  @RequirePermissions('planilla:leer')
+  async plantillaCierre(
+    @Param('anio', ParseIntPipe) anio: number,
+    @Param('mes', ParseIntPipe) mes: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    const { workbook, nombreArchivo } =
+      await this.planillasService.plantillaCierre(user.empresa_id, anio, mes);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${nombreArchivo}"`,
+    );
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  /**
+   * Vista previa de la plantilla de cierre llena: dice exactamente qué se va a
+   * cambiar, sin tocar nada. Es el paso obligatorio antes de aplicar.
+   */
+  @Post('plantilla-cierre/:anio/:mes/preview')
+  @RequirePermissions('planilla:crear')
+  @UseInterceptors(FileInterceptor('file', OPCIONES_EXCEL))
+  previewPlantillaCierre(
+    @Param('anio', ParseIntPipe) anio: number,
+    @Param('mes', ParseIntPipe) mes: number,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('No se adjuntó ningún archivo');
+    return this.importacionCierre.preview(
+      user.empresa_id,
+      anio,
+      mes,
+      file.buffer,
+    );
+  }
+
+  /**
+   * Aplica la plantilla de cierre. Se vuelve a subir el ARCHIVO, no el plan:
+   * el plan se recalcula acá para que no se pueda aplicar algo distinto de lo
+   * que se revisó en el preview.
+   */
+  @Post('plantilla-cierre/:anio/:mes/aplicar')
+  @RequirePermissions('planilla:crear')
+  @UseInterceptors(FileInterceptor('file', OPCIONES_EXCEL))
+  aplicarPlantillaCierre(
+    @Param('anio', ParseIntPipe) anio: number,
+    @Param('mes', ParseIntPipe) mes: number,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!file) throw new BadRequestException('No se adjuntó ningún archivo');
+    return this.importacionCierre.aplicar(
+      user.empresa_id,
+      anio,
+      mes,
+      file.buffer,
+      user.id,
+    );
   }
 
   @Get(':id')

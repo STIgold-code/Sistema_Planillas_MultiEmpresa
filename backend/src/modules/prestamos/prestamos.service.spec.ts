@@ -394,18 +394,123 @@ describe('PrestamosService.update', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('no acepta saldo en un préstamo recurrente sin monto definido', async () => {
+  // Un préstamo con saldo NULL descuenta su cuota TODOS los meses hasta que
+  // alguien lo cancela a mano. Poder ponerle saldo es lo que le da un final.
+  it('definir el saldo de un préstamo recurrente exige explicar de dónde sale', async () => {
     const { service, prisma } = build();
     prisma.prestamo.findFirst.mockResolvedValue({
       id: 1,
       estado: 'ACTIVO',
       monto_total: null,
       saldo: null,
+      cuota_mensual: 100,
+      observaciones: null,
     });
 
-    await expect(service.update(1, 5, { saldo: 100 })).rejects.toBeInstanceOf(
+    await expect(service.update(1, 5, { saldo: 400 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
+    expect(prisma.prestamo.update).not.toHaveBeenCalled();
+  });
+
+  it('con el motivo escrito, el saldo se define y queda asentado el hecho', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      estado: 'ACTIVO',
+      monto_total: null,
+      saldo: null,
+      cuota_mensual: 100,
+      observaciones: null,
+    });
+
+    await service.update(1, 5, {
+      saldo: 400,
+      observaciones: 'Confirmado en la plantilla de cierre 08-2026.',
+    });
+
+    const movimiento = primerArgumento<{
+      data: { monto: number; tipo: string; observaciones: string };
+    }>(prisma.prestamoMovimiento.create);
+    expect(movimiento.data.tipo).toBe('AJUSTE');
+    // No hay diferencia contra un saldo anterior: antes no había saldo.
+    expect(movimiento.data.monto).toBe(0);
+    expect(movimiento.data.observaciones).toContain('primera vez');
+
+    const datos = primerArgumento<{ data: { saldo?: number } }>(
+      prisma.prestamo.update,
+    );
+    expect(datos.data.saldo).toBe(400);
+  });
+
+  it('rechaza cambiar la cuota sin explicar el motivo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      estado: 'ACTIVO',
+      monto_total: 1000,
+      saldo: 800,
+      cuota_mensual: 100,
+      observaciones: null,
+    });
+
+    await expect(
+      service.update(1, 5, { cuota_mensual: 50 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('acepta cambiar la cuota cuando se indica el motivo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      estado: 'ACTIVO',
+      monto_total: 1000,
+      saldo: 800,
+      cuota_mensual: 100,
+      observaciones: null,
+    });
+
+    await service.update(1, 5, {
+      cuota_mensual: 50,
+      observaciones: 'Acuerdo con el trabajador por reducción de ingresos',
+    });
+
+    const datos = primerArgumento<{ data: { cuota_mensual?: number } }>(
+      prisma.prestamo.update,
+    );
+    expect(datos.data.cuota_mensual).toBe(50);
+  });
+
+  it('el motivo ya registrado en el préstamo sirve como explicación', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      estado: 'ACTIVO',
+      monto_total: 1000,
+      saldo: 800,
+      cuota_mensual: 100,
+      observaciones: 'Renegociado en la reunión del 12 de agosto',
+    });
+
+    await expect(
+      service.update(1, 5, { cuota_mensual: 50 }),
+    ).resolves.toBeDefined();
+  });
+
+  it('reenviar la misma cuota no es una renegociación', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      id: 1,
+      estado: 'ACTIVO',
+      monto_total: 1000,
+      saldo: 800,
+      cuota_mensual: 100,
+      observaciones: null,
+    });
+
+    await expect(
+      service.update(1, 5, { cuota_mensual: 100 }),
+    ).resolves.toBeDefined();
   });
 });
 

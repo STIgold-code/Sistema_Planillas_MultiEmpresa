@@ -52,7 +52,10 @@ import {
   FileSpreadsheet,
   Users,
   TrendingUp,
+  ClipboardList,
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { PlantillaCierreDialog } from './components/PlantillaCierreDialog';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatDateSafe } from '@/lib/utils';
@@ -101,6 +104,11 @@ export default function PlanillasPage() {
   const [creating, setCreating] = useState(false);
 
   // Dialog eliminar
+  // Plantilla de cierre: se pide por periodo y NO exige que la planilla exista
+  // todavia, porque justamente se descarga antes de calcular. Todo el flujo
+  // (descarga, revision y carga) vive en su propio componente.
+  const [showPlantilla, setShowPlantilla] = useState(false);
+
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -193,10 +201,25 @@ export default function PlanillasPage() {
           <h1 className="text-xl md:text-2xl font-bold">Planillas</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Gestion de planillas de remuneraciones</p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Planilla
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setShowPlantilla(true)}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Plantilla de cierre
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              Descarga el Excel prellenado para que el area contable confirme
+              saldos de prestamos, adelantos, vacaciones y bonos del periodo, y
+              vuelve a subirlo aqui para cargarlo al sistema.
+            </TooltipContent>
+          </Tooltip>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Planilla
+          </Button>
+        </div>
       </div>
 
       {/* Tarjetas de resumen */}
@@ -404,6 +427,12 @@ export default function PlanillasPage() {
       )}
 
       {/* Modal Nueva Planilla */}
+      <PlantillaCierreDialog
+        open={showPlantilla}
+        onOpenChange={setShowPlantilla}
+        onAplicado={fetchPlanillas}
+      />
+
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-[425px] max-w-[95vw]">
           <DialogHeader>

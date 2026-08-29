@@ -8,6 +8,7 @@ import { PlanillaParametrosService } from './planilla-parametros.service';
 import { PlanillaAuditoriaService } from './planilla-auditoria.service';
 import { PlanillaCargaService } from './planilla-carga.service';
 import { PlanillaConsultaService } from './planilla-consulta.service';
+import { PlantillaCierreImportacionService } from './plantilla-cierre-importacion.service';
 import { PrestamosModule } from '../prestamos/prestamos.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { PrestamosModule } from '../prestamos/prestamos.module';
     PlanillaParametrosService,
     PlanillaAuditoriaService,
     PlanillaCargaService,
+    PlantillaCierreImportacionService,
   ],
   exports: [PlanillasService],
 })
