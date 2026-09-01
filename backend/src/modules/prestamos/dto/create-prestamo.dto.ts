@@ -48,6 +48,22 @@ export class UpdatePrestamoDto {
   @IsPositive()
   cuota_mensual?: number;
 
+  /**
+   * Corrección del monto original pactado (requiere motivo en observaciones).
+   * Existe porque cancelar y recrear pierde el historial, y eliminar está
+   * prohibido apenas hay movimientos. El TIPO no se corrige: cambia el
+   * significado del acuerdo; sin movimientos, se elimina y se recrea.
+   */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  monto_total?: number;
+
+  /** Corrección de la fecha del convenio (requiere motivo; nunca futura). */
+  @IsOptional()
+  @IsDateString()
+  fecha_otorgado?: string;
+
   /** Ajuste manual del saldo pendiente (registra un movimiento AJUSTE). */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

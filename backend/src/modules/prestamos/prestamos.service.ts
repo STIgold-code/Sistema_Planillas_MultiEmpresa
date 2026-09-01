@@ -349,6 +349,7 @@ export class PrestamosService {
         monto_total: true,
         saldo: true,
         cuota_mensual: true,
+        fecha_otorgado: true,
         observaciones: true,
       },
     });
@@ -367,18 +368,37 @@ export class PrestamosService {
       throw new BadRequestException('La cuota mensual debe ser mayor a cero');
     }
 
-    // Cambiar la cuota es renegociar una deuda ya pactada con el trabajador:
+    // Cambiar la cuota es renegociar una deuda ya pactada con el trabajador, y
+    // corregir el monto o la fecha es alterar el registro de un acuerdo firmado:
     // sin un motivo escrito, el préstamo pierde la traza de por qué cambió.
+    const montoTotalActual =
+      prestamo.monto_total === null ? null : Number(prestamo.monto_total);
     const renegociaCuota =
       dto.cuota_mensual !== undefined &&
       dto.cuota_mensual !== Number(prestamo.cuota_mensual);
-    if (renegociaCuota) {
+    const corrigeMonto =
+      dto.monto_total !== undefined && dto.monto_total !== montoTotalActual;
+    const corrigeFecha =
+      dto.fecha_otorgado !== undefined &&
+      dto.fecha_otorgado.slice(0, 10) !==
+        prestamo.fecha_otorgado.toISOString().slice(0, 10);
+    if (renegociaCuota || corrigeMonto || corrigeFecha) {
       const motivo = (dto.observaciones ?? prestamo.observaciones ?? '').trim();
       if (motivo.length === 0) {
         throw new BadRequestException(
-          'Indica en las observaciones el motivo del cambio de cuota',
+          renegociaCuota
+            ? 'Indica en las observaciones el motivo del cambio de cuota'
+            : 'Indica en las observaciones el motivo de la corrección',
         );
       }
+    }
+
+    // La fecha de un convenio puede corregirse, pero nunca hacia el futuro:
+    // un préstamo nace cuando se firma.
+    if (corrigeFecha && esFechaFutura(dto.fecha_otorgado ?? '')) {
+      throw new BadRequestException(
+        'La fecha de otorgamiento no puede ser futura',
+      );
     }
 
     // Un préstamo con saldo NULL se descuenta indefinidamente: la cuota sale
@@ -397,12 +417,13 @@ export class PrestamosService {
       }
     }
 
-    const montoTotal =
-      prestamo.monto_total === null ? null : Number(prestamo.monto_total);
+    const montoTotalFinal = dto.monto_total ?? montoTotalActual;
+    const saldoFinal =
+      dto.saldo ?? (prestamo.saldo === null ? null : Number(prestamo.saldo));
     if (
-      dto.saldo !== undefined &&
-      montoTotal !== null &&
-      dto.saldo > montoTotal
+      saldoFinal !== null &&
+      montoTotalFinal !== null &&
+      saldoFinal > montoTotalFinal
     ) {
       throw new BadRequestException(
         'El saldo no puede ser mayor al monto total del préstamo',
@@ -441,6 +462,10 @@ export class PrestamosService {
             ? { cuota_mensual: dto.cuota_mensual }
             : {}),
           ...(dto.saldo !== undefined ? { saldo: dto.saldo } : {}),
+          ...(corrigeMonto ? { monto_total: dto.monto_total } : {}),
+          ...(corrigeFecha && dto.fecha_otorgado
+            ? { fecha_otorgado: parsearFechaISOenPeru(dto.fecha_otorgado) }
+            : {}),
           ...(dto.observaciones !== undefined
             ? { observaciones: dto.observaciones }
             : {}),
