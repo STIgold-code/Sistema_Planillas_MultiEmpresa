@@ -11,6 +11,10 @@ import {
 } from './dominio/descuentos-prestamos';
 import { repartirCargo } from './dominio/amortizacion-prestamos';
 import {
+  calcularVentanaPeriodo,
+  fechaCalendarioLocal,
+} from '../tareo/ventana-periodo';
+import {
   ORDEN_AMORTIZACION,
   SELECT_PRESTAMO_ACTIVO,
   aPrestamoVigente,
@@ -82,6 +86,17 @@ export class PrestamosAmortizacionService {
 
     if (detalles.length === 0) return vacio;
 
+    // MISMO corte que el cálculo (`PrestamosPlanillaService`): solo participan
+    // los préstamos otorgados hasta el fin de la ventana. Sin esto, un préstamo
+    // registrado entre el cálculo y la aprobación —con fecha retroactiva, que
+    // el alta permite— entra al reparto y, por ir primero en el orden por
+    // antigüedad, se lleva un cargo que correspondía a otra deuda.
+    const fechaFinPeriodo = await this.resolverFinDePeriodo(
+      tx,
+      planillaId,
+      empresaId,
+    );
+
     const descuentosPorEmpleado = new Map<number, DescuentosPrestamos>();
     for (const detalle of detalles) {
       descuentosPorEmpleado.set(detalle.empleado_id, {
@@ -108,6 +123,10 @@ export class PrestamosAmortizacionService {
         empresa_id: empresaId,
         empleado_id: { in: empleadoIds },
         estado: EstadoPrestamo.ACTIVO,
+        // Borde inclusivo: otorgado EL último día del período sí descuenta.
+        ...(fechaFinPeriodo
+          ? { fecha_otorgado: { lte: fechaFinPeriodo } }
+          : {}),
         ...(idsYaCargados.length > 0 ? { id: { notIn: idsYaCargados } } : {}),
       },
       select: SELECT_PRESTAMO_ACTIVO,
@@ -167,6 +186,34 @@ export class PrestamosAmortizacionService {
     }
 
     return resumen;
+  }
+
+  /**
+   * Fin de la ventana del período de la planilla.
+   *
+   * Sale del período de tareo asociado, que es la fuente de verdad cuando la
+   * empresa tiene día de corte (26-jul → 25-ago no es el mes calendario). Si la
+   * planilla no tiene período —caso degradado que el cálculo ya reporta como
+   * warning— cae al mes calendario, exactamente igual que el cálculo.
+   */
+  private async resolverFinDePeriodo(
+    tx: Prisma.TransactionClient,
+    planillaId: number,
+    empresaId: number,
+  ): Promise<Date | null> {
+    const planilla = await tx.planilla.findFirst({
+      where: { id: planillaId, empresa_id: empresaId },
+      select: {
+        anio: true,
+        mes: true,
+        periodo_tareo: { select: { fecha_fin: true } },
+      },
+    });
+    if (!planilla) return null;
+    if (planilla.periodo_tareo?.fecha_fin) {
+      return fechaCalendarioLocal(planilla.periodo_tareo.fecha_fin);
+    }
+    return calcularVentanaPeriodo(planilla.anio, planilla.mes, null).fechaFin;
   }
 
   /**
