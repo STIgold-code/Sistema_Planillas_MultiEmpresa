@@ -1,17 +1,43 @@
 'use client';
 
-import { CalendarClock, TriangleAlert } from 'lucide-react';
-import {
-  MAX_FILAS_PROYECTADAS,
-  ProyeccionCronograma,
-  leerPeriodo,
-  nombrarPeriodo,
-} from '../dominio/cronograma-prestamo';
+import { CalendarClock, Loader2, TriangleAlert } from 'lucide-react';
+import type { ProyeccionCronograma } from '../useCronograma';
 
 interface Props {
   proyeccion: ProyeccionCronograma | null;
+  /** True mientras el servidor recalcula la proyección. */
+  cargando: boolean;
+  /** Tipo de préstamo, para explicar por qué la primera cuota se difiere. */
+  tipo: string;
   /** Fecha de otorgamiento en formato AAAA-MM-DD, para explicar el arranque. */
   fechaOtorgado: string;
+}
+
+const NOMBRE_MES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'setiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
+function leerPeriodo(fechaISO: string): { anio: number; mes: number } | null {
+  const partes = /^(\d{4})-(\d{2})/.exec(fechaISO.trim());
+  if (!partes) return null;
+  const anio = Number(partes[1]);
+  const mes = Number(partes[2]);
+  return mes >= 1 && mes <= 12 ? { anio, mes } : null;
+}
+
+function nombrarPeriodo(anio: number, mes: number): string {
+  return `${NOMBRE_MES[mes - 1]} ${anio}`;
 }
 
 const soles = (valor: number): string =>
@@ -21,7 +47,7 @@ const soles = (valor: number): string =>
   });
 
 function nombrarDesdePeriodo(periodo: string): string {
-  const partes = leerPeriodo(`${periodo}-01`);
+  const partes = leerPeriodo(periodo);
   return partes ? nombrarPeriodo(partes.anio, partes.mes) : periodo;
 }
 
@@ -31,7 +57,20 @@ function nombrarDesdePeriodo(periodo: string): string {
  * Responde las dos preguntas que hoy solo se contestan corriendo la planilla:
  * en qué período entra la primera cuota y en cuál termina el préstamo.
  */
-export function CronogramaPreview({ proyeccion, fechaOtorgado }: Props) {
+export function CronogramaPreview({
+  proyeccion,
+  cargando,
+  tipo,
+  fechaOtorgado,
+}: Props) {
+  if (cargando && !proyeccion) {
+    return (
+      <p className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Proyectando el cronograma...
+      </p>
+    );
+  }
   if (!proyeccion || proyeccion.filas.length === 0) return null;
 
   const { filas, truncado, totalProgramado, periodoFinal } = proyeccion;
@@ -52,7 +91,7 @@ export function CronogramaPreview({ proyeccion, fechaOtorgado }: Props) {
           <div className="flex gap-1.5">
             <dt>Cuotas:</dt>
             <dd className="font-medium tabular-nums text-slate-900">
-              {truncado ? `más de ${MAX_FILAS_PROYECTADAS}` : filas.length}
+              {truncado ? `más de ${filas.length}` : filas.length}
             </dd>
           </div>
           <div className="flex gap-1.5">
@@ -80,8 +119,10 @@ export function CronogramaPreview({ proyeccion, fechaOtorgado }: Props) {
 
       {arranqueDiferido && (
         <p className="border-b border-slate-200 px-4 py-2 text-xs text-slate-600">
-          El adelanto de gratificación solo se descuenta en julio y diciembre,
-          así que la primera cuota cae en{' '}
+          {tipo === 'ADELANTO_GRATIFICACION'
+            ? 'El adelanto de gratificación solo se descuenta en julio y diciembre, '
+            : 'La fecha de otorgamiento cae después del cierre del período, '}
+          así que la primera cuota entra en{' '}
           {nombrarPeriodo(primera.anio, primera.mes)}.
         </p>
       )}
@@ -89,8 +130,8 @@ export function CronogramaPreview({ proyeccion, fechaOtorgado }: Props) {
       {truncado && (
         <p className="flex items-start gap-2 border-b border-slate-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
           <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Con esta cuota el préstamo pasa de {MAX_FILAS_PROYECTADAS} meses.
-          Revisa el monto de la cuota antes de continuar.
+          Con esta cuota el préstamo pasa de {filas.length} meses. Revisa el
+          monto de la cuota antes de continuar.
         </p>
       )}
 

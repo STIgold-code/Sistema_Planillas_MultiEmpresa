@@ -59,3 +59,24 @@ export class UpdatePrestamoDto {
   @MaxLength(500)
   observaciones?: string;
 }
+
+/**
+ * Parámetros para proyectar el cronograma de un préstamo que todavía no existe.
+ * El día de corte NO viaja: lo resuelve el servidor desde la empresa activa,
+ * que es la única fuente de verdad de la ventana del período.
+ */
+export class ProyectarCronogramaDto {
+  @IsEnum(TipoPrestamo)
+  tipo!: TipoPrestamo;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  monto_total!: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  cuota_mensual!: number;
+
+  @IsDateString()
+  fecha_otorgado!: string;
+}

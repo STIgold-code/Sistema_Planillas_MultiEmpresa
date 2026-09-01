@@ -1,7 +1,6 @@
 'use client';
 
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
-import { cuotaEfectiva } from '../dominio/cronograma-prestamo';
 import {
   Prestamo,
   TIPO_ETIQUETA,
@@ -15,6 +14,10 @@ interface Props {
   prestamosActivos: Prestamo[];
   cargandoActivos: boolean;
 }
+
+/** Cuota que corresponde este mes: nunca más que el saldo pendiente. */
+const cuotaEfectiva = (cuotaMensual: number, saldo: number): number =>
+  Math.min(Math.max(0, cuotaMensual), Math.max(0, saldo));
 
 const soles = (valor: number): string =>
   valor.toLocaleString('es-PE', {

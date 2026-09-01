@@ -11,8 +11,14 @@ import {
   CancelarPrestamoDto,
   CreatePrestamoDto,
   FilterPrestamoDto,
+  ProyectarCronogramaDto,
   UpdatePrestamoDto,
 } from './dto';
+import {
+  ProyeccionCronograma,
+  proyectarCronograma,
+} from './dominio/cronograma-prestamo';
+import { TipoPrestamoCalculo } from './dominio/descuentos-prestamos';
 
 /** Archivo ya subido al storage, listo para asociarse al préstamo. */
 export interface ArchivoPrestamo {
@@ -158,6 +164,32 @@ export class PrestamosService {
     }
 
     return prestamo;
+  }
+
+  /**
+   * Cronograma proyectado de un préstamo que todavía no se registró.
+   *
+   * Vive en el servidor a propósito: la proyección tiene que salir del MISMO
+   * dominio que después descuenta, y necesita el día de corte de la empresa
+   * para saber en qué período cae la primera cuota. Una copia en el cliente se
+   * despega, y el trabajador termina firmando un calendario que no se cumple.
+   */
+  async proyectarCronograma(
+    empresaId: number,
+    dto: ProyectarCronogramaDto,
+  ): Promise<ProyeccionCronograma | null> {
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { dia_corte_tareo: true },
+    });
+
+    return proyectarCronograma({
+      montoTotal: dto.monto_total,
+      cuotaMensual: dto.cuota_mensual,
+      tipo: dto.tipo as TipoPrestamoCalculo,
+      fechaOtorgado: dto.fecha_otorgado,
+      diaCorte: empresa?.dia_corte_tareo ?? null,
+    });
   }
 
   async create(
