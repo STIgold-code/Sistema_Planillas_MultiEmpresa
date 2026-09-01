@@ -120,25 +120,23 @@ export function AvisoEndeudamiento({
           <strong>S/ {soles(totalDescuento)}</strong>
           {porcentaje !== null && tieneSueldo && (
             <>
-              , el <strong>{(porcentaje * 100).toFixed(1)}%</strong> de la
-              remuneración de S/ {soles(sueldoBase)}
+              , el <strong>{(porcentaje * 100).toFixed(1)}%</strong> del sueldo
+              básico de S/ {soles(sueldoBase)}
               {restante !== null && (
                 <>
-                  , y le quedarían S/ {soles(restante)} antes de aportes y otros
-                  descuentos
+                  , y le quedarían S/ {soles(restante)}
                 </>
               )}
             </>
           )}
-          .
+          . El porcentaje es sobre el bruto: con AFP u ONP, quinta y otros
+          descuentos, el impacto en el líquido es mayor.
         </p>
 
         {alerta && (
           <p>
-            Supera el {UMBRAL_CUOTA_SOBRE_SUELDO * 100}% de la remuneración.
+            Supera el {UMBRAL_CUOTA_SOBRE_SUELDO * 100}% del sueldo básico.
             Puedes continuar: es un aviso para que lo revises con el trabajador.
-            El cálculo no incluye AFP u ONP, quinta categoría ni otros descuentos,
-            así que el líquido real será menor.
           </p>
         )}
       </div>

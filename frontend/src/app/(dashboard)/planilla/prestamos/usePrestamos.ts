@@ -385,9 +385,17 @@ export function usePrestamos() {
     setGuardando(true);
     try {
       if (seleccionado) {
-        // Editar: solo la cuota y las observaciones son modificables.
+        // Editar: cuota, monto pactado y fecha son corregibles (el backend
+        // exige motivo escrito si cambian). El tipo no: cambia el acuerdo.
+        const montoTotal = Number(valores.monto_total);
         await api.patch(`/prestamos/${seleccionado.id}`, {
           cuota_mensual: valores.cuota_mensual,
+          ...(Number.isFinite(montoTotal) && montoTotal > 0
+            ? { monto_total: montoTotal }
+            : {}),
+          ...(valores.fecha_otorgado
+            ? { fecha_otorgado: valores.fecha_otorgado }
+            : {}),
           observaciones: valores.observaciones || undefined,
         });
         toast.success('Préstamo actualizado');

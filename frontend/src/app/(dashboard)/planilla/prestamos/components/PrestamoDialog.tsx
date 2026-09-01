@@ -208,8 +208,13 @@ export function PrestamoDialog({
                   <FormItem>
                     <FormLabel>Fecha de otorgamiento *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} disabled={esEdicion} />
+                      <Input type="date" {...field} />
                     </FormControl>
+                    {esEdicion && (
+                      <FormDescription>
+                        Si la corriges, indica el motivo en las observaciones.
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -228,12 +233,12 @@ export function PrestamoDialog({
                         min="0"
                         placeholder="Opcional"
                         {...field}
-                        disabled={esEdicion}
                       />
                     </FormControl>
                     <FormDescription>
-                      Déjalo vacío para un descuento recurrente sin monto
-                      definido: se descuenta cada mes hasta que lo canceles.
+                      {esEdicion
+                        ? 'Corrige el monto pactado si se capturó mal; indica el motivo en las observaciones.'
+                        : 'Déjalo vacío para un descuento recurrente sin monto definido: se descuenta cada mes hasta que lo canceles.'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
