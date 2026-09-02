@@ -219,6 +219,58 @@ describe('PlantillaCierreImportacionService — préstamo sin tope', () => {
   });
 });
 
+/**
+ * El monto original es el dato que el sistema no tiene (los préstamos reales
+ * nacieron sin él) y el que la contadora sí sabe: es la plata que entregó. La
+ * columna ahora es editable y la importación lo fija junto con el saldo.
+ */
+describe('PlantillaCierreImportacionService — monto total otorgado', () => {
+  it('fija el monto original cuando la contadora lo escribe', async () => {
+    const buffer = await llenar((wb) => {
+      const ws = wb.getWorksheet('Prestamos');
+      ws.getCell(5, 4).value = 800; // monto original otorgado
+      ws.getCell(5, 8).value = 400; // saldo real pendiente
+    });
+
+    const { servicio, actualizarPrestamo } = armar();
+    const preview = await servicio.preview(10, 2026, 8, buffer);
+    expect(preview.deudas[0].detalle).toContain('800.00');
+
+    await servicio.aplicar(10, 2026, 8, buffer);
+    expect(actualizarPrestamo).toHaveBeenCalledWith(
+      10,
+      10,
+      expect.objectContaining({ monto_total: 800, saldo: 400 }),
+    );
+  });
+
+  it('un saldo mayor al monto ESCRITO en la plantilla es un error', async () => {
+    const buffer = await llenar((wb) => {
+      const ws = wb.getWorksheet('Prestamos');
+      ws.getCell(5, 4).value = 300;
+      ws.getCell(5, 8).value = 400; // debe más de lo que se otorgó: imposible
+    });
+
+    const { servicio } = armar();
+    const preview = await servicio.preview(10, 2026, 8, buffer);
+
+    expect(preview.aplicable).toBe(false);
+    expect(preview.errores[0].motivo).toContain('supera el monto total');
+  });
+
+  it('sin monto escrito no viaja nada: no se inventa un monto', async () => {
+    const buffer = await llenar();
+
+    const { servicio, actualizarPrestamo } = armar();
+    await servicio.aplicar(10, 2026, 8, buffer);
+
+    expect(actualizarPrestamo).toHaveBeenCalledWith(10, 10, {
+      saldo: 400,
+      observaciones: 'Confirmado en la plantilla de cierre 08-2026.',
+    });
+  });
+});
+
 describe('PlantillaCierreImportacionService — la cuota pactada', () => {
   it('no se toca cuando el contador repite la misma: renegociar es otra cosa', async () => {
     const buffer = await llenar((wb) => {

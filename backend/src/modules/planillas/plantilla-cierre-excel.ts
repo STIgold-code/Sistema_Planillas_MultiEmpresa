@@ -447,7 +447,13 @@ function hojaDeudas(
     },
     { titulo: 'Trabajador', ancho: 34, rol: 'formula' },
     { titulo: 'Fecha otorgado', ancho: 13, rol: 'sistema', formato: FECHA },
-    { titulo: 'Monto total', ancho: 12, rol: 'sistema', formato: MONEDA },
+    {
+      titulo: 'Monto total otorgado',
+      ancho: 14,
+      rol: 'llenar',
+      formato: MONEDA,
+      nota: 'El monto por el que se otorgó la deuda. Si está vacío o mal, escríbelo: es el dato que el sistema no tiene.',
+    },
     {
       titulo: esAdelanto ? 'Monto del adelanto' : 'Cuota mensual',
       ancho: 13,
@@ -504,7 +510,7 @@ function hojaDeudas(
     ws.getCell(fila, 3).value = d.fecha_otorgado
       ? new Date(d.fecha_otorgado)
       : null;
-    ws.getCell(fila, 4).value = d.monto_total;
+    ws.getCell(fila, 4).value = d.monto_total ?? null;
     ws.getCell(fila, 5).value = d.cuota_mensual;
     // Saldo NULL = descuento recurrente sin tope. Se dice con todas las letras;
     // el resaltado se aplica más abajo, después de dar formato a las columnas.

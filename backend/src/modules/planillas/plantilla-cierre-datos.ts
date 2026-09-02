@@ -45,7 +45,8 @@ export interface DeudaPlantilla {
   /** PRESTAMO, ADELANTO_SUELDO o ADELANTO_GRATIFICACION. */
   tipo: string;
   fecha_otorgado: string;
-  monto_total: number;
+  /** Monto original pactado. NULL = nunca se registró: hay que pedirlo. */
+  monto_total: number | null;
   cuota_mensual: number;
   /**
    * Saldo según el sistema, y lo que el contador tiene que confirmar.
@@ -291,7 +292,7 @@ async function cargarDeudas(
     nombre: `${f.empleado.apellido_paterno} ${f.empleado.apellido_materno}, ${f.empleado.nombres}`,
     tipo: f.tipo,
     fecha_otorgado: aIso(f.fecha_otorgado) ?? '',
-    monto_total: aNumero(f.monto_total),
+    monto_total: f.monto_total === null ? null : aNumero(f.monto_total),
     cuota_mensual: aNumero(f.cuota_mensual),
     saldo_sistema: f.saldo === null ? null : aNumero(f.saldo),
     cuotas_aplicadas: f._count.movimientos,
