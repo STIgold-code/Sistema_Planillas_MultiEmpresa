@@ -1,14 +1,21 @@
 # ESTADO — Sistema de Planillas MultiEmpresa
 
-> Última actualización: 2026-08-07. Rama principal: `main`.
+> Última actualización: 2026-09-02. Rama principal: `main`.
 
 ## Resumen ejecutivo
 
 El producto está en **operación real con el primer cliente (Grupo BM)**: planillas de
-enero a julio 2026 calculadas en producción, julio aprobado con boletas emitidas,
-dos liquidaciones de cese procesadas, y el ciclo de agosto listo para correr con
-la nueva ventana de corte. Las 6 fases técnicas originales siguen completas; sobre
-ellas se construyó la capa de operación (PRs #50–#61, agosto 2026).
+enero a julio 2026 calculadas en producción, dos liquidaciones de cese procesadas,
+y el cierre de agosto en marcha con la plantilla de cierre nueva. Las 6 fases
+técnicas originales siguen completas; sobre ellas se construyó la capa de
+operación (PRs #50–#61) y la capa de cierre/auditoría (PRs #88–#92, ago-sep 2026).
+
+> ⚠ **NINGUNA planilla está APROBADA hoy.** El 12-ago se regeneró el histórico
+> completo con la ventana de corte (auditoría lo confirma: las 7 planillas se
+> re-crearon ese día) y las re-creadas nunca se volvieron a aprobar — julio SÍ
+> estuvo aprobado antes de esa regeneración. Consecuencia: la amortización de
+> préstamos corre AL APROBAR, así que `prestamos_movimientos` está VACÍO y los
+> préstamos no bajan su saldo. Re-aprobar es decisión de negocio pendiente.
 
 **Estado de calidad:** 0 usos de `any`, ESLint limpio, `tsc --noEmit` limpio en
 backend y frontend, CI bloqueante en cada PR. Tests backend: **526 passed,
@@ -27,12 +34,19 @@ de paridad intacto.
 | Módulo de préstamos y adelantos | Entidades `Prestamo`/`PrestamoMovimiento` con saldo e historial auditable; el cálculo descuenta cuotas automáticamente (adelanto de grati solo en jul/dic; última cuota acotada al saldo); amortización idempotente al aprobar y reversión al anular. Página `/planilla/prestamos` | #60, #61 |
 | Beneficios truncos operativos | Liquidaciones de cese calculadas por el motor (CTS/grati/vacaciones truncas, columnas propias). Ceses de MEDINA (09/06) y G. Guerrero (31/07) procesados en prod | — (motor existente) |
 | Scroll superior + leyenda tareo | Barra espejo en tabla de planilla (`TablaConScrollSuperior`); catálogo de marcaciones con colores (leyenda y grilla) | #50, #51 |
+| Plantilla de cierre del período | Excel prellenado que reemplaza el correo de cierre: la contadora confirma saldos de préstamos (los NULL salen como `SIN TOPE ⚠`, nunca como cero), monto otorgado (editable, #92), adelantos, vacaciones y bonos; se sube de vuelta con preview y aplicar. Las altas nuevas NO se cargan (falta el convenio firmado): salen listadas como pendientes | #88, #92 |
+| Cronograma y aviso de endeudamiento | Cronograma proyectado del préstamo en el alta (con formato imprimible) y aviso de carga total de descuentos sobre el sueldo | #89, #90 |
+| Auditoría de préstamos (4 fixes) | El cargo de amortización usa la MISMA ventana que el cálculo (antes un préstamo retroactivo podía llevarse un cargo ajeno); el cronograma sale del dominio del backend con día de corte (la copia del front se eliminó); monto/fecha de un préstamo son corregibles con motivo; aviso sin sesgo | #91 |
 
 ## Datos en producción (Railway)
 
 - Empresa BM (id 10): 16 empleados, tareos dic-2025→jul-2026, planillas ene→jul
-  calculadas (julio APROBADA con 16 boletas). 9 préstamos recurrentes activos en
-  el módulo (cuota mensual = quincenal × 2, del correo de cierre 07-2026).
+  en estado CALCULADA (ver aviso del resumen: se regeneraron el 12-ago y no se
+  re-aprobaron). 10 préstamos ACTIVOS con `saldo = NULL` (= descuento recurrente
+  SIN FIN, no cero) y 4 adelantos de agosto cargados. `prestamos_movimientos`
+  vacío hasta que se apruebe una planilla.
+- Un solo usuario y un solo rol en producción (admin, permisos `*`): no hay
+  separación entre quien otorga préstamos y quien aprueba planillas.
 - Convención de asistencia: mes comercial de 30 días; todo día pagado = A
   (domingos y feriados no trabajados incluidos). Mapeo del Excel documentado en
   memoria del proyecto.
@@ -40,6 +54,13 @@ de paridad intacto.
 ## Pendiente
 
 ### Operativo (muerde pronto)
+- **Re-aprobar las planillas regeneradas** (o al menos julio): sin eso no hay
+  amortización de préstamos ni ciclo de cierre. Decisión de negocio de Gian/CEO.
+- **Cierre de agosto**: plantilla `Cierre_Planilla_Agosto_2026.xlsx` enviada;
+  la contadora debe llenar el MONTO OTORGADO de los 10 préstamos `SIN TOPE` y el
+  resto del período. El tareo de agosto aún no existe en el sistema.
+- **Crear el usuario/rol del contador** con `planilla:aprobar` + `prestamos:*`:
+  hoy todo depende del superadmin.
 - **Permisos `prestamos:*` sin asignar a roles**: hasta asignarlos en
   `/configuracion/roles`, solo el superadmin ve el módulo de préstamos.
 - **Sueldo de J. Sánchez a S/2,000** (correo del cliente): sin vigencia
@@ -78,7 +99,7 @@ de paridad intacto.
 ```bash
 cd backend && npm install && npx prisma generate
 npx prisma migrate deploy        # aplica migraciones a la BD
-npm test                         # 526 passed, 7 skipped
+npm test                         # 700+ passed, 7 skipped
 npm run start:dev                # puerto 4001
 ```
 
