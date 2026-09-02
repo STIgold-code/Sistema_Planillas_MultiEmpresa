@@ -48,6 +48,22 @@ export class UpdatePrestamoDto {
   @IsPositive()
   cuota_mensual?: number;
 
+  /**
+   * Corrección del monto original pactado (requiere motivo en observaciones).
+   * Existe porque cancelar y recrear pierde el historial, y eliminar está
+   * prohibido apenas hay movimientos. El TIPO no se corrige: cambia el
+   * significado del acuerdo; sin movimientos, se elimina y se recrea.
+   */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  monto_total?: number;
+
+  /** Corrección de la fecha del convenio (requiere motivo; nunca futura). */
+  @IsOptional()
+  @IsDateString()
+  fecha_otorgado?: string;
+
   /** Ajuste manual del saldo pendiente (registra un movimiento AJUSTE). */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -58,4 +74,25 @@ export class UpdatePrestamoDto {
   @IsString()
   @MaxLength(500)
   observaciones?: string;
+}
+
+/**
+ * Parámetros para proyectar el cronograma de un préstamo que todavía no existe.
+ * El día de corte NO viaja: lo resuelve el servidor desde la empresa activa,
+ * que es la única fuente de verdad de la ventana del período.
+ */
+export class ProyectarCronogramaDto {
+  @IsEnum(TipoPrestamo)
+  tipo!: TipoPrestamo;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  monto_total!: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  cuota_mensual!: number;
+
+  @IsDateString()
+  fecha_otorgado!: string;
 }

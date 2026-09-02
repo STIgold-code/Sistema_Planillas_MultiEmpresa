@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Paperclip } from 'lucide-react';
-import { useMemo } from 'react';
 import { EmpleadoSelector } from '@/components/empleados/EmpleadoSelector';
 import {
   EXTENSIONES_ACEPTADAS,
@@ -42,8 +41,8 @@ import {
 import {
   cuotaDesdeNumeroCuotas,
   numeroCuotasDesdeCuota,
-  proyectarCronograma,
-} from '../dominio/cronograma-prestamo';
+  useCronograma,
+} from '../useCronograma';
 import { AvisoEndeudamiento } from './AvisoEndeudamiento';
 import { CronogramaPreview } from './CronogramaPreview';
 
@@ -94,16 +93,14 @@ export function PrestamoDialog({
       ? montoTotal
       : null;
 
-  const proyeccion = useMemo(
-    () =>
-      proyectarCronograma({
-        montoTotal: montoValido,
-        cuotaMensual,
-        tipo: tipoSeleccionado,
-        fechaOtorgado,
-      }),
-    [montoValido, cuotaMensual, tipoSeleccionado, fechaOtorgado],
-  );
+  // La proyección la hace el SERVIDOR: es el único que conoce el día de corte
+  // de la empresa y el dominio real que después descuenta.
+  const { proyeccion, cargando: proyectando } = useCronograma({
+    montoTotal: montoValido,
+    cuotaMensual,
+    tipo: tipoSeleccionado,
+    fechaOtorgado,
+  });
 
   /** Al fijar el número de cuotas se deriva la cuota; sigue siendo editable. */
   const alCambiarNumeroCuotas = (texto: string) => {
@@ -211,8 +208,13 @@ export function PrestamoDialog({
                   <FormItem>
                     <FormLabel>Fecha de otorgamiento *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} disabled={esEdicion} />
+                      <Input type="date" {...field} />
                     </FormControl>
+                    {esEdicion && (
+                      <FormDescription>
+                        Si la corriges, indica el motivo en las observaciones.
+                      </FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -231,12 +233,12 @@ export function PrestamoDialog({
                         min="0"
                         placeholder="Opcional"
                         {...field}
-                        disabled={esEdicion}
                       />
                     </FormControl>
                     <FormDescription>
-                      Déjalo vacío para un descuento recurrente sin monto
-                      definido: se descuenta cada mes hasta que lo canceles.
+                      {esEdicion
+                        ? 'Corrige el monto pactado si se capturó mal; indica el motivo en las observaciones.'
+                        : 'Déjalo vacío para un descuento recurrente sin monto definido: se descuenta cada mes hasta que lo canceles.'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -313,6 +315,8 @@ export function PrestamoDialog({
                 />
                 <CronogramaPreview
                   proyeccion={proyeccion}
+                  cargando={proyectando}
+                  tipo={tipoSeleccionado}
                   fechaOtorgado={fechaOtorgado}
                 />
               </>

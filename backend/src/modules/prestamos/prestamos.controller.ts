@@ -21,6 +21,7 @@ import {
   CancelarPrestamoDto,
   CreatePrestamoDto,
   FilterPrestamoDto,
+  ProyectarCronogramaDto,
   UpdatePrestamoDto,
 } from './dto';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
@@ -57,6 +58,19 @@ export class PrestamosController {
     @Query() filters: FilterPrestamoDto,
   ) {
     return this.prestamosService.findAll(user.empresa_id, filters);
+  }
+
+  /**
+   * Cronograma proyectado, antes de registrar el préstamo. Va ANTES de `:id`
+   * para que la ruta estática no la capture el parámetro.
+   */
+  @Post('cronograma')
+  @RequirePermissions(PERMISOS.PRESTAMOS.LEER)
+  proyectarCronograma(
+    @Body() dto: ProyectarCronogramaDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.prestamosService.proyectarCronograma(user.empresa_id, dto);
   }
 
   @Get(':id')

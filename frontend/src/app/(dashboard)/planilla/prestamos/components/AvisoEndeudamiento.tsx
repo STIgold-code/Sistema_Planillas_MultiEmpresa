@@ -1,7 +1,6 @@
 'use client';
 
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
-import { cuotaEfectiva } from '../dominio/cronograma-prestamo';
 import {
   Prestamo,
   TIPO_ETIQUETA,
@@ -15,6 +14,10 @@ interface Props {
   prestamosActivos: Prestamo[];
   cargandoActivos: boolean;
 }
+
+/** Cuota que corresponde este mes: nunca más que el saldo pendiente. */
+const cuotaEfectiva = (cuotaMensual: number, saldo: number): number =>
+  Math.min(Math.max(0, cuotaMensual), Math.max(0, saldo));
 
 const soles = (valor: number): string =>
   valor.toLocaleString('es-PE', {
@@ -117,25 +120,23 @@ export function AvisoEndeudamiento({
           <strong>S/ {soles(totalDescuento)}</strong>
           {porcentaje !== null && tieneSueldo && (
             <>
-              , el <strong>{(porcentaje * 100).toFixed(1)}%</strong> de la
-              remuneración de S/ {soles(sueldoBase)}
+              , el <strong>{(porcentaje * 100).toFixed(1)}%</strong> del sueldo
+              básico de S/ {soles(sueldoBase)}
               {restante !== null && (
                 <>
-                  , y le quedarían S/ {soles(restante)} antes de aportes y otros
-                  descuentos
+                  , y le quedarían S/ {soles(restante)}
                 </>
               )}
             </>
           )}
-          .
+          . El porcentaje es sobre el bruto: con AFP u ONP, quinta y otros
+          descuentos, el impacto en el líquido es mayor.
         </p>
 
         {alerta && (
           <p>
-            Supera el {UMBRAL_CUOTA_SOBRE_SUELDO * 100}% de la remuneración.
+            Supera el {UMBRAL_CUOTA_SOBRE_SUELDO * 100}% del sueldo básico.
             Puedes continuar: es un aviso para que lo revises con el trabajador.
-            El cálculo no incluye AFP u ONP, quinta categoría ni otros descuentos,
-            así que el líquido real será menor.
           </p>
         )}
       </div>

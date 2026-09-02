@@ -4,6 +4,16 @@
  * cargo ante una re-aprobación y aislamiento por empresa.
  */
 import { PrestamosAmortizacionService } from './prestamos-amortizacion.service';
+import {
+  calcularVentanaPeriodo,
+  fechaCalendarioLocal,
+} from '../tareo/ventana-periodo';
+
+/** Primer argumento de una llamada al mock, ya tipado. */
+function argumento<T>(mock: jest.Mock, llamada = 0): T {
+  const argumentos = mock.mock.calls[llamada] as unknown[];
+  return argumentos[0] as T;
+}
 
 interface FilaDetalle {
   empleado_id: number;
@@ -18,14 +28,40 @@ interface FilaPrestamo {
   tipo: 'PRESTAMO' | 'ADELANTO_SUELDO' | 'ADELANTO_GRATIFICACION';
   cuota_mensual: number;
   saldo: number | null;
+  /** Solo para los casos que ejercitan la ventana del período. */
+  fecha_otorgado?: Date;
 }
+
+/** Ventana del período que devuelve el mock de `planilla.findFirst`. */
+interface VentanaMock {
+  anio: number;
+  mes: number;
+  fecha_fin: Date | null;
+}
+
+const VENTANA_ABIERTA: VentanaMock = {
+  anio: 2026,
+  mes: 12,
+  fecha_fin: new Date(Date.UTC(2026, 11, 31)),
+};
 
 function build(opciones: {
   detalles: FilaDetalle[];
   prestamos: FilaPrestamo[];
   yaCargados?: number[];
+  ventana?: VentanaMock;
 }) {
+  const ventana = opciones.ventana ?? VENTANA_ABIERTA;
   const tx = {
+    planilla: {
+      findFirst: jest.fn().mockResolvedValue({
+        anio: ventana.anio,
+        mes: ventana.mes,
+        periodo_tareo: ventana.fecha_fin
+          ? { fecha_fin: ventana.fecha_fin }
+          : null,
+      }),
+    },
     planillaDetalle: {
       findMany: jest.fn().mockResolvedValue(opciones.detalles),
     },
@@ -39,10 +75,22 @@ function build(opciones: {
     },
     prestamo: {
       findMany: jest.fn().mockImplementation((args: unknown) => {
-        const where = (args as { where: { id?: { notIn: number[] } } }).where;
+        const where = (
+          args as {
+            where: {
+              id?: { notIn: number[] };
+              fecha_otorgado?: { lte: Date };
+            };
+          }
+        ).where;
         const excluidos = where.id?.notIn ?? [];
+        const tope = where.fecha_otorgado?.lte;
         return Promise.resolve(
-          opciones.prestamos.filter((p) => !excluidos.includes(p.id)),
+          opciones.prestamos.filter(
+            (p) =>
+              !excluidos.includes(p.id) &&
+              (!tope || !p.fecha_otorgado || p.fecha_otorgado <= tope),
+          ),
         );
       }),
       update: jest.fn().mockResolvedValue({ id: 1 }),
@@ -415,5 +463,98 @@ describe('PrestamosAmortizacionService.revertirPlanillaAnulada', () => {
     expect(tx.prestamoMovimiento.deleteMany).toHaveBeenCalledWith({
       where: { id: { in: [11] } },
     });
+  });
+});
+
+/**
+ * El cálculo de la planilla solo considera los préstamos otorgados hasta el fin
+ * de la ventana del período. La amortización tiene que usar EXACTAMENTE el mismo
+ * corte: si no, un préstamo registrado entre el cálculo y la aprobación —con
+ * fecha retroactiva, que el alta permite— se cuela en el reparto y, por ir
+ * primero en el orden por antigüedad, se lleva un cargo que era de otra deuda.
+ */
+describe('PrestamosAmortizacionService — la ventana del período manda', () => {
+  const VENTANA_JULIO = {
+    anio: 2026,
+    mes: 7,
+    fecha_fin: new Date(Date.UTC(2026, 6, 25)),
+  };
+
+  const A_CALCULADO: FilaPrestamo = {
+    id: 1,
+    empleado_id: 100,
+    tipo: 'PRESTAMO',
+    cuota_mensual: 100,
+    saldo: 1000,
+    fecha_otorgado: new Date(Date.UTC(2026, 6, 1)),
+  };
+  const B_POSTERIOR: FilaPrestamo = {
+    id: 2,
+    empleado_id: 100,
+    tipo: 'PRESTAMO',
+    cuota_mensual: 100,
+    saldo: 500,
+    // Otorgado el 28 de julio: FUERA de la ventana 26-jun → 25-jul, aunque su
+    // fecha lo ponga primero en el orden de amortización.
+    fecha_otorgado: new Date(Date.UTC(2026, 6, 28)),
+  };
+
+  const DETALLE = [
+    {
+      empleado_id: 100,
+      prestamo: 100,
+      adelanto_quincena: 0,
+      adelanto_gratificacion: 0,
+    },
+  ];
+
+  it('no imputa el cargo a un préstamo otorgado después del fin del período', async () => {
+    const { service, tx } = build({
+      detalles: DETALLE,
+      prestamos: [B_POSTERIOR, A_CALCULADO],
+      ventana: VENTANA_JULIO,
+    });
+
+    await service.amortizarPlanillaAprobada(tx as never, 50, 1);
+
+    const movimiento = argumento<{
+      data: { prestamo_id: number; monto: number };
+    }>(tx.prestamoMovimiento.create);
+    expect(movimiento.data.prestamo_id).toBe(A_CALCULADO.id);
+    expect(tx.prestamoMovimiento.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('pide los préstamos acotados por la fecha de fin de la ventana', async () => {
+    const { service, tx } = build({
+      detalles: DETALLE,
+      prestamos: [A_CALCULADO],
+      ventana: VENTANA_JULIO,
+    });
+
+    await service.amortizarPlanillaAprobada(tx as never, 50, 1);
+
+    const consulta = argumento<{ where: { fecha_otorgado?: { lte: Date } } }>(
+      tx.prestamo.findMany,
+    );
+    expect(consulta.where.fecha_otorgado?.lte).toEqual(
+      fechaCalendarioLocal(VENTANA_JULIO.fecha_fin),
+    );
+  });
+
+  it('sin período de tareo cae al mes calendario, igual que el cálculo', async () => {
+    const { service, tx } = build({
+      detalles: DETALLE,
+      prestamos: [A_CALCULADO],
+      ventana: { anio: 2026, mes: 7, fecha_fin: null },
+    });
+
+    await service.amortizarPlanillaAprobada(tx as never, 50, 1);
+
+    const consulta = argumento<{ where: { fecha_otorgado?: { lte: Date } } }>(
+      tx.prestamo.findMany,
+    );
+    expect(consulta.where.fecha_otorgado?.lte).toEqual(
+      calcularVentanaPeriodo(2026, 7, null).fechaFin,
+    );
   });
 });

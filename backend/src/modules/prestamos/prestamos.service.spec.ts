@@ -514,6 +514,119 @@ describe('PrestamosService.update', () => {
   });
 });
 
+/**
+ * Un préstamo con el monto o la fecha mal capturados tiene que poder
+ * corregirse: cancelarlo y recrearlo pierde el historial, y borrar está
+ * prohibido apenas hay movimientos. La corrección exige motivo escrito, como
+ * toda alteración de un acuerdo ya pactado.
+ */
+describe('PrestamosService.update — corrección de monto y fecha', () => {
+  const PRESTAMO_NULO = {
+    id: 1,
+    estado: 'ACTIVO',
+    monto_total: null,
+    saldo: null,
+    cuota_mensual: 100,
+    fecha_otorgado: new Date('2026-07-10'),
+    observaciones: null,
+  };
+
+  it('define el monto original de un préstamo que nunca lo tuvo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue(PRESTAMO_NULO);
+
+    await service.update(1, 5, {
+      monto_total: 800,
+      saldo: 700,
+      observaciones: 'Confirmado en la plantilla de cierre 08-2026.',
+    });
+
+    const datos = primerArgumento<{
+      data: { monto_total?: number; saldo?: number };
+    }>(prisma.prestamo.update);
+    expect(datos.data.monto_total).toBe(800);
+    expect(datos.data.saldo).toBe(700);
+  });
+
+  it('sin motivo escrito no hay corrección', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue(PRESTAMO_NULO);
+
+    await expect(
+      service.update(1, 5, { monto_total: 800 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.prestamo.update).not.toHaveBeenCalled();
+  });
+
+  it('el saldo se valida contra el monto NUEVO, no contra el viejo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      ...PRESTAMO_NULO,
+      monto_total: 500,
+      saldo: 400,
+    });
+
+    // Con el monto viejo (500) este saldo sería inválido; con el corregido no.
+    await service.update(1, 5, {
+      monto_total: 1000,
+      saldo: 900,
+      observaciones: 'El préstamo real fue de 1000, se capturó 500.',
+    });
+
+    expect(prisma.prestamo.update).toHaveBeenCalled();
+  });
+
+  it('rechaza un monto menor a lo que todavía se debe', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      ...PRESTAMO_NULO,
+      monto_total: 1000,
+      saldo: 700,
+    });
+
+    await expect(
+      service.update(1, 5, {
+        monto_total: 500,
+        observaciones: 'Corrección',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('corrige la fecha de otorgamiento, pero nunca hacia el futuro', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue(PRESTAMO_NULO);
+
+    await service.update(1, 5, {
+      fecha_otorgado: '2026-06-15',
+      observaciones: 'La fecha real del convenio es 15-jun.',
+    });
+    const datos = primerArgumento<{ data: { fecha_otorgado?: Date } }>(
+      prisma.prestamo.update,
+    );
+    expect(datos.data.fecha_otorgado).toBeInstanceOf(Date);
+
+    await expect(
+      service.update(1, 5, {
+        fecha_otorgado: '2099-01-01',
+        observaciones: 'x',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('reenviar el mismo monto no es una corrección: no exige motivo', async () => {
+    const { service, prisma } = build();
+    prisma.prestamo.findFirst.mockResolvedValue({
+      ...PRESTAMO_NULO,
+      monto_total: 800,
+      saldo: 800,
+    });
+
+    await service.update(1, 5, { monto_total: 800 });
+
+    expect(prisma.prestamo.update).toHaveBeenCalled();
+  });
+});
+
 describe('PrestamosService.remove', () => {
   it('no elimina un préstamo que ya tiene movimientos', async () => {
     const { service, prisma } = build();
