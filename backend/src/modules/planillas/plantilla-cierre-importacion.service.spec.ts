@@ -271,6 +271,28 @@ describe('PlantillaCierreImportacionService — monto total otorgado', () => {
   });
 });
 
+describe('PlantillaCierreImportacionService — cerrar sin perder el monto', () => {
+  it('una deuda que se salda igual registra el monto que se otorgó', async () => {
+    const buffer = await llenar((wb) => {
+      const ws = wb.getWorksheet('Prestamos');
+      ws.getCell(5, 4).value = 3000; // la contadora sí escribió el monto
+      ws.getCell(5, 8).value = 0;
+      ws.getCell(5, 9).value = 'No - ya pagado';
+    });
+
+    const { servicio, actualizarPrestamo } = armar();
+    const preview = await servicio.preview(10, 2026, 8, buffer);
+    expect(preview.deudas[0].accion).toBe('CERRAR');
+
+    await servicio.aplicar(10, 2026, 8, buffer);
+    expect(actualizarPrestamo).toHaveBeenCalledWith(
+      10,
+      10,
+      expect.objectContaining({ saldo: 0, monto_total: 3000 }),
+    );
+  });
+});
+
 describe('PlantillaCierreImportacionService — la cuota pactada', () => {
   it('no se toca cuando el contador repite la misma: renegociar es otra cosa', async () => {
     const buffer = await llenar((wb) => {

@@ -118,6 +118,12 @@ const MISMO_IMPORTE = (a: number, b: number): boolean =>
 
 const soles = (valor: number): string => `S/ ${valor.toFixed(2)}`;
 
+/** Monto total de una deuda vigente, ya normalizado a numero o null. */
+const montoDe = (deuda: { monto_total: unknown }): number | null =>
+  deuda.monto_total === null || deuda.monto_total === undefined
+    ? null
+    : Number(deuda.monto_total);
+
 @Injectable()
 export class PlantillaCierreImportacionService {
   private readonly logger = new Logger(PlantillaCierreImportacionService.name);
@@ -207,6 +213,9 @@ export class PlantillaCierreImportacionService {
           // Saldo cero: `update` lo marca PAGADO y deja el movimiento.
           await this.prestamos.update(cambio.prestamo_id, empresaId, {
             saldo: 0,
+            ...(cambio.monto_total !== null
+              ? { monto_total: cambio.monto_total }
+              : {}),
             observaciones: origen,
           });
         }
@@ -345,8 +354,16 @@ export class PlantillaCierreImportacionService {
 
       const cierre = this.resolverCierre(fila);
       if (cierre) {
+        // Cerrar no es motivo para tirar el monto otorgado: si la contadora lo
+        // escribio, queda registrado igual. Ignorarlo en silencio seria perder
+        // el unico dato que el sistema nunca tuvo.
+        const montoAlCerrar =
+          vigente && montoEscrito !== null && montoEscrito !== montoDe(vigente)
+            ? montoEscrito
+            : null;
         cambios.push({
           ...base,
+          monto_total: montoAlCerrar,
           accion: vigente ? 'CERRAR' : 'SIN_CAMBIOS',
           cierra_como: vigente ? cierre.estado : null,
           detalle: vigente
@@ -422,11 +439,7 @@ export class PlantillaCierreImportacionService {
     vigente: { monto_total: unknown },
   ): string | null {
     // Si la plantilla trae el monto corregido, la vara es ESE monto.
-    const total =
-      montoEscrito ??
-      (vigente.monto_total === null || vigente.monto_total === undefined
-        ? null
-        : Number(vigente.monto_total));
+    const total = montoEscrito ?? montoDe(vigente);
     if (total === null || fila.monto_confirmado <= total) return null;
     return `El saldo confirmado (${soles(fila.monto_confirmado)}) supera el monto total pactado (${soles(total)}). Corrige uno de los dos antes de importar.`;
   }
@@ -442,10 +455,7 @@ export class PlantillaCierreImportacionService {
         ? null
         : Number(vigente.saldo);
     const cuotaActual = Number(vigente.cuota_mensual ?? 0);
-    const montoActual =
-      vigente.monto_total === null || vigente.monto_total === undefined
-        ? null
-        : Number(vigente.monto_total);
+    const montoActual = montoDe(vigente);
     // El monto otorgado solo viaja si la contadora escribio uno distinto.
     const montoTotal =
       montoEscrito !== null &&
