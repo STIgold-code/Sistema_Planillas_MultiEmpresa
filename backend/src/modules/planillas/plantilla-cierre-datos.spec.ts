@@ -247,6 +247,22 @@ describe('construirLibroPlantillaCierre', () => {
     expect(celda?.numFmt).toBe('@');
   });
 
+  it('una columna editable va en ÁMBAR aunque venga prellenada', async () => {
+    // El color dice "podés escribir acá", no "está vacía". El monto otorgado
+    // viene con valor y aun así hay que poder corregirlo: si queda en blanco,
+    // no está en la leyenda y nadie sabe si se toca.
+    const datos = await construirPlantillaCierre(armarPrisma(), 10, 2026, 8);
+    const ws = construirLibroPlantillaCierre(datos).getWorksheet('Prestamos');
+
+    const conValor = ws?.getCell(5, 4).fill as { fgColor?: { argb?: string } };
+    // Fila 10: dentro de las libres que la plantilla deja para altas nuevas.
+    const vacia = ws?.getCell(10, 4).fill as { fgColor?: { argb?: string } };
+
+    expect(ws?.getCell(5, 4).value).not.toBeNull();
+    expect(conValor?.fgColor?.argb).toBe('FFFFF2CC');
+    expect(vacia?.fgColor?.argb).toBe('FFFFF2CC');
+  });
+
   it('el documento se elige de una lista: no se teclea el nombre', async () => {
     const datos = await construirPlantillaCierre(armarPrisma(), 10, 2026, 8);
     const wb = construirLibroPlantillaCierre(datos);
