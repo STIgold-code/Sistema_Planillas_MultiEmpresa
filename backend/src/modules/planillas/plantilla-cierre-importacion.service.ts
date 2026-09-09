@@ -61,6 +61,8 @@ export interface CambioDeuda {
   monto: number;
   /** Cuota nueva. NULL cuando la cuota no cambia: no se toca lo pactado. */
   cuota: number | null;
+  /** Monto original corregido. NULL cuando no se escribió o no cambia. */
+  monto_total: number | null;
   /** PAGADO cuando la deuda se saldó; CANCELADO cuando se dio de baja. */
   cierra_como: EstadoPrestamo | null;
 }
@@ -115,6 +117,12 @@ const MISMO_IMPORTE = (a: number, b: number): boolean =>
   Math.abs(a - b) < 0.005;
 
 const soles = (valor: number): string => `S/ ${valor.toFixed(2)}`;
+
+/** Monto total de una deuda vigente, ya normalizado a numero o null. */
+const montoDe = (deuda: { monto_total: unknown }): number | null =>
+  deuda.monto_total === null || deuda.monto_total === undefined
+    ? null
+    : Number(deuda.monto_total);
 
 @Injectable()
 export class PlantillaCierreImportacionService {
@@ -205,6 +213,9 @@ export class PlantillaCierreImportacionService {
           // Saldo cero: `update` lo marca PAGADO y deja el movimiento.
           await this.prestamos.update(cambio.prestamo_id, empresaId, {
             saldo: 0,
+            ...(cambio.monto_total !== null
+              ? { monto_total: cambio.monto_total }
+              : {}),
             observaciones: origen,
           });
         }
@@ -215,6 +226,9 @@ export class PlantillaCierreImportacionService {
       if (cambio.accion === 'ACTUALIZAR') {
         await this.prestamos.update(cambio.prestamo_id, empresaId, {
           saldo: cambio.monto,
+          ...(cambio.monto_total !== null
+            ? { monto_total: cambio.monto_total }
+            : {}),
           ...(cambio.tipo === 'PRESTAMO' && cambio.cuota !== null
             ? { cuota_mensual: cambio.cuota }
             : {}),
@@ -320,6 +334,12 @@ export class PlantillaCierreImportacionService {
       const vigente = candidatas[indice] ?? null;
       if (vigente) emparejadas.set(clave, indice + 1);
 
+      // Una celda en cero o vacia no es un monto otorgado: no se escribio.
+      const montoEscrito =
+        fila.monto_total !== null && fila.monto_total > 0
+          ? fila.monto_total
+          : null;
+
       const base = {
         fila: fila.fila,
         documento: fila.documento,
@@ -327,14 +347,23 @@ export class PlantillaCierreImportacionService {
         tipo: fila.tipo,
         prestamo_id: vigente?.id ?? null,
         monto: fila.monto_confirmado,
-        // Se resuelve en `planificarActualizacion`; en un alta va la de la fila.
+        // Se resuelven en `planificarActualizacion`; en un alta van los de la fila.
         cuota: vigente ? null : fila.cuota,
+        monto_total: vigente ? null : montoEscrito,
       };
 
       const cierre = this.resolverCierre(fila);
       if (cierre) {
+        // Cerrar no es motivo para tirar el monto otorgado: si la contadora lo
+        // escribio, queda registrado igual. Ignorarlo en silencio seria perder
+        // el unico dato que el sistema nunca tuvo.
+        const montoAlCerrar =
+          vigente && montoEscrito !== null && montoEscrito !== montoDe(vigente)
+            ? montoEscrito
+            : null;
         cambios.push({
           ...base,
+          monto_total: montoAlCerrar,
           accion: vigente ? 'CERRAR' : 'SIN_CAMBIOS',
           cierra_como: vigente ? cierre.estado : null,
           detalle: vigente
@@ -357,13 +386,19 @@ export class PlantillaCierreImportacionService {
         continue;
       }
 
-      const problemaTope = this.validarContraMontoTotal(fila, vigente);
+      const problemaTope = this.validarContraMontoTotal(
+        fila,
+        montoEscrito,
+        vigente,
+      );
       if (problemaTope) {
         leida.errores.push({ hoja, fila: fila.fila, motivo: problemaTope });
         continue;
       }
 
-      cambios.push(this.planificarActualizacion(base, fila, vigente));
+      cambios.push(
+        this.planificarActualizacion(base, fila, montoEscrito, vigente),
+      );
     }
 
     return cambios;
@@ -400,12 +435,11 @@ export class PlantillaCierreImportacionService {
    */
   private validarContraMontoTotal(
     fila: DeudaLeida,
+    montoEscrito: number | null,
     vigente: { monto_total: unknown },
   ): string | null {
-    const total =
-      vigente.monto_total === null || vigente.monto_total === undefined
-        ? null
-        : Number(vigente.monto_total);
+    // Si la plantilla trae el monto corregido, la vara es ESE monto.
+    const total = montoEscrito ?? montoDe(vigente);
     if (total === null || fila.monto_confirmado <= total) return null;
     return `El saldo confirmado (${soles(fila.monto_confirmado)}) supera el monto total pactado (${soles(total)}). Corrige uno de los dos antes de importar.`;
   }
@@ -413,13 +447,21 @@ export class PlantillaCierreImportacionService {
   private planificarActualizacion(
     base: Omit<CambioDeuda, 'accion' | 'detalle' | 'cierra_como'>,
     fila: DeudaLeida,
-    vigente: { saldo: unknown; cuota_mensual: unknown },
+    montoEscrito: number | null,
+    vigente: { saldo: unknown; cuota_mensual: unknown; monto_total: unknown },
   ): CambioDeuda {
     const saldoActual =
       vigente.saldo === null || vigente.saldo === undefined
         ? null
         : Number(vigente.saldo);
     const cuotaActual = Number(vigente.cuota_mensual ?? 0);
+    const montoActual = montoDe(vigente);
+    // El monto otorgado solo viaja si la contadora escribio uno distinto.
+    const montoTotal =
+      montoEscrito !== null &&
+      (montoActual === null || !MISMO_IMPORTE(montoEscrito, montoActual))
+        ? montoEscrito
+        : null;
 
     const cambiaCuota =
       fila.tipo === 'PRESTAMO' &&
@@ -435,20 +477,25 @@ export class PlantillaCierreImportacionService {
       return {
         ...base,
         cuota,
+        monto_total: montoTotal,
         accion: 'ACTUALIZAR',
         cierra_como: null,
         detalle:
           `Hoy es un descuento recurrente SIN saldo: la cuota de ${soles(cuotaActual)} sale cada mes indefinidamente. ` +
           `Se le define un saldo de ${soles(fila.monto_confirmado)}, y el préstamo se cerrará solo al llegar a cero.` +
+          (montoTotal !== null
+            ? ` Se registra el monto otorgado: ${soles(montoTotal)}.`
+            : '') +
           (cambiaCuota ? ` La cuota pasa a ${soles(fila.cuota ?? 0)}.` : ''),
       };
     }
 
     const cambiaSaldo = !MISMO_IMPORTE(saldoActual, fila.monto_confirmado);
-    if (!cambiaSaldo && !cambiaCuota) {
+    if (!cambiaSaldo && !cambiaCuota && montoTotal === null) {
       return {
         ...base,
         cuota,
+        monto_total: null,
         accion: 'SIN_CAMBIOS',
         cierra_como: null,
         detalle: 'El saldo confirmado coincide con el del sistema.',
@@ -464,9 +511,17 @@ export class PlantillaCierreImportacionService {
     if (cambiaCuota) {
       partes.push(`cuota ${soles(cuotaActual)} → ${soles(fila.cuota ?? 0)}`);
     }
+    if (montoTotal !== null) {
+      partes.push(
+        montoActual === null
+          ? `monto otorgado ${soles(montoTotal)}`
+          : `monto otorgado ${soles(montoActual)} → ${soles(montoTotal)}`,
+      );
+    }
     return {
       ...base,
       cuota,
+      monto_total: montoTotal,
       accion: 'ACTUALIZAR',
       cierra_como: null,
       detalle: partes.join(', '),
