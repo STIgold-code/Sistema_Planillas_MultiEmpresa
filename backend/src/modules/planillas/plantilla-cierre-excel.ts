@@ -138,8 +138,10 @@ function prepararCeldas(
       cell.border = borde();
       cell.font = { size: 10 };
       if (c.formato) cell.numFmt = c.formato;
-      if (c.rol === 'llenar' && cell.value === null)
-        cell.fill = relleno(COLOR.llenar);
+      // El color dice quién es dueño de la celda, no si está vacía: una
+      // columna editable va en ámbar aunque venga prellenada, porque el punto
+      // es justamente que se pueda corregir lo que trae.
+      if (c.rol === 'llenar') cell.fill = relleno(COLOR.llenar);
       if (c.rol === 'sistema') cell.fill = relleno(COLOR.sistema);
 
       if (c.opciones) {
